@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35327.3
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DroneSim", "DroneSim\DroneSim.vcxproj", "{EA2EE061-58F1-4FB4-A4CF-652E229D4FEC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DrosimEditor", "DrosimEditor\DrosimEditor.csproj", "{13368555-EA07-4E6C-AC3B-B6F39BF50CC0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EA2EE061-58F1-4FB4-A4CF-652E229D4FEC}.Debug|x64.ActiveCfg = Debug|x64
+		{EA2EE061-58F1-4FB4-A4CF-652E229D4FEC}.Debug|x64.Build.0 = Debug|x64
+		{EA2EE061-58F1-4FB4-A4CF-652E229D4FEC}.Release|x64.ActiveCfg = Release|x64
+		{EA2EE061-58F1-4FB4-A4CF-652E229D4FEC}.Release|x64.Build.0 = Release|x64
+		{13368555-EA07-4E6C-AC3B-B6F39BF50CC0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{13368555-EA07-4E6C-AC3B-B6F39BF50CC0}.Debug|x64.Build.0 = Debug|Any CPU
+		{13368555-EA07-4E6C-AC3B-B6F39BF50CC0}.Release|x64.ActiveCfg = Release|Any CPU
+		{13368555-EA07-4E6C-AC3B-B6F39BF50CC0}.Release|x64.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4AEC274B-DA3B-4343-9F17-9EA44D68C78D}
+	EndGlobalSection
+EndGlobal
