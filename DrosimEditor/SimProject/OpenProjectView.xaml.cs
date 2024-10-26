@@ -23,6 +23,12 @@ namespace DrosimEditor.SimProject
         public OpenProjectView()
         {
             InitializeComponent();
+
+            Loaded += (s, e) =>
+            {
+                var item = projectListBox.ItemContainerGenerator.ContainerFromIndex(projectListBox.SelectedIndex) as ListBoxItem;
+                item?.Focus();
+            };
         }
 
         private void OnOpenButtonClick(object sender, RoutedEventArgs e)
