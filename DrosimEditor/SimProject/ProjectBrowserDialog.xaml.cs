@@ -22,6 +22,17 @@ namespace DrosimEditor.SimProject
         public ProjectBrowserDialog()
         {
             InitializeComponent();
+            Loaded += OnProjectBrowserDialogLoaded;
+        }
+        private void OnProjectBrowserDialogLoaded(Object sender, RoutedEventArgs e)
+        {
+            Loaded -= OnProjectBrowserDialogLoaded;
+            if (!OpenProject.Projects.Any())
+            {
+                openProjectButton.IsEnabled = false;
+                openProjectView.Visibility = Visibility.Hidden;
+                OnToggleButtonClick(newProjectButton, new RoutedEventArgs());
+            }
         }
 
         private void OnToggleButtonClick(Object sender, RoutedEventArgs e)

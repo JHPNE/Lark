@@ -153,6 +153,8 @@ namespace DrosimEditor.SimProject
             catch(Exception ex)
             {
                 Debug.WriteLine(ex.Message);
+                Logger.Log(MessageType.Error, $"Failed to read project templates");
+                throw;
             }
         }
 
@@ -189,7 +191,8 @@ namespace DrosimEditor.SimProject
             catch(Exception ex)
             {
                 Debug.WriteLine(ex.Message);
-                return string.Empty;
+                Logger.Log(MessageType.Error, $"Failed to create {template.pType} at {path}");
+                throw;
             }
         }
     }

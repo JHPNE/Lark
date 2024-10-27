@@ -1,5 +1,6 @@
 ﻿using DrosimEditor.Components;
 using DrosimEditor.SimProject;
+using DrosimEditor.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -38,9 +39,30 @@ namespace DrosimEditor.Editors
 
         private void OnGameEntitiesListBoxSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var entity = (sender as ListBox).SelectedItems[0];
-            Debug.Assert(entity != null);
-            GameEntityView.Instance.DataContext = entity;
+            GameEntityView.Instance.DataContext = null;
+            if (e.AddedItems.Count > 0)
+            {
+                GameEntityView.Instance.DataContext = (sender as ListBox).SelectedItems[0];
+            }
+
+            var listBox = sender as ListBox;
+            var newSelection = listBox.SelectedItems.Cast<GameEntity>().ToList();
+            var previousSelection = newSelection.Except(e.AddedItems.Cast<GameEntity>()).Concat(e.RemovedItems.Cast<GameEntity>()).ToList();
+
+            Project.UndoRedo.Add(new UndoRedoAction(
+                () => 
+                { 
+                    listBox.UnselectAll();
+                    previousSelection.ForEach(x => (listBox.ItemContainerGenerator.ContainerFromItem(x) as ListBoxItem).IsSelected = true);
+                },
+                () =>
+                {
+                    listBox.UnselectAll();
+                    newSelection.ForEach(x => (listBox.ItemContainerGenerator.ContainerFromItem(x) as ListBoxItem).IsSelected = true);
+                },
+                "Selection changed"
+                ));
+
         }
     }
 }

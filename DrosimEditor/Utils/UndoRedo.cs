@@ -38,6 +38,15 @@ namespace DrosimEditor.Utils
             _redoAction = redo;
 
         }
+
+        public UndoRedoAction(string property, object instance, object undoValue, object redoValue, string name):
+            this(
+                () => instance.GetType().GetProperty(property).SetValue(instance, undoValue),
+                () => instance.GetType().GetProperty(property).SetValue(instance, redoValue),
+                name)
+        {
+
+        }
     }
 
     public class UndoRedo
@@ -46,6 +55,9 @@ namespace DrosimEditor.Utils
         private readonly ObservableCollection<IUndoRedo> _redoList = new ObservableCollection<IUndoRedo>();
         public ReadOnlyObservableCollection<IUndoRedo> RedoList { get; }
         public ReadOnlyObservableCollection<IUndoRedo> UndoList { get; }
+
+        private bool _enabledAdd = true;
+
 
 
         public UndoRedo()
@@ -67,7 +79,9 @@ namespace DrosimEditor.Utils
             {
                 var last = _undoList.Last();
                 _undoList.RemoveAt(_undoList.Count - 1);
+                _enabledAdd = false;
                 last.Undo();
+                _enabledAdd = true;
                 _redoList.Insert(0, last);
             }
         }
@@ -78,15 +92,20 @@ namespace DrosimEditor.Utils
             {
                 var last = _redoList.First();
                 _redoList.RemoveAt(0);
+                _enabledAdd = false;
                 last.Redo();
+                _enabledAdd = true;
                 _undoList.Add(last);
             }
         }
 
         public void Add(IUndoRedo undoRedo)
         {
-            _undoList.Add(undoRedo);
-            _redoList.Clear();
+            if (_enabledAdd)
+            {
+                _undoList.Add(undoRedo);
+                _redoList.Clear();
+            }
         }
     }
 }
