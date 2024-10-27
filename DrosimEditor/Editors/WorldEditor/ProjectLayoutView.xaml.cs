@@ -1,6 +1,8 @@
-﻿using DrosimEditor.SimProject;
+﻿using DrosimEditor.Components;
+using DrosimEditor.SimProject;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +26,21 @@ namespace DrosimEditor.Editors
         public ProjectLayoutView()
         {
             InitializeComponent();
+        }
+
+        private void OnAddGameEntityButtonClick(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var vm = btn.DataContext as Scene;
+            vm.AddGameEntityCommand.Execute(new GameEntity(vm) { Name = "Empty Game Entity" });
+
+        }
+
+        private void OnGameEntitiesListBoxSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var entity = (sender as ListBox).SelectedItems[0];
+            Debug.Assert(entity != null);
+            GameEntityView.Instance.DataContext = entity;
         }
     }
 }
