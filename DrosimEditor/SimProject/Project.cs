@@ -14,7 +14,7 @@ using System.Windows.Input;
 namespace DrosimEditor.SimProject
 {
     [DataContract(Name = "Game")]
-    public class Project : ViewModelBase
+    class Project : ViewModelBase
     {
         public static string Extension { get; } = ".drosim";
         [DataMember]

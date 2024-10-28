@@ -23,6 +23,29 @@ namespace DrosimEditor.Utils
         public LoggerView()
         {
             InitializeComponent();
+            Loaded += (s, e) =>
+            {
+                Logger.Log(MessageType.Info, "LoggerView initialized");
+                Logger.Log(MessageType.Warn, "LoggerView initialized");
+                Logger.Log(MessageType.Error, "LoggerView initialized");
+
+            };
+        }
+
+        private void OnClearButtonClick(object sender, RoutedEventArgs e)
+        {
+            Logger.Clear();
+
+        }
+
+        private void OnMessageFilterButtonClick(object sender, RoutedEventArgs e)
+        {
+            var filter = 0x0;
+            if (toggleInfo.IsChecked == true) filter |= (int)MessageType.Info;
+            if (toggleWarn.IsChecked == true) filter |= (int)MessageType.Warn;
+            if (toggleError.IsChecked == true) filter |= (int)MessageType.Error;
+
+            Logger.SetMessageFilter(filter);
         }
     }
 }
