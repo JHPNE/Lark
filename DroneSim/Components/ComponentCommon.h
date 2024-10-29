@@ -1,7 +1,5 @@
 #pragma once
 #include "CommonHeaders.h"
 #include "Id.h"
+#include "..\DroneSimAPI\GameEntity.h"
 
-namespace drosim::game_entity {
-    DEFINE_TYPED_ID(entity_id);
-}

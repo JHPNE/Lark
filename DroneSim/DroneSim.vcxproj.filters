@@ -7,8 +7,13 @@
     <ClInclude Include="Components\Entity.h" />
     <ClInclude Include="Components\ComponentCommon.h" />
     <ClInclude Include="Components\Transform.h" />
+    <ClInclude Include="Utils\Util.h" />
+    <ClInclude Include="DroneSimAPI\GameEntity.h" />
+    <ClInclude Include="DroneSimAPI\TransformComponent.h" />
+    <ClInclude Include="Utils\MathTypes.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\Entity.cpp" />
+    <ClCompile Include="Components\Transform.cpp" />
   </ItemGroup>
 </Project>

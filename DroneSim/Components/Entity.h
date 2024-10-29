@@ -14,9 +14,9 @@ namespace drosim {
 			transform::init_info* transform{ nullptr };
 		};
 
-		u32 create_game_entity(const entityInfo& info);
-		void remove_game_entity(entity_id id);
-		bool is_alive(entity_id id);
+		entity create_game_entity(const entityInfo& info);
+		void remove_game_entity(entity id);
+		bool is_alive(entity id);
 	}
 
 }
