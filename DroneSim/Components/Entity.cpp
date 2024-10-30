@@ -10,7 +10,7 @@ namespace drosim::game_entity {
 		util::deque<entity_id> free_ids;
 	}
 
-	entity create_game_entity(const entityInfo& info) {
+	entity create_game_entity(const entity_info& info) {
 		assert(info.transform); // transform is required
 		if (!info.transform) return entity();
 

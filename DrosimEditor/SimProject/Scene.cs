@@ -73,6 +73,10 @@ namespace DrosimEditor.SimProject
                 OnPropertyChanged(nameof(GameEntities));
             }
 
+            foreach (var entity in _gameEntities)
+            {
+                entity.IsActive = IsActive;
+            }
 
             AddGameEntityCommand = new RelayCommands<GameEntity>(x =>
             {
@@ -81,7 +85,7 @@ namespace DrosimEditor.SimProject
 
                 Project.UndoRedo.Add(new UndoRedoAction(
                     () => RemoveGameEntity(x),
-                    () => _gameEntities.Insert(entityIndex, x),
+                    () => AddGameEntity(x, entityIndex),
                     $"Add {x.Name} to {Name}"));
             });
 
@@ -91,23 +95,32 @@ namespace DrosimEditor.SimProject
                 RemoveGameEntity(x);
 
                 Project.UndoRedo.Add(new UndoRedoAction(
-                    () => _gameEntities.Insert(entityIndex, x),
+                    () => AddGameEntity(x, entityIndex),
                     () => RemoveGameEntity(x),
                     $"Remove {x.Name} from {Name}"));
             });
 
         }
 
-        private void AddGameEntity(GameEntity gameEntity)
+        private void AddGameEntity(GameEntity gameEntity, int index = -1)
         {
             Debug.Assert(!_gameEntities.Contains(gameEntity));
-            _gameEntities.Add(gameEntity);
+            gameEntity.IsActive = IsActive;
+            if (index == -1)
+            {
+                _gameEntities.Add(gameEntity);
+            }
+            else
+            {
+                _gameEntities.Insert(index, gameEntity);
+            }
 
         }
 
         private void RemoveGameEntity(GameEntity gameEntity) 
         {
             Debug.Assert(_gameEntities.Contains(gameEntity));
+            gameEntity.IsActive = false;
             _gameEntities.Remove(gameEntity);
         }
     }

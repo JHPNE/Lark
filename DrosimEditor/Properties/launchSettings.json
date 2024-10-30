@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DrosimEditor": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
