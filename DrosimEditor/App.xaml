@@ -6,6 +6,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/Dictionary/EditorColors.xaml"/>
                 <ResourceDictionary Source="pack://application:,,,/Dictionary/ControlTemplates.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary> 

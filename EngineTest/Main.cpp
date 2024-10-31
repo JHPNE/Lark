@@ -1,4 +1,4 @@
-#pragma comment(lib, "engine.lib")
+#pragma comment(lib, "dronesim.lib")
 
 #define TEST_ENTITY_COMPONENTS 1
 

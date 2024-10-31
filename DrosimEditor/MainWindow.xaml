@@ -6,7 +6,8 @@
         xmlns:local="clr-namespace:DrosimEditor"
         xmlns:editors="clr-namespace:DrosimEditor.Editors"
         mc:Ignorable="d" WindowStartupLocation="CenterScreen"
-        Title="Drosim" Height="1080" Width="1920">
+        Title="Drosim" Height="1080" Width="1920"
+        Style="{StaticResource DroneSimWindowStyle}">
     <Grid>
         <editors:WorldEditorView />
     </Grid>

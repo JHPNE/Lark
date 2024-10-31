@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:DrosimEditor.Editors"
              xmlns:util="clr-namespace:DrosimEditor.Utils"
              mc:Ignorable="d" Focusable="True" 
-             d:DesignHeight="450" d:DesignWidth="800" Background="AliceBlue">
+             d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.InputBindings>
         <KeyBinding Command="{Binding UndoCommand}" Key="Z" Modifiers="Ctrl" />
         <KeyBinding Command="{Binding RedoCommand}" Key="Y" Modifiers="Ctrl" />
