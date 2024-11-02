@@ -49,11 +49,12 @@ namespace DrosimEditor.Components
                         Debug.Assert(ID.IsValid(EntityId));
 
                     }
-                    else
+                    else if (ID.IsValid(EntityId))
                     {
                         EngineAPI.RemoveGameEntity(this);
-
+                        EntityId = ID.INVALID_ID;
                     }
+                    
                     OnPropertyChanged(nameof(IsActive));
                 }
             }
@@ -163,6 +164,11 @@ namespace DrosimEditor.Components
         private readonly ObservableCollection<IMSComponent> _components = new ObservableCollection<IMSComponent>();
         public ReadOnlyCollection<IMSComponent> Components { get; }
 
+        public T GetMSComponent<T>() where T : IMSComponent 
+        { 
+            return (T) Components.FirstOrDefault(x => x.GetType() == typeof(T));
+        }
+
         public List<GameEntity> SelectedEntities { get; }
 
         public MSEntity(List<GameEntity> entities)
@@ -186,7 +192,28 @@ namespace DrosimEditor.Components
         {
             _enableUpdates = false;
             UpdateMSGameEntity();
+            MakeComponentList();
             _enableUpdates = true;
+        }
+
+        private void MakeComponentList()
+        {
+            _components.Clear();
+            var firstEntity = SelectedEntities.FirstOrDefault();
+            if (firstEntity == null)
+            {
+                return;
+            }
+
+            foreach (var component in firstEntity.Components)
+            {
+                var type = component.GetType();
+                if (!SelectedEntities.Skip(1).Any(x => x.GetComponent(type) == null))
+                {
+                    Debug.Assert(Components.FirstOrDefault(x => x.GetType() == type) == null);
+                    _components.Add(component.GetMultiselectionComponent(this));
+                }
+            }
         }
 
         protected virtual bool UpdateMSGameEntity()
@@ -197,45 +224,21 @@ namespace DrosimEditor.Components
             return true;
         }
 
-        public static float? GetMixedValue(List<GameEntity> entities, Func<GameEntity, float> selector)
+        public static float? GetMixedValue<T>(List<T> objects, Func<T, float> selector)
         {
-            var value = selector(entities.First());
-            foreach (var entity in entities.Skip(1))
-            {
-                if (!value.IsTheSameAs(selector(entity)))
-                {
-                    return null;
-                }
-            }
-            return value;
-
+            var value = selector(objects.First());
+            return objects.Skip(1).Any(x => !selector(x).IsTheSameAs(value)) ? (float?)null : value;
         }
-        public static bool? GetMixedValue(List<GameEntity> entities, Func<GameEntity, bool> selector)
+        public static bool? GetMixedValue<T>(List<T> entities, Func<T, bool> selector)
         {
             var value = selector(entities.First());
-            foreach (var entity in entities.Skip(1))
-            {
-                if (value != selector(entity))
-                {
-                    return null;
-                }
-            }
-            return value;
-
+            return entities.Skip(1).Any(x => selector(x) != value) ? (bool?)null : value;
         }
 
-        public static string GetMixedValue(List<GameEntity> entities, Func<GameEntity, string> selector)
+        public static string GetMixedValue<T>(List<T> entities, Func<T, string> selector)
         {
             var value = selector(entities.First());
-            foreach (var entity in entities.Skip(1))
-            {
-                if (value != selector(entity))
-                {
-                    return null;
-                }
-            }
-            return value;
-
+            return entities.Skip(1).Any(x => selector(x) != value) ? null : value;
         }
     }
 

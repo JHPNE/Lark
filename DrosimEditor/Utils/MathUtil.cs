@@ -16,6 +16,7 @@ namespace DrosimEditor.Utils
         }
         public static bool IsTheSameAs(this float? value, float? other)
         {
+            if (value == null || other == null) return false;
             if (!value.HasValue && !other.HasValue) return false;
             return Math.Abs(value.Value - other.Value) < Epsilon;
         }

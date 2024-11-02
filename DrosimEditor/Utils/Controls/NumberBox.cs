@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -65,14 +66,14 @@ namespace DrosimEditor.Utils.Controls
                 var d = mouseX - _mouseXStart;
                 if (Math.Abs(d) > SystemParameters.MinimumHorizontalDragDistance)
                 {
-                    if (double.TryParse(Value, out var currentValue))
+                    if (double.TryParse(Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var currentValue))
                     {
-                        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) _multiplier = 0.001;
-                        else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) _multiplier = 0.1;
+                        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) _multiplier = 0.0001;
+                        else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) _multiplier = 0.01;
                         else _multiplier = 0.01;
 
                         var newValue = _originalValue + (d * _multiplier * Multiplier);
-                        Value = newValue.ToString("0.#####");
+                        Value = newValue.ToString("0.#####", CultureInfo.InvariantCulture);
                         _valueChanged = true;
                     }
                 }
@@ -97,7 +98,7 @@ namespace DrosimEditor.Utils.Controls
 
         private void OnTextBlock_Mouse_LBD(object sender, MouseButtonEventArgs e)
         {
-            if (double.TryParse(Value, out _originalValue))
+            if (double.TryParse(Value, NumberStyles.Float, CultureInfo.InvariantCulture, out _originalValue))
             {
                 Mouse.Capture(sender as UIElement);
                 _captured = true;
@@ -106,6 +107,7 @@ namespace DrosimEditor.Utils.Controls
 
                 _multiplier = 0.01;
                 _mouseXStart = e.GetPosition(this).X;
+                Focus();
             }
         }
 

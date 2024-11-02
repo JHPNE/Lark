@@ -39,7 +39,7 @@
                     <StackPanel VerticalAlignment="Center">
                         
                         <clrs:NumberBox VerticalAlignment="Center" Value="0" Multiplier="1"/>
-                        <clrs:ScalarBox Value="10" Multiplier="10" />
+                        <clrs:ScalarBox Value="10" Multiplier="1" />
                         <clrs:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector3" />
 
                         <clrs:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector3" Orientation="Vertical"/>
