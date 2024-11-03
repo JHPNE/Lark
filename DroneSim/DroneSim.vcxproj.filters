@@ -11,9 +11,13 @@
     <ClInclude Include="DroneSimAPI\GameEntity.h" />
     <ClInclude Include="DroneSimAPI\TransformComponent.h" />
     <ClInclude Include="Utils\MathTypes.h" />
+    <ClInclude Include="DroneSimAPI\ScriptComponent.h" />
+    <ClInclude Include="Components\Script.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\Entity.cpp" />
     <ClCompile Include="Components\Transform.cpp" />
+    <ClCompile Include="Components\Script.cpp" />
+    <ClCompile Include="Core\Main.cpp" />
   </ItemGroup>
 </Project>

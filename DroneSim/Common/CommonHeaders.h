@@ -4,7 +4,10 @@
 // C/C++
 #include <stdint.h>
 #include <assert.h>
+#include <string>
 #include <typeinfo>
+#include <memory>
+#include <unordered_map>
 
 // Primitive Types
 #include "PrimitiveTypes.h"

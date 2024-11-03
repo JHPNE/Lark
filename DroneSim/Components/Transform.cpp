@@ -11,7 +11,7 @@ namespace drosim::transform {
 
 	}
 
-	component create_transform(const init_info& info, game_entity::entity entity) {
+	component create(init_info info, game_entity::entity entity) {
 		assert(entity.is_valid());
 		const id::id_type entity_index{ id::index(entity.get_id()) };
 
@@ -31,7 +31,7 @@ namespace drosim::transform {
 
 	};
 
-	void remove_transform(component t) {
+	void remove(component t) {
 		assert(t.is_valid());
 	};
 
