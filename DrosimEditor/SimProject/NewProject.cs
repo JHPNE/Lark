@@ -20,6 +20,7 @@ namespace DrosimEditor.SimProject
         public string IconFilePath {  get; set; }
         public string ScreenshotFilePath {  get; set; }
         public string ProjectFilePath {  get; set; }
+        public string TemplatePath { get; set; }
     }
 
     class NewProject : ViewModelBase 
@@ -145,6 +146,7 @@ namespace DrosimEditor.SimProject
                     template.ScreenshotFilePath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(file), "Screenshot.png"));
                     template.Screenshot = File.ReadAllBytes(template.ScreenshotFilePath);
                     template.ProjectFilePath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(file), template.pFile));
+                    template.TemplatePath = Path.GetDirectoryName(file);
 
                     _projectTemplates.Add(template);
                 }
@@ -186,6 +188,8 @@ namespace DrosimEditor.SimProject
                 var projectPath = Path.GetFullPath(Path.Combine(path, $"{ProjectName}{Project.Extension}"));
                 File.WriteAllText(projectPath, projectXml);
 
+                CreateMSVCSolution(template, path);
+
                 return path;
             }
             catch(Exception ex)
@@ -194,6 +198,36 @@ namespace DrosimEditor.SimProject
                 Logger.Log(MessageType.Error, $"Failed to create {template.pType} at {path}");
                 throw;
             }
+        }
+
+        private void CreateMSVCSolution(ProjectTemplate template, string path)
+        {
+            Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCSolution")));
+            Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCProject")));
+
+            var engineAPIPath = Path.Combine(MainWindow.DroneSimPath, @"DroneSim\DroneSimAPI\");
+            Debug.Assert(Directory.Exists(engineAPIPath));
+
+            // Placeholder ProjectName for Template
+            var _0 = ProjectName;
+            // Placeholder GUID for Template
+            var _1 = "{" + Guid.NewGuid().ToString().ToUpper() + "}";
+            // Placeholder Solution GUID for Template
+            var _2 = "{" + Guid.NewGuid().ToString().ToUpper() + "}";
+
+            var solution = File.ReadAllText(Path.Combine(template.TemplatePath, "MSVCSolution"));
+            solution = string.Format(solution, _0, _1, _2);
+            File.WriteAllText(Path.GetFullPath(Path.Combine(path, $"{_0}.sln")), solution);
+
+            // Placeholder for EngineAPI Path
+            var _3 = engineAPIPath;
+
+            //Placeholder for Library Path
+            var _4 = MainWindow.DroneSimPath;
+
+            var project = File.ReadAllText(Path.Combine(template.TemplatePath, "MSVCProject"));
+            project = string.Format(project, _0, _1, _3, _4);
+            File.WriteAllText(Path.GetFullPath(Path.Combine(path, $@"SimCode\{_0}.vcxproj")), project);
         }
     }
 }

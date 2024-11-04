@@ -1,5 +1,6 @@
 ﻿using DrosimEditor.SimProject;
 using System.ComponentModel;
+using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,7 +10,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace DrosimEditor
 {
@@ -25,6 +25,8 @@ namespace DrosimEditor
             Closing += OnMainWindowClosing; ;
         }
 
+        public static string DroneSimPath { get; private set; } = @"C:\Users\yeeezy\source\repos\Drosim\";
+
         private void OnMainWindowClosing(object? sender, CancelEventArgs e)
         {
             Closing -= OnMainWindowClosing;
@@ -34,7 +36,30 @@ namespace DrosimEditor
         private void OnMainWindowLoaded(object sender, RoutedEventArgs e)
         {
             Loaded -= OnMainWindowLoaded;
+            GetEnginePath();
             OpenProjectBrowserDialog();
+        }
+
+        private void GetEnginePath()
+        {
+            var enginePath = Environment.GetEnvironmentVariable("DRONESIM_ENGINE", EnvironmentVariableTarget.User);
+            if (enginePath == null || !Directory.Exists(Path.Combine(enginePath, @"DroneSim\DroneSimAPI")))
+            {
+                var dlg = new EnginePathDialog();
+                if (dlg.ShowDialog() == true)
+                {
+                    enginePath = dlg.EnginePath;
+                    Environment.SetEnvironmentVariable("DRONESIM_ENGINE", enginePath.ToUpper(), EnvironmentVariableTarget.User);
+                }
+                else
+                {
+                    Application.Current.Shutdown();
+                }
+            }
+            else
+            {
+                DroneSimPath = enginePath;
+            }
         }
 
         private void OpenProjectBrowserDialog()

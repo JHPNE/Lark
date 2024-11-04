@@ -16,6 +16,8 @@
     <ClInclude Include="Common\PrimitiveTypes.h" />
     <ClInclude Include="Components\ComponentCommon.h" />
     <ClInclude Include="Components\Entity.h" />
+    <ClInclude Include="Components\Model.h" />
+    <ClInclude Include="Components\ModelParser.h" />
     <ClInclude Include="Components\Script.h" />
     <ClInclude Include="Components\Transform.h" />
     <ClInclude Include="DroneSimAPI\GameEntity.h" />
@@ -26,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\Entity.cpp" />
+    <ClCompile Include="Components\ModelParser.cpp" />
     <ClCompile Include="Components\Script.cpp" />
     <ClCompile Include="Components\Transform.cpp" />
     <ClCompile Include="Core\Main.cpp" />
@@ -77,7 +80,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <CallingConvention>FastCall</CallingConvention>
+      <CallingConvention>Cdecl</CallingConvention>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <AdditionalIncludeDirectories>$(ProjectDir)Common</AdditionalIncludeDirectories>
     </ClCompile>
@@ -106,7 +109,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <CallingConvention>FastCall</CallingConvention>
+      <CallingConvention>Cdecl</CallingConvention>
       <AdditionalIncludeDirectories>$(ProjectDir)Common</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
