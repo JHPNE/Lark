@@ -24,6 +24,7 @@
         <StackPanel Orientation="Horizontal">
             <Button Content="Undo" Command="{Binding UndoCommand}"/>
             <Button Content="Redo" Command="{Binding RedoCommand}" Margin="5,0"/>
+            <Button Content="Add Script" Click="onAddScript_Button_Click" Margin="5,0"/>
         </StackPanel>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
@@ -37,11 +38,6 @@
                 </Grid.RowDefinitions >
                 <Border Background="{StaticResource Editor.Window.AshGrayBrush}">
                     <StackPanel VerticalAlignment="Center">
-                        
-                        <clrs:NumberBox VerticalAlignment="Center" Value="0" Multiplier="1"/>
-                        <clrs:ScalarBox Value="10" Multiplier="1" />
-                        <clrs:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector3" />
-
                         <clrs:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector3" Orientation="Vertical"/>
                     </StackPanel>
                 </Border>

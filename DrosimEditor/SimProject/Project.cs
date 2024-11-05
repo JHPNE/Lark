@@ -1,4 +1,5 @@
-﻿using DrosimEditor.Utils;
+﻿using DrosimEditor.SimDev;
+using DrosimEditor.Utils;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -23,7 +24,8 @@ namespace DrosimEditor.SimProject
         [DataMember]
         public string Path { get; private set; }
 
-        public string FullPath => $@"{Path}{Name}\{Name}{Extension}";
+        public string FullPath => $@"{Path}{Name}{Extension}";
+        public string Solution => $@"{Path}{Name}.sln"; 
 
         [DataMember(Name = "Scenes")]
         private ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
@@ -61,6 +63,7 @@ namespace DrosimEditor.SimProject
 
         public void Unload()
         {
+            VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
         }
 

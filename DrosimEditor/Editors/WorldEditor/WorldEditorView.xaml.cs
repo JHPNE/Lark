@@ -1,4 +1,5 @@
 ﻿using DrosimEditor.SimProject;
+using DrosimEditor.SimDev;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -32,6 +33,11 @@ namespace DrosimEditor.Editors
         {
             Loaded -= OnWorldEditorViewLoaded;
             Focus();
+        }
+
+        private void onAddScript_Button_Click(object sender, RoutedEventArgs e)
+        {
+            new NewScriptDialog().ShowDialog();
         }
     }
 }
