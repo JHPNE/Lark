@@ -54,7 +54,7 @@ namespace DrosimEditor.Editors
         private Action GetRotationAction() => GetAction((x) => (x, x.Rotation), (x) => x.transform.Rotation = x.Item2);
         private Action GetScaleAction() => GetAction((x) => (x, x.Scale), (x) => x.transform.Scale= x.Item2);
 
-        private void RecordAction(Action redoAction, string name)
+        private void RecordActions(Action redoAction, string name)
         {
             if (_propertyChanged)
             {
@@ -72,7 +72,7 @@ namespace DrosimEditor.Editors
 
         private void OnPositionVectorBox_Mouse_LBU(object sender, MouseButtonEventArgs e)
         {
-            RecordAction(GetPositionAction(), "Position Change");
+            RecordActions(GetPositionAction(), "Position Change");
         }
 
         private void OnRotationVectorBox_Mouse_LBD(object sender, MouseButtonEventArgs e)
@@ -83,7 +83,7 @@ namespace DrosimEditor.Editors
 
         private void OnRotationVectorBox_Mouse_LBU(object sender, MouseButtonEventArgs e)
         {
-            RecordAction(GetRotationAction(), "Rotation Change");
+            RecordActions(GetRotationAction(), "Rotation Change");
         }
 
         private void OnScaleVectorBox_Mouse_LBD(object sender, MouseButtonEventArgs e)
@@ -94,7 +94,7 @@ namespace DrosimEditor.Editors
 
         private void OnScaleVectorBox_Mouse_LBU(object sender, MouseButtonEventArgs e)
         {
-            RecordAction(GetScaleAction(), "Scale Change");
+            RecordActions(GetScaleAction(), "Scale Change");
         }
 
         private void OnPositionVectorBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)

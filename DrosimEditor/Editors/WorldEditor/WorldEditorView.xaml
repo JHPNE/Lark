@@ -6,15 +6,18 @@
              xmlns:local="clr-namespace:DrosimEditor.Editors"
              xmlns:util="clr-namespace:DrosimEditor.Utils"
              xmlns:clrs="clr-namespace:DrosimEditor.Utils.Controls"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" Focusable="True" 
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
-        
+        <sys:Boolean x:Key="True">True</sys:Boolean>
+        <sys:Boolean x:Key="False">False</sys:Boolean>
     </UserControl.Resources>
     <UserControl.InputBindings>
         <KeyBinding Command="{Binding UndoCommand}" Key="Z" Modifiers="Ctrl" />
-        <KeyBinding Command="{Binding RedoCommand}" Key="Y" Modifiers="Ctrl" />
+        <KeyBinding Command="{Binding RedoCommand}" Key="Z" Modifiers="Ctrl+Shift" />
         <KeyBinding Command="{Binding SaveCommand}" Key="S" Modifiers="Ctrl" />
+        <KeyBinding Command="{Binding BuildCommand}" Key="F7" />
     </UserControl.InputBindings>
     <Grid>
         <Grid.RowDefinitions >
@@ -24,7 +27,15 @@
         <StackPanel Orientation="Horizontal">
             <Button Content="Undo" Command="{Binding UndoCommand}"/>
             <Button Content="Redo" Command="{Binding RedoCommand}" Margin="5,0"/>
-            <Button Content="Add Script" Click="onAddScript_Button_Click" Margin="5,0"/>
+            <Button Content="Add Script" Click="onAddScript_Button_Click" Margin="5,0"
+                    IsEnabled="{Binding Path=IsEnabled, ElementName=buildButton}"/>
+            <Button Content="Build" x:Name="buildButton" Margin="5,0"
+                    Command="{Binding BuildCommand}" CommandParameter="{StaticResource True}"/>
+            <ComboBox x:Name="runConfig" VerticalAlignment="Center" Margin="10,0"
+                      Width="72" SelectedIndex="{Binding BuildConfig}">
+                <ComboBoxItem Content="Debug" />
+                <ComboBoxItem Content="Release" />
+            </ComboBox>
         </StackPanel>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
@@ -43,16 +54,17 @@
                 </Border>
                 <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" 
                               VerticalAlignment="Top" Background="{StaticResource Editor.Window.AshGrayBrush}"/>
-                <TabControl Grid.Row="1" Background="{StaticResource Editor.Window.CreamBrush}"
-                            Margin="0,5,0,0">
-                    <TabItem Header="History">
-                        <util:UndoRedoView DataContext="{Binding UndoRedo}" Grid.Row="1"/>
-                    </TabItem>
-                    <TabItem Header="Log">
-                        <util:LoggerView />
-                    </TabItem>
-                    
-                </TabControl>
+                <Grid Grid.Row="1" Margin="0,5,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <util:UndoRedoView DataContext="{Binding UndoRedo}" Grid.Column="0" 
+                                       Background="{StaticResource Editor.Window.CreamBrush}"/>
+                    <GridSplitter  Grid.Column="1" Width="5" VerticalAlignment="Stretch"
+                                   HorizontalAlignment="Left" Background="{StaticResource Editor.Window.AshGrayBrush}"/>
+                    <util:LoggerView Grid.Column="1" Margin="5,0,0,0"/>
+                </Grid>
             </Grid>
             <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Left" 
                           VerticalAlignment="Stretch" Background="{StaticResource Editor.Window.AshGrayBrush}"/>

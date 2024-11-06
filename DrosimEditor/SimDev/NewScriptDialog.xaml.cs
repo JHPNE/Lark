@@ -64,7 +64,7 @@ private:
             return projectName;
         }
 
-        bool Validate()
+        private bool Validate()
         {
             bool isValid = false;
             var name = scriptName.Text.Trim();

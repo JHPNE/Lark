@@ -1,4 +1,5 @@
-﻿using DrosimEditor.SimDev;
+﻿using DrosimEditor.DllWrapper;
+using DrosimEditor.SimDev;
 using DrosimEditor.Utils;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,14 @@ using System.Windows.Input;
 
 namespace DrosimEditor.SimProject
 {
+    enum BuildConfiguration
+    {
+        Debug,
+        DebugEditor,
+        Release,
+        ReleaseEditor
+    }
+
     [DataContract(Name = "Game")]
     class Project : ViewModelBase
     {
@@ -26,6 +35,33 @@ namespace DrosimEditor.SimProject
 
         public string FullPath => $@"{Path}{Name}{Extension}";
         public string Solution => $@"{Path}{Name}.sln"; 
+        
+        private static readonly string[] _buildConfigurationNames = new string[] {
+            "Debug",
+            "DebugEditor",
+            "Release",
+            "ReleaseEditor"
+        };
+
+        private int _buildConfig;
+        [DataMember]
+        public int BuildConfig
+        {
+            get => _buildConfig;
+            set
+            {
+                if (_buildConfig != value)
+                {
+                    _buildConfig = value;
+                    OnPropertyChanged(nameof(BuildConfig));
+                }
+            }
+        }
+
+        public BuildConfiguration StandAloneBuildConfig => BuildConfig == 0 ? BuildConfiguration.Debug : BuildConfiguration.Release;
+
+        public BuildConfiguration DllBuildConfig => BuildConfig ==  0 ? BuildConfiguration.DebugEditor : BuildConfiguration.ReleaseEditor;
+
 
         [DataMember(Name = "Scenes")]
         private ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
@@ -45,13 +81,14 @@ namespace DrosimEditor.SimProject
             }
         }
         public static Project Current => Application.Current.MainWindow.DataContext as Project; 
-
+        public static UndoRedo UndoRedo { get; } = new UndoRedo();
         public ICommand UndoCommand {  get; private set; }
         public ICommand RedoCommand {  get; private set; }
         public ICommand AddSceneCommand {  get; private set; }
         public ICommand RemoveSceneCommand {  get; private set; }
         public ICommand SaveCommand {  get; private set; }
-        public static UndoRedo UndoRedo { get; } = new UndoRedo();
+        public ICommand BuildCommand { get; private set; }
+        private static string GetConfigurationName(BuildConfiguration config) => _buildConfigurationNames[(int)config];
 
         public Project(string name, string path) 
         {
@@ -61,34 +98,8 @@ namespace DrosimEditor.SimProject
             OnDeserialized(new StreamingContext());
         }
 
-        public void Unload()
+        private void SetCommands()
         {
-            VisualStudio.CloseVisualStudio();
-            UndoRedo.Reset();
-        }
-
-        public static Project Load(string file)
-        {
-            Debug.Assert(File.Exists(file));
-            return Serializer.FromFile<Project>(file);
-        }
-        public static void Save(Project project)
-        {
-            Serializer.ToFile(project, project.FullPath);
-            Logger.Log(MessageType.Info, $"Saved project to {project.FullPath}");
-        }
-
-        [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
-        {
-            if (_scenes != null)
-            {
-                Scenes = new ReadOnlyObservableCollection<Scene>(_scenes);
-                OnPropertyChanged(nameof(Scenes));
-            }
-
-            ActiveScene = Scenes.FirstOrDefault(x => x.IsActive);
-
             AddSceneCommand = new RelayCommands<object>(x =>
             {
                 AddScene($"New Scene {_scenes.Count}");
@@ -112,9 +123,93 @@ namespace DrosimEditor.SimProject
                     $"Remove {x.Name}"));
             }, x => !x.IsActive);
 
-            UndoCommand = new RelayCommands<object>(x => UndoRedo.Undo());
-            RedoCommand = new RelayCommands<object>(x => UndoRedo.Redo());
+            UndoCommand = new RelayCommands<object>(x => UndoRedo.Undo(), x => UndoRedo.UndoList.Any());
+            RedoCommand = new RelayCommands<object>(x => UndoRedo.Redo(), x => UndoRedo.RedoList.Any());
             SaveCommand = new RelayCommands<object>(x => Save(this));
+            // Replace this with Simulation
+            BuildCommand = new RelayCommands<bool>(async x => await BuildGameCodeDll(x), x => !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
+
+            OnPropertyChanged(nameof(AddSceneCommand));
+            OnPropertyChanged(nameof(RemoveSceneCommand));
+            OnPropertyChanged(nameof(UndoCommand));
+            OnPropertyChanged(nameof(RedoCommand));
+            OnPropertyChanged(nameof(SaveCommand));
+            OnPropertyChanged(nameof(BuildCommand));
+        }
+
+        public void Unload()
+        {
+            VisualStudio.CloseVisualStudio();
+            UndoRedo.Reset();
+        }
+
+        public static Project Load(string file)
+        {
+            Debug.Assert(File.Exists(file));
+            return Serializer.FromFile<Project>(file);
+        }
+        public static void Save(Project project)
+        {
+            Serializer.ToFile(project, project.FullPath);
+            Logger.Log(MessageType.Info, $"Saved project to {project.FullPath}");
+        }
+        
+        private async Task BuildGameCodeDll(bool showWindow = true)
+        {
+            try
+            {
+                UnloadGameCodeDll();
+                await Task.Run(() => VisualStudio.BuildSolution(this, GetConfigurationName(DllBuildConfig), showWindow));
+
+                if (VisualStudio.BuildSucceeded)
+                {
+                    LoadGameCodeDll();
+                }
+            }
+            catch (Exception ex)
+            { 
+                Debug.WriteLine(ex.Message);
+                Logger.Log(MessageType.Error, $"Failed to build game code dll");
+            }
+            
+        }
+
+        private void UnloadGameCodeDll()
+        {
+            var configName = GetConfigurationName(DllBuildConfig);
+            var dll = $@"{Path}x64\{configName}\{Name}.dll";
+            if (File.Exists(dll) && EngineAPI.LoadGameCodeDll(dll) != 0)
+            {
+                Logger.Log(MessageType.Info, "Game code DLL loaded succesfully");
+            }
+            else
+            {
+                Logger.Log(MessageType.Warn, "Failed to load game code DLL. Try to build the project first");
+            }
+        }
+
+        private void LoadGameCodeDll()
+        {
+            if(EngineAPI.UnloadGameCodeDll() != 0)
+            {
+                Logger.Log(MessageType.Info, "Game code DLL unloaded succesfully");
+            }
+        }
+
+        [OnDeserialized]
+        private async void OnDeserialized(StreamingContext context)
+        {
+            if (_scenes != null)
+            {
+                Scenes = new ReadOnlyObservableCollection<Scene>(_scenes);
+                OnPropertyChanged(nameof(Scenes));
+            }
+
+            ActiveScene = Scenes.FirstOrDefault(x => x.IsActive);
+
+            await BuildGameCodeDll(false);
+
+            SetCommands();
         }
 
         private void AddScene(string sceneName)

@@ -25,7 +25,7 @@ namespace DrosimEditor
             Closing += OnMainWindowClosing; ;
         }
 
-        public static string DroneSimPath { get; private set; } = @"C:\Users\yeeezy\source\repos\Drosim\";
+        public static string DroneSimPath { get; private set; }
 
         private void OnMainWindowClosing(object? sender, CancelEventArgs e)
         {
