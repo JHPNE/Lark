@@ -25,10 +25,6 @@ namespace DrosimEditor.Utils
             InitializeComponent();
             Loaded += (s, e) =>
             {
-                Logger.Log(MessageType.Info, "LoggerView initialized");
-                Logger.Log(MessageType.Warn, "LoggerView initialized");
-                Logger.Log(MessageType.Error, "LoggerView initialized");
-
             };
         }
 

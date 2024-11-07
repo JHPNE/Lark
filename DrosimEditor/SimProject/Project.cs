@@ -1,4 +1,5 @@
-﻿using DrosimEditor.DllWrapper;
+﻿using DrosimEditor.Components;
+using DrosimEditor.DllWrapper;
 using DrosimEditor.SimDev;
 using DrosimEditor.Utils;
 using System;
@@ -15,18 +16,11 @@ using System.Windows.Input;
 
 namespace DrosimEditor.SimProject
 {
-    enum BuildConfiguration
-    {
-        Debug,
-        DebugEditor,
-        Release,
-        ReleaseEditor
-    }
-
+    
     [DataContract(Name = "Game")]
     class Project : ViewModelBase
     {
-        public static string Extension { get; } = ".drosim";
+        public static string Extension => ".drosim";
         [DataMember]
         public string Name { get; private set; } = "New Project";
 
@@ -36,12 +30,6 @@ namespace DrosimEditor.SimProject
         public string FullPath => $@"{Path}{Name}{Extension}";
         public string Solution => $@"{Path}{Name}.sln"; 
         
-        private static readonly string[] _buildConfigurationNames = new string[] {
-            "Debug",
-            "DebugEditor",
-            "Release",
-            "ReleaseEditor"
-        };
 
         private int _buildConfig;
         [DataMember]
@@ -62,9 +50,23 @@ namespace DrosimEditor.SimProject
 
         public BuildConfiguration DllBuildConfig => BuildConfig ==  0 ? BuildConfiguration.DebugEditor : BuildConfiguration.ReleaseEditor;
 
+        private string[] _availableScripts;
+        public string[] AvailableScripts
+        {
+            get => _availableScripts;
+            private set
+            {
+                if (_availableScripts != value)
+                {
+                    _availableScripts = value;
+                    OnPropertyChanged(nameof(AvailableScripts));
+                }
+            }
+        }
 
-        [DataMember(Name = "Scenes")]
-        private ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
+
+        [DataMember(Name = nameof(Scenes))]
+        private readonly ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
         public ReadOnlyObservableCollection<Scene> Scenes { get; private set; }
 
         private Scene _activeScene;
@@ -80,7 +82,7 @@ namespace DrosimEditor.SimProject
                 }
             }
         }
-        public static Project Current => Application.Current.MainWindow.DataContext as Project; 
+        public static Project Current => Application.Current.MainWindow?.DataContext as Project; 
         public static UndoRedo UndoRedo { get; } = new UndoRedo();
         public ICommand UndoCommand {  get; private set; }
         public ICommand RedoCommand {  get; private set; }
@@ -88,7 +90,6 @@ namespace DrosimEditor.SimProject
         public ICommand RemoveSceneCommand {  get; private set; }
         public ICommand SaveCommand {  get; private set; }
         public ICommand BuildCommand { get; private set; }
-        private static string GetConfigurationName(BuildConfiguration config) => _buildConfigurationNames[(int)config];
 
         public Project(string name, string path) 
         {
@@ -139,8 +140,10 @@ namespace DrosimEditor.SimProject
 
         public void Unload()
         {
+            UnloadGameCodeDll();
             VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
+            Logger.Clear();
         }
 
         public static Project Load(string file)
@@ -148,7 +151,7 @@ namespace DrosimEditor.SimProject
             Debug.Assert(File.Exists(file));
             return Serializer.FromFile<Project>(file);
         }
-        public static void Save(Project project)
+        private static void Save(Project project)
         {
             Serializer.ToFile(project, project.FullPath);
             Logger.Log(MessageType.Info, $"Saved project to {project.FullPath}");
@@ -159,7 +162,7 @@ namespace DrosimEditor.SimProject
             try
             {
                 UnloadGameCodeDll();
-                await Task.Run(() => VisualStudio.BuildSolution(this, GetConfigurationName(DllBuildConfig), showWindow));
+                await Task.Run(() => VisualStudio.BuildSolution(this, DllBuildConfig, showWindow));
 
                 if (VisualStudio.BuildSucceeded)
                 {
@@ -174,12 +177,17 @@ namespace DrosimEditor.SimProject
             
         }
 
-        private void UnloadGameCodeDll()
+        private void LoadGameCodeDll()
         {
-            var configName = GetConfigurationName(DllBuildConfig);
+            var configName = VisualStudio.GetConfigurationName(DllBuildConfig);
             var dll = $@"{Path}x64\{configName}\{Name}.dll";
+            AvailableScripts = null;
+
             if (File.Exists(dll) && EngineAPI.LoadGameCodeDll(dll) != 0)
             {
+                AvailableScripts = EngineAPI.GetScriptNames();
+
+                ActiveScene.GameEntities.Where(x => x.GetComponent<Script>() != null).ToList().ForEach(x => x.IsActive = true);
                 Logger.Log(MessageType.Info, "Game code DLL loaded succesfully");
             }
             else
@@ -188,11 +196,13 @@ namespace DrosimEditor.SimProject
             }
         }
 
-        private void LoadGameCodeDll()
+        private void UnloadGameCodeDll()
         {
+            ActiveScene.GameEntities.Where(x => x.GetComponent<Script>() != null).ToList().ForEach(x => x.IsActive = false);
             if(EngineAPI.UnloadGameCodeDll() != 0)
             {
                 Logger.Log(MessageType.Info, "Game code DLL unloaded succesfully");
+                AvailableScripts = null;
             }
         }
 
@@ -206,6 +216,7 @@ namespace DrosimEditor.SimProject
             }
 
             ActiveScene = Scenes.FirstOrDefault(x => x.IsActive);
+            Debug.Assert(ActiveScene != null);
 
             await BuildGameCodeDll(false);
 

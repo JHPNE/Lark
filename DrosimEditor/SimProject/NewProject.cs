@@ -205,9 +205,12 @@ namespace DrosimEditor.SimProject
             Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCSolution")));
             Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCProject")));
 
-            var engineAPIPath = Path.Combine(MainWindow.DroneSimPath, @"DroneSim\DroneSimAPI\");
-            Debug.Assert(Directory.Exists(engineAPIPath));
+            var engineAPIPath = @"$(DRONESIM_ENGINE)DroneSim\DroneSimAPI\";
 
+            string value = Environment.GetEnvironmentVariable("DRONESIM_ENGINE", EnvironmentVariableTarget.User);
+            Debug.WriteLine(value);
+            Logger.Log(MessageType.Info, value);
+            
             // Placeholder ProjectName for Template
             var _0 = ProjectName;
             // Placeholder GUID for Template
@@ -223,7 +226,7 @@ namespace DrosimEditor.SimProject
             var _3 = engineAPIPath;
 
             //Placeholder for Library Path
-            var _4 = MainWindow.DroneSimPath;
+            var _4 = "$(DRONESIM_ENGINE)";
 
             var project = File.ReadAllText(Path.Combine(template.TemplatePath, "MSVCProject"));
             project = string.Format(project, _0, _1, _3, _4);
