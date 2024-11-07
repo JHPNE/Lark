@@ -29,10 +29,7 @@ namespace DrosimEditor.Components
         {
         }
 
-        public override IMSComponent GetMultiselectionComponent(MSEntity msEntity)
-        {
-            throw new NotImplementedException();
-        }
+        public override IMSComponent GetMultiselectionComponent(MSEntity msEntity) => new MSScript(msEntity);
     }
 
     sealed class MSScript : MSComponent<Script>

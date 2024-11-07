@@ -17,12 +17,6 @@ namespace drosim::script {
 			static script_registry reg;
 			return reg;
 		}
-#ifdef USE_WITH_EDITOR
-		util::vector<std::string>& script_name() {
-			static util::vector<std::string> names;
-			return names;
-		}
-#endif
 
 
 		bool exists(script_id id) {
@@ -47,6 +41,13 @@ namespace drosim::script {
 			assert(script != drosim::script::registry().end() && script->first == tag);
 			return script->second;
 		}
+
+#ifdef USE_WITH_EDITOR
+		util::vector<std::string>& script_name() {
+			static util::vector<std::string> names;
+			return names;
+		}
+#endif
 
 #ifdef USE_WITH_EDITOR
 		u8 add_script_name(const char* name) {
