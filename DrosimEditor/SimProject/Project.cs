@@ -46,8 +46,6 @@ namespace DrosimEditor.SimProject
             }
         }
 
-        public BuildConfiguration StandAloneBuildConfig => BuildConfig == 0 ? BuildConfiguration.Debug : BuildConfiguration.Release;
-
         public BuildConfiguration DllBuildConfig => BuildConfig ==  0 ? BuildConfiguration.DebugEditor : BuildConfiguration.ReleaseEditor;
 
         private string[] _availableScripts;
@@ -90,6 +88,9 @@ namespace DrosimEditor.SimProject
         public ICommand RemoveSceneCommand {  get; private set; }
         public ICommand SaveCommand {  get; private set; }
         public ICommand BuildCommand { get; private set; }
+        public ICommand DebugRunCommand { get; private set; }
+        public ICommand DebugRunWithoutDebuggingCommand { get; private set; }
+        public ICommand DebugStopCommand { get; private set; }
 
         public Project(string name, string path) 
         {
@@ -127,6 +128,9 @@ namespace DrosimEditor.SimProject
             UndoCommand = new RelayCommands<object>(x => UndoRedo.Undo(), x => UndoRedo.UndoList.Any());
             RedoCommand = new RelayCommands<object>(x => UndoRedo.Redo(), x => UndoRedo.RedoList.Any());
             SaveCommand = new RelayCommands<object>(x => Save(this));
+            DebugRunCommand = new RelayCommands<object>(async x => await RunSim(true), x=> !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
+            DebugRunWithoutDebuggingCommand = new RelayCommands<object>(async x => await RunSim(false), x=> !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
+            DebugStopCommand = new RelayCommands<object>(async x => await StopSim(), x=> VisualStudio.IsDebugging());
             // Replace this with Simulation
             BuildCommand = new RelayCommands<bool>(async x => await BuildGameCodeDll(x), x => !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
 
@@ -135,6 +139,9 @@ namespace DrosimEditor.SimProject
             OnPropertyChanged(nameof(UndoCommand));
             OnPropertyChanged(nameof(RedoCommand));
             OnPropertyChanged(nameof(SaveCommand));
+            OnPropertyChanged(nameof(DebugRunCommand));
+            OnPropertyChanged(nameof(DebugRunWithoutDebuggingCommand));
+            OnPropertyChanged(nameof(DebugStopCommand));
             OnPropertyChanged(nameof(BuildCommand));
         }
 
@@ -156,7 +163,18 @@ namespace DrosimEditor.SimProject
             Serializer.ToFile(project, project.FullPath);
             Logger.Log(MessageType.Info, $"Saved project to {project.FullPath}");
         }
-        
+
+        private async Task RunSim(bool debug)
+        {
+            await Task.Run(() => VisualStudio.BuildSolution(this, DllBuildConfig, debug));
+            if (VisualStudio.BuildSucceeded)
+            {
+                await Task.Run(() => VisualStudio.Run(this, DllBuildConfig, debug));
+            }
+        }
+
+        private async Task StopSim() => await Task.Run(() => VisualStudio.Stop());
+
         private async Task BuildGameCodeDll(bool showWindow = true)
         {
             try
@@ -201,7 +219,7 @@ namespace DrosimEditor.SimProject
             ActiveScene.GameEntities.Where(x => x.GetComponent<Script>() != null).ToList().ForEach(x => x.IsActive = false);
             if(EngineAPI.UnloadGameCodeDll() != 0)
             {
-                Logger.Log(MessageType.Info, "Game code DLL unloaded succesfully");
+                Logger.Log(MessageType.Info, "Game code DLL unloaded successfully");
                 AvailableScripts = null;
             }
         }

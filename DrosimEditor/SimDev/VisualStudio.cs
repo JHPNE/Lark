@@ -337,6 +337,11 @@ namespace DrosimEditor.SimDev
             });
         }
 
+        public static void Run(Project project, BuildConfiguration buildConfig, bool debug)
+        {
+            lock (_lock) { RunInternal(project, buildConfig, debug); }
+        }   
+
         private static void StopInternal()
         {
             CallOnSTAThread(() =>
@@ -347,6 +352,11 @@ namespace DrosimEditor.SimDev
                 }
 
             });
+        }
+
+        public static void Stop()
+        {
+            lock (_lock) { StopInternal(); }
         }
     }
 

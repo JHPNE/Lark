@@ -105,6 +105,7 @@ namespace DrosimEditor.Components
             {
                 IsActive = false;
                 _components.Add(component);
+                OnPropertyChanged(nameof(Components));
                 IsActive = true;
                 return true;
             }

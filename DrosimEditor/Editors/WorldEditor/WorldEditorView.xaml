@@ -18,6 +18,9 @@
         <KeyBinding Command="{Binding RedoCommand}" Key="Z" Modifiers="Ctrl+Shift" />
         <KeyBinding Command="{Binding SaveCommand}" Key="S" Modifiers="Ctrl" />
         <KeyBinding Command="{Binding BuildCommand}" CommandParameter="{StaticResource True}" Key="F7" />
+        <KeyBinding Command="{Binding DebugRunCommand}" Key="F5" />
+        <KeyBinding Command="{Binding DebugStartWithoutDebuggingCommand}" Key="F5" Modifiers="Ctrl" />
+        <KeyBinding Command="{Binding DebugStopCommand}" Key="F6" />
     </UserControl.InputBindings>
     <Grid>
         <Grid.RowDefinitions >
@@ -36,6 +39,10 @@
                 <ComboBoxItem Content="Debug" />
                 <ComboBoxItem Content="Release" />
             </ComboBox>
+            <Button Content="Run" x:Name="runButton" Margin="5,0"
+                    Command="{Binding DebugRunCommand}"/>
+            <Button Content="Stop" x:Name="stopButton" Margin="5,0"
+                    Command="{Binding DebugStopCommand}"/>
         </StackPanel>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
