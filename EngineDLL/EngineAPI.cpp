@@ -1,50 +1,119 @@
 #include "Common.h"
 #include "CommonHeaders.h"
+#include "Id.h"
+#include "..\DroneSim\Components\Entity.h"
+#include "..\DroneSim\Components\Transform.h"
 #include "..\DroneSim\Components\Script.h"
-
-#ifndef WIN32_MEAN_AND_LEAN
-#define WIN32_MEAN_AND_LEAN
-#endif
-
-#include <Windows.h>
 
 using namespace drosim;
 
 namespace {
-	HMODULE game_code_dll{ nullptr };
-	using _get_script_creator = drosim::script::detail::script_creator(*)(size_t);
-	_get_script_creator get_script_creator{ nullptr };
-	using _get_script_names = LPSAFEARRAY(*)(void);
-	_get_script_names get_script_names{ nullptr };
+    struct transform_component {
+        f32 position[3];
+        f32 rotation[3];
+        f32 scale[3];
+        transform::init_info to_init_info() {
+            using namespace DirectX;
+            transform::init_info info{};
+            memcpy(&info.position[0], &position[0], sizeof(f32) * _countof(position));
+            memcpy(&info.scale[0], &scale[0], sizeof(f32) * _countof(scale));
+            XMFLOAT3A rot(&rotation[0]);
+            XMVECTOR quat{ XMQuaternionRotationRollPitchYawFromVector(XMLoadFloat3A(&rot)) };
+            XMFLOAT4A rot_quat{};
+            XMStoreFloat4A(&rot_quat, quat);
+            memcpy(&info.rotation[0], &rot_quat.x, sizeof(f32) * _countof(rotation));
+            return info;
+        }
+    };
+
+    struct script_component {
+        script::detail::script_creator script_creator;
+        script::init_info to_init_info() {
+            script::init_info info{};
+            info.script_creator = script_creator;
+            return info;
+        }
+    };
+
+    struct game_entity_descriptor {
+        transform_component transform;
+        script_component script;
+    };
+
+    util::vector<bool> active_entities;
+
+    game_entity::entity entity_from_id(id::id_type id) {
+        return game_entity::entity{ game_entity::entity_id(id) };
+    }
+
+    bool is_entity_valid(id::id_type id) {
+        if (!id::is_valid(id)) return false;
+        const id::id_type index{ id::index(id) };
+        if (index >= active_entities.size()) return false;
+        return active_entities[index];
+    }
+
+    void remove_entity(id::id_type id) {
+        if (!is_entity_valid(id)) return;
+
+        game_entity::entity_id entity_id{ id };
+        if (game_entity::is_alive(entity_id)) {
+            auto entity = game_entity::entity{ entity_id };
+            // Handle script first
+            if (auto script_comp = entity.script(); script_comp.is_valid()) {
+                script::remove(script_comp);
+            }
+            // Then remove the entity
+            game_entity::remove(entity_id);
+        }
+
+        // Mark as inactive after all removals
+        const auto index = id::index(id);
+        active_entities[index] = false;
+    }
 }
 
-EDITOR_INTERFACE u32 LoadGameCodeDll(const char* dll_path)
-{
-	if (game_code_dll) return FALSE;
-	game_code_dll = LoadLibraryA(dll_path);
-	assert(game_code_dll);
+namespace engine {
+    void cleanup_engine_systems() {
+        // Store indices of entities to remove
+        std::vector<id::id_type> to_remove;
+        for (id::id_type i = 0; i < active_entities.size(); ++i) {
+            if (active_entities[i]) {
+                to_remove.push_back(i);
+            }
+        }
 
-	get_script_names = (_get_script_names)GetProcAddress(game_code_dll, "get_script_names");
-	get_script_creator = (_get_script_creator)GetProcAddress(game_code_dll, "get_script_creator");
-	return (game_code_dll && get_script_creator && get_script_names)? TRUE : FALSE;
+        // Remove stored entities
+        for (auto id : to_remove) {
+            remove_entity(id);
+        }
+
+        active_entities.clear();
+        script::shutdown();
+    }
 }
 
-EDITOR_INTERFACE u32 UnloadGameCodeDll()
-{
-	if (!game_code_dll) return FALSE;
-	assert(game_code_dll);
-	int result{ FreeLibrary(game_code_dll) };
-	assert(result);
-	game_code_dll = nullptr;
-	return TRUE;
+EDITOR_INTERFACE id::id_type CreateGameEntity(game_entity_descriptor* e) {
+    assert(e);
+    game_entity_descriptor& desc{ *e };
+    transform::init_info transform_info{ desc.transform.to_init_info() };
+    script::init_info script_info{ desc.script.to_init_info() };
+    game_entity::entity_info entity_info{
+        &transform_info,
+        &script_info,
+    };
+
+    auto entity = game_entity::create(entity_info);
+    if (entity.is_valid()) {
+        auto index = id::index(entity.get_id());
+        if (index >= active_entities.size()) {
+            active_entities.resize(index + 1, false);
+        }
+        active_entities[index] = true;
+    }
+    return entity.get_id();
 }
 
-EDITOR_INTERFACE script::detail::script_creator GetScriptCreator(const char* name)
-{
-	return (game_code_dll && get_script_creator) ? get_script_creator(script::detail::string_hash()(name)) : nullptr;
-}
-
-EDITOR_INTERFACE LPSAFEARRAY GetScriptNames()
-{
-	return (game_code_dll && get_script_names) ? get_script_names() : nullptr;
+EDITOR_INTERFACE void RemoveGameEntity(id::id_type id) {
+    remove_entity(id);
 }

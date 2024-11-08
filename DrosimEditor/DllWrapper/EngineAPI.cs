@@ -40,8 +40,10 @@ namespace DrosimEditor.DllWrapper
     static class EngineAPI
     {
         private const string _engineDll = "EngineDLL.dll";
-        [DllImport(_engineDll, CharSet=CharSet.Ansi)]
+
+        [DllImport(_engineDll, CharSet = CharSet.Ansi)]
         public static extern int LoadGameCodeDll(string dllPath);
+
         [DllImport(_engineDll)]
         public static extern int UnloadGameCodeDll();
 
@@ -56,10 +58,10 @@ namespace DrosimEditor.DllWrapper
         {
             [DllImport(_engineDll)]
             private static extern int CreateGameEntity(GameEntityDescriptor desc);
+
             public static int CreateGameEntity(GameEntity entity)
             {
                 GameEntityDescriptor desc = new GameEntityDescriptor();
-
                 //transform
                 {
                     var c = entity.GetComponent<Transform>();
@@ -67,7 +69,6 @@ namespace DrosimEditor.DllWrapper
                     desc.Transform.Rotation = c.Rotation;
                     desc.Transform.Scale = c.Scale;
                 }
-
                 //script component
                 {
                     var c = entity.GetComponent<Script>();
@@ -83,7 +84,6 @@ namespace DrosimEditor.DllWrapper
                         }
                     }
                 }
-
                 return CreateGameEntity(desc);
             }
 
@@ -92,9 +92,18 @@ namespace DrosimEditor.DllWrapper
 
             public static void RemoveGameEntity(GameEntity entity)
             {
+                if (entity == null || entity.EntityId == ID.INVALID_ID) return;
+
+                // First remove script component if it exists
+                var scriptComp = entity.GetComponent<Script>();
+                if (scriptComp != null)
+                {
+                    entity.RemoveComponent(scriptComp);
+                }
+
+                // Then call the native removal
                 RemoveGameEntity(entity.EntityId);
             }
-
         }
     }
 }
