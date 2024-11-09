@@ -19,6 +19,8 @@ namespace drosim::id {
 	static_assert(sizeof(generation_type) * 8 >= detail::generation_bits, "generation_type is too small");
 	static_assert(sizeof(id_type) - sizeof(generation_type) > 0);
 
+	constexpr generation_type max_generation{ (generation_type)(detail::generation_mask - 1) };
+
 	constexpr bool is_valid(id_type id) {
 		return id != invalid_id;
 	}

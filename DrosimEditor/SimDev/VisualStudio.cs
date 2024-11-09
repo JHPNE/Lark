@@ -278,7 +278,7 @@ namespace DrosimEditor.SimDev
 
                 foreach (var pdbFile in Directory.GetFiles(directoryPath, "*.pdb"))
                 {
-                    File.Delete(pdbFile);
+                    //File.Delete(pdbFile);
                 }
             }
             catch (Exception ex)

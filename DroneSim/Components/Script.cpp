@@ -8,7 +8,7 @@ namespace drosim::script {
 		util::vector<id::id_type> id_mapping;
 
 		util::vector<id::generation_type> generations;
-		util::vector<script_id> free_ids;
+		util::deque<script_id> free_ids;
 
 		using script_registry = std::unordered_map<size_t, detail::script_creator>;
 		
@@ -18,18 +18,29 @@ namespace drosim::script {
 			return reg;
 		}
 
+#ifdef USE_WITH_EDITOR
+		util::vector<std::string>& script_name() {
+			static util::vector<std::string> names;
+			return names;
+		}
+#endif
 
-		bool exists(script_id id) {
+#if _DEBUG
+		bool exists(script_id id)
+		{
 			assert(id::is_valid(id));
 			const id::id_type index{ id::index(id) };
-			assert(index < generations.size() && id_mapping[index] < entity_scripts.size());
+			assert(index < generations.size() && !(id::is_valid(id_mapping[index]) && id_mapping[index] >= entity_scripts.size()));
 			assert(generations[index] == id::generation(id));
-			return (generations[index] == id::generation(id)) &&
+			return (id::is_valid(id_mapping[index]) &&
+				generations[index] == id::generation(id)) &&
 				entity_scripts[id_mapping[index]] &&
 				entity_scripts[id_mapping[index]]->is_valid();
 		}
+#endif
 
-	}
+	} // namespace
+
 	namespace detail {
 		u8 register_script(size_t tag, script_creator func) {
 			bool result{ registry().insert(script_registry::value_type{ tag, func }).second };
@@ -42,12 +53,7 @@ namespace drosim::script {
 			return script->second;
 		}
 
-#ifdef USE_WITH_EDITOR
-		util::vector<std::string>& script_name() {
-			static util::vector<std::string> names;
-			return names;
-		}
-#endif
+
 
 #ifdef USE_WITH_EDITOR
 		u8 add_script_name(const char* name) {
@@ -55,7 +61,7 @@ namespace drosim::script {
 			return true;
 	}
 #endif
-	}
+	} // namespace detail
 
 	component create(init_info info, game_entity::entity entity) {
 		assert(entity.is_valid());
@@ -65,7 +71,7 @@ namespace drosim::script {
 		if (free_ids.size() > id::min_deleted_elements) {
 			id = free_ids.front();
 			assert(!exists(id));
-			free_ids.pop_back();
+			free_ids.pop_front();
 			id = script_id{ id::new_generation(id) };
 			++generations[id::index(id)];
 		}
@@ -76,9 +82,9 @@ namespace drosim::script {
 		}
 
 		assert(id::is_valid(id));	
-		const id::id_type index{ (id::id_type) entity_scripts.size() - 1};
+		const id::id_type index{ (id::id_type) entity_scripts.size()};
 		entity_scripts.emplace_back(info.script_creator(entity));
-		assert(entity_scripts.back()->get_id() == entity.get_id()	);
+		assert(entity_scripts.back()->get_id() == entity.get_id());
 		id_mapping[id::index(id)] = index;	
 
 		return component{id};
@@ -87,11 +93,16 @@ namespace drosim::script {
 	void remove(component c) {
 		assert(c.is_valid() && exists(c.get_id()));
 		const script_id id{ c.get_id() };
-		const id::id_type index{ id_mapping[id::index(id)]};
-		const script_id last_id{ entity_scripts.back()->script().get_id()};
+		const id::id_type index{ id_mapping[id::index(id)] };
+		const script_id last_id{ entity_scripts.back()->script().get_id() };
 		util::erase_unordered(entity_scripts, index);
 		id_mapping[id::index(last_id)] = index;
 		id_mapping[id::index(id)] = id::invalid_id;
+
+		if (generations[index] < id::max_generation)
+		{
+			free_ids.push_back(id);
+		}
 	}
 
 }
@@ -101,11 +112,11 @@ namespace drosim::script {
 extern "C" __declspec(dllexport)
 LPSAFEARRAY get_script_names()
 {
-	const u32 size{ (u32)drosim::script::detail::script_name().size() };
+	const u32 size{ (u32)drosim::script::script_name().size() };
 	if (!size) return nullptr;
 	CComSafeArray<BSTR> names(size);
-	for (u32 i = 0; i < size; ++i) {
-        names.SetAt(i, A2BSTR_EX(drosim::script::detail::script_name()[i].c_str()), false);
+	for (u32 i{ 0 }; i < size; ++i) {
+        names.SetAt(i, A2BSTR_EX(drosim::script::script_name()[i].c_str()), false);
 	}
 	return names.Detach();
 }

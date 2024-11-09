@@ -12,7 +12,7 @@ namespace drosim {
 
 		class entity {
 		public:
-			constexpr explicit entity(entity_id id) : _id(id) {}
+			constexpr explicit entity(entity_id id) : _id{ id } {}
 			constexpr entity() : _id{ id::invalid_id } {}
 			constexpr entity_id get_id() const { return _id; }
 			constexpr bool is_valid() const { return id::is_valid(_id); }
@@ -39,6 +39,7 @@ namespace drosim {
 			using script_ptr = std::unique_ptr<entity_script>;
 			using script_creator = script_ptr(*)(game_entity::entity entity);
 			using string_hash = std::hash<std::string>;
+
 			u8 register_script(size_t, script_creator);
 
 #ifdef USE_WITH_EDITOR
@@ -53,24 +54,27 @@ namespace drosim {
 			}
 
 #ifdef USE_WITH_EDITOR
-u8 add_script_name(const char* name); 
+			u8 add_script_name(const char* name);
 #define REGISTER_SCRIPT(TYPE) \
-    namespace { \
-        const u8 _reg##TYPE = \
-            drosim::script::detail::register_script( \
-                drosim::script::detail::string_hash()(#TYPE), \
-                &drosim::script::detail::create_script<TYPE>); \
-        const u8 name##TYPE = \
-            drosim::script::detail::add_script_name(#TYPE); \
-    }
+                    namespace { \
+                        const u8 _reg##TYPE { \
+                            drosim::script::detail::register_script( \
+                                drosim::script::detail::string_hash()(#TYPE), \
+                                &drosim::script::detail::create_script<TYPE>) \
+                        }; \
+                        const u8 name##TYPE { \
+                            drosim::script::detail::add_script_name(#TYPE) \
+                        }; \
+                    }
 #else
 #define REGISTER_SCRIPT(TYPE) \
-    namespace { \
-        const u8 _reg##TYPE = \
-            drosim::script::detail::register_script( \
-                drosim::script::detail::string_hash()(#TYPE), \
-                &drosim::script::detail::create_script<TYPE>); \
-    }
+                    namespace { \
+                        const u8 _reg##TYPE { \
+                            drosim::script::detail::register_script( \
+                                drosim::script::detail::string_hash()(#TYPE), \
+                                &drosim::script::detail::create_script<TYPE>) \
+                        }; \
+                    }
 #endif
 
 		}

@@ -42,7 +42,7 @@ namespace {
 	};
 
 	game_entity::entity entity_from_id(id::id_type id) {
-		return game_entity::entity{ game_entity::entity_id(id) };
+		return game_entity::entity{ game_entity::entity_id{id} };
 	}
 }
 

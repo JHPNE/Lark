@@ -15,7 +15,7 @@ namespace drosim::game_entity {
 
 	entity create(entity_info info) {
 		assert(info.transform); // transform is required
-		if (!info.transform) return entity();
+		if (!info.transform) return {};
 
 		entity_id id;
 		if (free_ids.size() > id::min_deleted_elements) {
@@ -64,7 +64,11 @@ namespace drosim::game_entity {
 
 		transform::remove(transforms[index]);
 		transforms[index] = {};
-		free_ids.push_back(id);
+
+		if (generations[index] < id::max_generation)
+		{
+			free_ids.push_back(id);
+		}
 	}
 
 	bool is_alive(entity_id id) {
@@ -72,7 +76,6 @@ namespace drosim::game_entity {
 		assert(id::is_valid(id));
 		const id::id_type index{ id::index(id) };
 		assert(index < generations.size());
-		assert(generations[index] == id::generation(id));
 		return (generations[index] == id::generation(id) && transforms[index].is_valid());
 	}
 
@@ -84,8 +87,7 @@ namespace drosim::game_entity {
 
 	script::component entity::script() const {
 		assert(is_alive(_id));
-		const id::id_type index{ id::index(_id) };
-		return scripts[index];
+		return scripts[id::index(_id)];
 	}
 }
 

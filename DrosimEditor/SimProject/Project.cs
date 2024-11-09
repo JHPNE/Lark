@@ -28,8 +28,9 @@ namespace DrosimEditor.SimProject
         public string Path { get; private set; }
 
         public string FullPath => $@"{Path}{Name}{Extension}";
-        public string Solution => $@"{Path}{Name}.sln"; 
-        
+        public string Solution => $@"{Path}{Name}.sln";
+        public string TempFolder => $@"{Path}.Drosim\Temp\";
+
 
         private int _buildConfig;
         [DataMember]
@@ -144,6 +145,15 @@ namespace DrosimEditor.SimProject
             VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
             Logger.Clear();
+            DeleteTempFolder();
+        }
+
+        private void DeleteTempFolder()
+        {
+            if (Directory.Exists(TempFolder))
+            {
+                Directory.Delete(TempFolder, true);
+            }
         }
 
         public static Project Load(string file)
