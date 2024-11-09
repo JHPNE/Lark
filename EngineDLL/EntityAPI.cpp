@@ -1,64 +1,49 @@
 #include "Common.h"
 #include "CommonHeaders.h"
-#include "Id.h"
-#include "..\DroneSim\Components\Entity.h"
-#include "..\DroneSim\Components\Transform.h"
 #include "..\DroneSim\Components\Script.h"
+#ifndef WIN32_MEAN_AND_LEAN
+#define WIN32_MEAN_AND_LEAN
+#endif
+#include <Windows.h>
 
 using namespace drosim;
 
 namespace {
-	struct transform_component {
-		f32 position[3];
-		f32 rotation[3];
-		f32 scale[3];
+    HMODULE game_code_dll{ nullptr };
+    using get_script_creator_func = drosim::script::detail::script_creator(*)(size_t);
+    get_script_creator_func get_script_creator{ nullptr };
+    using get_script_names_func = LPSAFEARRAY(*)(void);
+    get_script_names_func get_script_names{ nullptr };
+}
 
-		transform::init_info to_init_info() {
-			using namespace DirectX;
-			transform::init_info info{};
-			memcpy(&info.position[0], &position[0], sizeof(f32) * _countof(position));
-			memcpy(&info.scale[0], &scale[0], sizeof(f32) * _countof(scale));
-			XMFLOAT3A rot(&rotation[0]);
-			XMVECTOR quat{ XMQuaternionRotationRollPitchYawFromVector(XMLoadFloat3A(&rot)) };
-			XMFLOAT4A rot_quat{};
-			XMStoreFloat4A(&rot_quat, quat);
-			memcpy(&info.rotation[0], &rot_quat.x, sizeof(f32) * _countof(rotation));
-			return info;
-		}
-	};
+EDITOR_INTERFACE u32 LoadGameCodeDll(const char* dll_path)
+{
+    if (game_code_dll) return FALSE;
+    game_code_dll = LoadLibraryA(dll_path);
+    assert(game_code_dll);
+    get_script_names = (get_script_names_func)GetProcAddress(game_code_dll, "get_script_names");
+    get_script_creator = (get_script_creator_func)GetProcAddress(game_code_dll, "get_script_creator");
+    return (game_code_dll && get_script_creator && get_script_names) ? TRUE : FALSE;
+}
 
-	struct script_component {
-		script::detail::script_creator script_creator;
-		script::init_info to_init_info() {
-			script::init_info info{};
-			info.script_creator = script_creator;
-			return info;
-		}
-	};
+EDITOR_INTERFACE u32 UnloadGameCodeDll()
+{
+    if (!game_code_dll) return FALSE;
 
-	struct game_entity_descriptor {
-		transform_component transform;
-		script_component script;
-	};
+    // Clean up scripts and entities before unloading
+    engine::cleanup_engine_systems();
 
 	game_entity::entity entity_from_id(id::id_type id) {
 		return game_entity::entity{ game_entity::entity_id{id} };
 	}
 }
 
-EDITOR_INTERFACE id::id_type CreateGameEntity(game_entity_descriptor* e) {
-	assert(e);
-	game_entity_descriptor& desc{ *e };
-	transform::init_info transform_info{ desc.transform.to_init_info() };
-	script::init_info script_info{ desc.script.to_init_info() };
-	game_entity::entity_info entity_info{ 
-		&transform_info, 
-		&script_info,
-	};
-	return game_entity::create(entity_info).get_id();
+EDITOR_INTERFACE script::detail::script_creator GetScriptCreator(const char* name)
+{
+    return (game_code_dll && get_script_creator) ? get_script_creator(script::detail::string_hash()(name)) : nullptr;
 }
 
-EDITOR_INTERFACE void RemoveGameEntity(id::id_type id) {
-	assert(id::is_valid(id));
-	game_entity::remove(game_entity::entity_id{ id });
+EDITOR_INTERFACE LPSAFEARRAY GetScriptNames()
+{
+    return (game_code_dll && get_script_names) ? get_script_names() : nullptr;
 }

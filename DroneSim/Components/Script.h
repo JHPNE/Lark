@@ -9,4 +9,5 @@ namespace drosim::script {
 
 	component create(init_info info, game_entity::entity entity);
 	void remove(component t);
+	void shutdown();
 }

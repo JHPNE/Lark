@@ -63,6 +63,18 @@ namespace drosim::script {
 #endif
 	} // namespace detail
 
+	void shutdown() {
+		// Clear all script data
+		entity_scripts.clear();
+		id_mapping.clear();
+		generations.clear();
+		free_ids.clear();
+		registry().clear();
+#ifdef USE_WITH_EDITOR
+		detail::script_name().clear();
+#endif
+	}
+
 	component create(init_info info, game_entity::entity entity) {
 		assert(entity.is_valid());
 		assert(info.script_creator);
@@ -91,10 +103,13 @@ namespace drosim::script {
 	}
 
 	void remove(component c) {
-		assert(c.is_valid() && exists(c.get_id()));
+		// Change the validation to be more defensive
+		if (!c.is_valid()) return;
+		if (!exists(c.get_id())) return;
+
 		const script_id id{ c.get_id() };
-		const id::id_type index{ id_mapping[id::index(id)] };
-		const script_id last_id{ entity_scripts.back()->script().get_id() };
+		const id::id_type index{ id_mapping[id::index(id)]};
+		const script_id last_id{ entity_scripts.back()->script().get_id()};
 		util::erase_unordered(entity_scripts, index);
 		id_mapping[id::index(last_id)] = index;
 		id_mapping[id::index(id)] = id::invalid_id;

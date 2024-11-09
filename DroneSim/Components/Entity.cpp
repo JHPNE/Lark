@@ -57,9 +57,11 @@ namespace drosim::game_entity {
 		const id::id_type index{ id::index(id) };
 		assert(is_alive(id));
 
+		// First invalidate any script component
 		if (scripts[index].is_valid()) {
-			script::remove(scripts[index]);
-			scripts[index] = {};
+			auto script_copy = scripts[index]; // Make a copy before invalidating
+			scripts[index] = {}; // Invalidate first
+			script::remove(script_copy); // Then remove using the copy
 		}
 
 		transform::remove(transforms[index]);
@@ -72,7 +74,6 @@ namespace drosim::game_entity {
 	}
 
 	bool is_alive(entity_id id) {
-
 		assert(id::is_valid(id));
 		const id::id_type index{ id::index(id) };
 		assert(index < generations.size());
