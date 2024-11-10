@@ -40,7 +40,7 @@ void ProjectBrowserView::DrawNewProject() {
     // Project path input - use char buffer for ImGui
     static char pathBuffer[1024] = "";
     if (m_projectPath.string().length() < sizeof(pathBuffer)) {
-        strcpy_s(pathBuffer, m_projectPath.string().c_str());
+        strcpy(pathBuffer, m_projectPath.string().c_str());
     }
     ImGui::Text("Project Path");
     ImGui::SetNextItemWidth(-1);
