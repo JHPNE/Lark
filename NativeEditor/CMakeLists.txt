@@ -26,9 +26,12 @@ add_library(glad STATIC
 target_include_directories(glad PUBLIC
     ThirdParty/glad/include
 )
+target_link_libraries(glad PRIVATE
+    ${OPENGL_LIBRARIES}
+)
 
 # ImGui source files
-set(IMGUI_SOURCES
+add_library(imgui STATIC
     ThirdParty/imgui/imgui.cpp
     ThirdParty/imgui/imgui_demo.cpp
     ThirdParty/imgui/imgui_draw.cpp
@@ -38,45 +41,48 @@ set(IMGUI_SOURCES
     ThirdParty/imgui/backends/imgui_impl_opengl3.cpp
 )
 
-# Editor source files
-set(EDITOR_SOURCES
-    Source/Main.cpp
+target_include_directories(imgui PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/backends
+)
+
+target_include_directories(imgui PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/glad/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/glfw/include
+)
+
+target_link_libraries(imgui PUBLIC
+    glad
+    glfw
+)
+
+# Editor files
+file(GLOB_RECURSE EDITOR_FILES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
 )
 
 # Create executable
-add_executable(${PROJECT_NAME} 
-    ${EDITOR_SOURCES}
-    ${IMGUI_SOURCES}
-)
+add_executable(${PROJECT_NAME} ${EDITOR_FILES})
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty
-    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui
-    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/backends
-    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/glad/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/glfw/include
-    ${OPENGL_INCLUDE_DIR}
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# Debug print
-get_target_property(includeDirs ${PROJECT_NAME} INCLUDE_DIRECTORIES)
-message(STATUS "Include directories for ${PROJECT_NAME}:")
-foreach(dir ${includeDirs})
-    message(STATUS " - ${dir}")
-    if(EXISTS "${dir}/imgui/imgui.h")
-        message(STATUS "   Found imgui.h")
-    endif()
-endforeach()
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/glad/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/glfw/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui
+    ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/backends
+)
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    glfw
+    imgui
     glad
-    ${OPENGL_LIBRARIES}
+    glfw
 )
 
-# Message to verify paths
-message(STATUS "Current source dir: ${CMAKE_CURRENT_SOURCE_DIR}")
-message(STATUS "Looking for main.cpp at: ${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_SOURCES}")
+# Print some debug info
+message(STATUS "Project source directory: ${CMAKE_CURRENT_SOURCE_DIR}")

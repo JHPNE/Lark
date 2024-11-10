@@ -1,0 +1,34 @@
+#pragma once
+#include <memory>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+
+namespace editor {
+	class EditorApplication {
+	public:
+		static EditorApplication& Get() {
+			static EditorApplication instance;
+			return instance;
+		}
+
+		bool Initialize();
+		void Run();
+		void Shutdown();
+
+		GLFWwindow* GetWindow() const { return m_window; }
+		ImVec4 GetClearColor() const { return m_clearColor; }
+
+	private:
+		EditorApplication() = default;
+		~EditorApplication() = default;
+
+
+		void BeginFrame();
+		void EndFrame();
+		void Update();
+
+		GLFWwindow* m_window = nullptr;
+		ImVec4 m_clearColor = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+		bool m_Running = false;
+	};
+}
