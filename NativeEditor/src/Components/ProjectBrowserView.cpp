@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 namespace Utils {
 	void SetEnvironmentVariable(const std::string& name, const std::string& value) {
@@ -50,6 +52,13 @@ namespace Utils {
 			ImGui::EndPopup();
 		}
 	}
+
+    std::string ReadFileContent(const fs::path& path) {
+		std::ifstream file(path, std::ios::binary);
+        if (!file) return "";
+		return std::string(std::istreambuf_iterator<char>(file),
+			std::istreambuf_iterator<char>());
+    }
 }
 
 
@@ -86,6 +95,8 @@ void ProjectBrowserView::DrawNewProject() {
     if (ImGui::InputText("##ProjectName", nameBuffer, sizeof(nameBuffer))) {
         m_newProjectName = nameBuffer;
     }
+
+
 
     // Project path input - use char buffer for ImGui
     static char pathBuffer[1024] = "";
@@ -133,17 +144,182 @@ void ProjectBrowserView::DrawNewProject() {
         if (ValidateProjectPath() && m_selectedTemplate < m_templates.size()) {
             auto tmpl = m_templates[m_selectedTemplate];
             if (auto project = Project::Create(m_newProjectName, m_projectPath, *tmpl)) {
+				ProjectData projectData;
+				projectData.name = m_newProjectName;
+				projectData.path = m_projectPath / m_newProjectName;
+
+				// Get current time
+				auto now = std::chrono::system_clock::now();
+				auto timeT = std::chrono::system_clock::to_time_t(now);
+                std::stringstream ss;
+				ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
+				projectData.date = ss.str();
+
+				m_recentProjects.push_back(projectData);
+                WriteProjectData();
+
+
                 Logger::Get().Log(MessageType::Info, "Project created successfully");
                 m_show = false;
-                // TODO: Set as active project when we implement project management
             }
         }
     }
 }
 
 void ProjectBrowserView::DrawOpenProject() {
-    // TODO: Implement open project functionality
-    ImGui::Text("Open Project functionality coming soon...");
+    ImGui::BeginChild("OpenProject", ImVec2(0, -30));
+
+    if (m_recentProjects.empty()) {
+        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No recent projects");
+    }
+    else {
+        // Project list on the left
+        const float listWidth = 200.0f;
+        ImGui::BeginChild("ProjectList", ImVec2(listWidth, 0), true);
+
+        for (size_t i = 0; i < m_recentProjects.size(); i++) {
+            const auto& project = m_recentProjects[i];
+            if (ImGui::Selectable(project.name.c_str(), m_selectedRecentProject == (int)i)) {
+                m_selectedRecentProject = (int)i;
+            }
+        }
+
+        ImGui::EndChild();
+        ImGui::SameLine();
+
+        // Project details on the right
+        ImGui::BeginChild("ProjectDetails", ImVec2(0, 0), true);
+        if (m_selectedRecentProject >= 0 && m_selectedRecentProject < m_recentProjects.size()) {
+            const auto& project = m_recentProjects[m_selectedRecentProject];
+
+            ImGui::Text("Name: %s", project.name.c_str());
+            ImGui::Text("Path: %s", project.path.string().c_str());
+            ImGui::Text("Last Opened: %s", project.date.c_str());
+        }
+        ImGui::EndChild();
+    }
+
+	ImGui::EndChild(); // End of OpenProject child
+
+    // Open button
+	ImGui::BeginDisabled(m_selectedRecentProject < 0);
+    if (ImGui::Button("Open Project", ImVec2(-1, 0))) {
+        if (m_selectedRecentProject >= 0 && m_selectedRecentProject < m_recentProjects.size()) {
+            auto& projectData = m_recentProjects[m_selectedRecentProject];
+            if (auto project = Project::Load(projectData.GetFullPath())) {
+                // Update last opened time
+                auto now = std::chrono::system_clock::now();
+                auto timeT = std::chrono::system_clock::to_time_t(now);
+                std::stringstream ss;
+                ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
+                projectData.date = ss.str();
+
+                // Save updated project data
+                WriteProjectData();
+
+                Logger::Get().Log(MessageType::Info, "Project opened successfully: " + projectData.name);
+                m_show = false;
+            }
+        }
+    }
+    ImGui::EndDisabled();
+}
+
+void ProjectBrowserView::LoadRecentProjects() {
+	m_appDataPath = fs::path(Utils::GetEnvironmentVariable("APPDATA")) / "DrosimEditor";
+	m_projectDataPath = m_appDataPath / "ProjectData.xml";
+
+	if (!fs::exists(m_appDataPath)) {
+		fs::create_directories(m_appDataPath);
+	}
+    
+	ReadProjectData();
+}
+
+bool ProjectBrowserView::ReadProjectData() {
+	m_recentProjects.clear();
+
+    if (!fs::exists(m_projectDataPath)) {
+        return false;
+    }
+
+    try {
+        std::string content = Utils::ReadFileContent(m_projectDataPath);
+        if (content.empty()) {
+            Logger::Get().Log(MessageType::Error,
+                "Failed to read project data file: " + m_projectDataPath.string());
+            return false;
+        }
+
+        if (ProjectData::ParseProjectXml(content, m_recentProjects)) {
+            //Filter out non-existing projects
+            m_recentProjects.erase(
+                std::remove_if(m_recentProjects.begin(), m_recentProjects.end(),
+                    [](const ProjectData& data) {
+                        return !fs::exists(data.GetFullPath());
+                    }),
+                m_recentProjects.end());
+
+            // Sort by date
+            std::sort(m_recentProjects.begin(), m_recentProjects.end(),
+                [](const ProjectData& a, const ProjectData& b) {
+                    return a.date > b.date;
+                });
+
+            return true;
+        }
+    }
+	catch (const std::exception& e) {
+		Logger::Get().Log(MessageType::Error,
+			"Error reading project data: " + std::string(e.what()));
+	}
+
+    return false;
+}
+
+bool ProjectBrowserView::WriteProjectData() {
+    try {
+        // First ensure the directory exists
+        if (!fs::exists(m_appDataPath)) {
+            fs::create_directories(m_appDataPath);
+        }
+
+        std::stringstream xml;
+        xml << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+        xml << "<ProjectDataList xmlns=\"http://schemas.datacontract.org/2004/07/DrosimEditor.SimProject\" "
+            << "xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\">\n";
+        xml << "<Projects>\n";
+
+        for (const auto& project : m_recentProjects) {
+            xml << "  <ProjectData>\n";
+            xml << "    <Date>" << project.date << "</Date>\n";
+            xml << "    <ProjectName>" << project.name << "</ProjectName>\n";
+            xml << "    <ProjectPath>" << project.path.string() << "</ProjectPath>\n";
+            xml << "  </ProjectData>\n";
+        }
+
+        xml << "</Projects>\n";
+        xml << "</ProjectDataList>";
+
+        // Debug log to see if we get here
+        Logger::Get().Log(MessageType::Info,
+            "Attempting to write project data to: " + m_projectDataPath.string());
+
+
+        std::ofstream file(m_projectDataPath, std::ios::binary);
+        if (!file || !(file << xml.str())) {
+            Logger::Get().Log(MessageType::Error,
+                "Failed to write project data: " + m_projectDataPath.string());
+            return false;
+        }
+
+        return true;
+    }
+    catch (const std::exception& e) {
+        Logger::Get().Log(MessageType::Error,
+            "Error writing project data: " + std::string(e.what()));
+        return false;
+    }
 }
 
 void ProjectBrowserView::LoadTemplates() {
