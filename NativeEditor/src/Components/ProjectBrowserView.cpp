@@ -232,6 +232,12 @@ void ProjectBrowserView::LoadRecentProjects() {
 	if (!fs::exists(m_appDataPath)) {
 		fs::create_directories(m_appDataPath);
 	}
+
+    // Sort m_recentProjects
+    std::sort(m_recentProjects.begin(), m_recentProjects.end(),
+        [](const ProjectData& a, const ProjectData& b) {
+			return a.date > b.date;
+		});
     
 	ReadProjectData();
 }
