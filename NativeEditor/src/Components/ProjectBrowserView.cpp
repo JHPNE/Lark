@@ -1,7 +1,57 @@
+#pragma once
 #include "ProjectBrowserView.h"
 #include "Utils/Logger.h"
 #include "imgui.h"
 #include <filesystem>
+#include <cstdlib>
+#include <iostream>
+
+namespace Utils {
+	void SetEnvironmentVariable(const std::string& name, const std::string& value) {
+#ifdef _WIN32 
+		if (_putenv((name + "=" + value).c_str()) == 0) return;
+#else
+		if (setenv(name.c_str(), value.c_str(), 1) == 0) return;
+#endif // 
+		std::cerr << "Failed to set environment variable: " << name << std::endl;
+	}
+
+	std::string GetEnvironmentVariable(const std::string& name) {
+		const char* value = std::getenv(name.c_str());
+		if (value == nullptr) {
+			std::cerr << "Environment variable not found: " << name << std::endl;
+			return "";
+		}
+
+		return std::string(value);
+	}
+
+
+	void ShowSetPathPopup() {
+		static char pathBuffer[256] = "";
+		ImGui::OpenPopup("EnginePath");
+		ImGui::SetNextWindowSize(ImVec2(400, 100));
+
+		if (ImGui::BeginPopupModal("EnginePath", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+			ImGui::Text("Please Enter the Path to Drosim!");
+
+			ImGui::InputText("Path", pathBuffer, sizeof(pathBuffer));
+
+            if (ImGui::Button("Set Path", ImVec2(120, 0))) {
+				SetEnvironmentVariable("DRONESIM_ENGINE", pathBuffer);
+            }
+            
+            ImGui::SameLine();
+
+			if (ImGui::Button("Close", ImVec2(120, 0))) {
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndPopup();
+		}
+	}
+}
+
 
 void ProjectBrowserView::Draw() {
     if (!m_show) return;
@@ -97,8 +147,16 @@ void ProjectBrowserView::DrawOpenProject() {
 }
 
 void ProjectBrowserView::LoadTemplates() {
+
+	std::string enginePathString = Utils::GetEnvironmentVariable("DRONESIM_ENGINE");
+
+	if (enginePathString.empty()) {
+        Utils::ShowSetPathPopup();
+	}
+
+
     // TODO: Make template path configurable
-    fs::path templatePath = fs::current_path() / "ProjectTemplates";
+    fs::path templatePath = fs::path(enginePathString) / "NativeEditor" / "ProjectTemplates";
     m_templates = ProjectTemplate::LoadTemplates(templatePath);
 
     if (m_templates.empty()) {

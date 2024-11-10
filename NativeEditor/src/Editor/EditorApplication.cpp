@@ -123,10 +123,15 @@ namespace editor {
 		if (show_demo_window)
 			ImGui::ShowDemoWindow(&show_demo_window);
 
+
+
 		// Main menu bar
 		if (ImGui::BeginMainMenuBar()) {
 			if (ImGui::BeginMenu("File")) {
-				if (ImGui::MenuItem("New Project", "Ctrl+N")) {}
+				if (ImGui::MenuItem("New Project", "Ctrl+N")) {
+					ProjectBrowserView::Get().GetShowState() = true;
+				}
+
 				if (ImGui::MenuItem("Open Project", "Ctrl+O")) {
 					ProjectBrowserView::Get().GetShowState() = true;
 				}

@@ -11,6 +11,8 @@ public:
     static std::vector<std::shared_ptr<ProjectTemplate>> LoadTemplates(const fs::path& templatePath);
     static std::shared_ptr<ProjectTemplate> LoadFromFile(const fs::path& templateFile);
 
+    static constexpr const char* templatePath = R"(..\..\DrosimEditor\ProjectTemplates)";
+
     const std::string& GetType() const { return m_type; }
     const std::string& GetProjectFile() const { return m_file; }
     const std::vector<std::string>& GetFolders() const { return m_folders; }
