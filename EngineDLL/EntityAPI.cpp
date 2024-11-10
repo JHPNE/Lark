@@ -33,9 +33,11 @@ EDITOR_INTERFACE u32 UnloadGameCodeDll()
     // Clean up scripts and entities before unloading
     engine::cleanup_engine_systems();
 
-	game_entity::entity entity_from_id(id::id_type id) {
-		return game_entity::entity{ game_entity::entity_id{id} };
-	}
+    return TRUE;
+}
+
+game_entity::entity entity_from_id(id::id_type id) {
+	return game_entity::entity{ game_entity::entity_id{id} };
 }
 
 EDITOR_INTERFACE script::detail::script_creator GetScriptCreator(const char* name)

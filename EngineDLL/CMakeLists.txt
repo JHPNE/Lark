@@ -20,10 +20,6 @@ set(ALL_FILES
 ################################################################################
 add_library(${PROJECT_NAME} SHARED ${ALL_FILES})
 
-target_precompile_headers(${PROJECT_NAME} PRIVATE
-    "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/pch.h>"
-)
-
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
 set(ROOT_NAMESPACE EngineDLL)
 

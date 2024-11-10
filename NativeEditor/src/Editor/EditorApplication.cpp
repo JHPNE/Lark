@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include "../Components/LoggerView.h"
+#include "../Components/ProjectBrowserView.h"
 
 namespace editor {
 	bool EditorApplication::Initialize()
@@ -126,7 +127,9 @@ namespace editor {
 		if (ImGui::BeginMainMenuBar()) {
 			if (ImGui::BeginMenu("File")) {
 				if (ImGui::MenuItem("New Project", "Ctrl+N")) {}
-				if (ImGui::MenuItem("Open Project", "Ctrl+O")) {}
+				if (ImGui::MenuItem("Open Project", "Ctrl+O")) {
+					ProjectBrowserView::Get().GetShowState() = true;
+				}
 				if (ImGui::MenuItem("Save", "Ctrl+S")) {}
 				ImGui::Separator();
 				if (ImGui::MenuItem("Exit", "Alt+F4")) {
@@ -146,6 +149,9 @@ namespace editor {
 
 		// Logger window
 		LoggerView::LoggerView::Get().Draw();
+
+		// Project Browser Window
+		ProjectBrowserView::Get().Draw();
 		
 	}
 
