@@ -115,7 +115,8 @@ std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
 
         auto name = projectFile.stem().string();
         auto path = projectFile.parent_path();
-        return std::shared_ptr<Project>(new Project(name, path));
+        auto m_project = new Project(name, path);
+        return std::shared_ptr<Project>(m_project);
     }
     catch (const fs::filesystem_error& e) {
         Logger::Get().Log(MessageType::Error,

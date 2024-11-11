@@ -6,6 +6,8 @@
 #include <iostream>
 #include "../Components/LoggerView.h"
 #include "../Components/ProjectBrowserView.h"
+#include "../Components/SceneView.h"
+#include "Project/Project.h"
 
 namespace editor {
 
@@ -157,7 +159,14 @@ namespace editor {
 
 		// Project Browser Window
 		ProjectBrowserView::Get().Draw();
-		
+
+		// Scene Window
+		auto loadedProject = ProjectBrowserView::Get().GetLoadedProject();
+		if (loadedProject) {
+			SceneView::Get().SetActiveProject(loadedProject);
+
+			SceneView::Get().Draw();
+		}
 	}
 
 

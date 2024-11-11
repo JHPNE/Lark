@@ -111,6 +111,9 @@ void ProjectBrowserView::DrawNewProject() {
 				projectData.name = m_newProjectName;
 				projectData.path = m_projectPath / m_newProjectName;
 
+                // load project instance
+				m_loadedProject = project;
+
 				// Get current time
 				auto now = std::chrono::system_clock::now();
 				auto timeT = std::chrono::system_clock::to_time_t(now);
@@ -176,6 +179,9 @@ void ProjectBrowserView::DrawOpenProject() {
                 std::stringstream ss;
                 ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
                 projectData.date = ss.str();
+
+				// load project instance
+				m_loadedProject = project;
 
                 // Save updated project data
                 WriteProjectData();

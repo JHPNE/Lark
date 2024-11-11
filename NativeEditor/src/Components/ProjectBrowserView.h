@@ -14,6 +14,7 @@ public:
 
     void Draw();
     bool& GetShowState() { return m_show; }
+    std::shared_ptr<Project> GetLoadedProject() const { return m_loadedProject; }
 
 private:
     ProjectBrowserView() { 
@@ -45,4 +46,5 @@ private:
 	int m_selectedRecentProject = -1;
 	fs::path m_appDataPath;
     fs::path m_projectDataPath;
+	std::shared_ptr<Project> m_loadedProject;
 };
