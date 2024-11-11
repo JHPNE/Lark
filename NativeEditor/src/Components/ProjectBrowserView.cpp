@@ -189,7 +189,7 @@ void ProjectBrowserView::DrawOpenProject() {
 }
 
 void ProjectBrowserView::LoadRecentProjects() {
-	m_appDataPath = fs::path(Utils::GetEnvironmentVariable("APPDATA")) / "DrosimEditor";
+	m_appDataPath = Utils::GetApplicationDataPath();
 	m_projectDataPath = m_appDataPath / "ProjectData.xml";
 
 	if (!fs::exists(m_appDataPath)) {
@@ -302,7 +302,7 @@ void ProjectBrowserView::LoadTemplates() {
 	}
 
     // TODO: Make template path configurable
-    fs::path templatePath = fs::path(enginePathString) / "NativeEditor" / "ProjectTemplates";
+    fs::path templatePath = Utils::GetEngineResourcePath();
     m_templates = ProjectTemplate::LoadTemplates(templatePath);
 
     if (m_templates.empty()) {
