@@ -151,18 +151,25 @@ void Project::AddScene(const std::string& sceneName) {
 }
 
 bool Project::RemoveScene(const std::string& sceneName) {
-    auto it = std::remove_if(m_scenes.begin(), m_scenes.end(),
-        [&sceneName](const std::shared_ptr<Scene>& scene) {
-            return scene->GetName() == sceneName;
-        });
+    try {
+        auto it = std::find_if(m_scenes.begin(), m_scenes.end(),
+            [&sceneName](const std::shared_ptr<Scene>& scene) {
+                return scene->GetName() == sceneName;
+            });
 
-    if (it != m_scenes.end()) {
-        m_scenes.erase(it, m_scenes.end());
-        Logger::Get().Log(MessageType::Info, "Removed scene: " + sceneName);
-        return true;
+        if (it != m_scenes.end()) {
+            m_scenes.erase(it);
+            Logger::Get().Log(MessageType::Info, "Removed scene: " + sceneName);
+            return true;
+        }
+        Logger::Get().Log(MessageType::Warning, "Scene not found: " + sceneName);
+        return false;
     }
-    Logger::Get().Log(MessageType::Warning, "Scene not found: " + sceneName);
-    return false;
+    catch (const std::exception& e) {
+        Logger::Get().Log(MessageType::Error,
+            "Error removing scene: " + sceneName + " - " + e.what());
+        return false;
+    }
 }
 
 std::shared_ptr<Scene> Project::GetScene(const std::string& sceneName) const {
