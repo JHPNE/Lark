@@ -8,6 +8,7 @@
 #include "../Components/ProjectBrowserView.h"
 
 namespace editor {
+
 	bool EditorApplication::Initialize()
 	{
 		//Initializing GLFW
@@ -122,7 +123,6 @@ namespace editor {
 		static bool show_demo_window = true;
 		if (show_demo_window)
 			ImGui::ShowDemoWindow(&show_demo_window);
-
 
 
 		// Main menu bar
