@@ -3,6 +3,7 @@
 #include <iostream>
 #include <filesystem>
 #include <string>
+#include "GLFW/glfw3.h"
 
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
