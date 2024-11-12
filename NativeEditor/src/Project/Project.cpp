@@ -4,6 +4,7 @@
 #include "../Utils/FileSystem.h"
 #include <fstream>
 #include "Scene.h"
+#include "tinyxml2.h"
 
 namespace {
     std::string ReadFileContent(const fs::path& path) {
@@ -67,37 +68,16 @@ std::shared_ptr<Project> Project::Create(const std::string& name,
         // Create project instance
         auto project = std::shared_ptr<Project>(new Project(name, projectDir));
 
-        // Read and format project XML
-        std::string projectXml = ReadFileContent(tmpl.GetProjectPath());
-        if (projectXml.empty()) {
-            Logger::Get().Log(MessageType::Error,
-                "Failed to read template project file: " + tmpl.GetProjectPath().string());
-            return nullptr;
-        }
+		project->AddScene("Scene");
 
-        std::string formattedXml = FormatProjectXml(projectXml, name, projectDir.string());
+        // Save initial project state
+        if (!project->Save()) {
+			Logger::Get().Log(MessageType::Error, "Failed to save project");
+			return nullptr;
+		}
 
-        // Platform-specific line endings
-#ifdef _WIN32
-        formattedXml += "\r\n";
-#else
-        formattedXml += "\n";
-#endif
-
-        std::ofstream projectFile(project->GetFullPath(), std::ios::binary);
-        if (!projectFile || !(projectFile << formattedXml)) {
-            Logger::Get().Log(MessageType::Error,
-                "Failed to write project file: " + project->GetFullPath().string());
-            return nullptr;
-        }
-
-        Logger::Get().Log(MessageType::Info, "Created project: " + name);
         return project;
-    }
-    catch (const fs::filesystem_error& e) {
-        Logger::Get().Log(MessageType::Error,
-            "Filesystem error while creating project: " + std::string(e.what()));
-    }
+	}
     catch (const std::exception& e) {
         Logger::Get().Log(MessageType::Error,
             "General error while creating project: " + std::string(e.what()));
@@ -107,21 +87,46 @@ std::shared_ptr<Project> Project::Create(const std::string& name,
 
 std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
     try {
-        if (!fs::exists(projectFile)) {
-            Logger::Get().Log(MessageType::Error,
-                "Project file does not exist: " + projectFile.string());
+
+		tinyxml2::XMLDocument doc;
+		if (doc.LoadFile(projectFile.string().c_str()) != tinyxml2::XML_SUCCESS) {
+			Logger::Get().Log(MessageType::Error, "Failed to load project file: " + projectFile.string());
+			return nullptr;
+		}
+
+		auto root = doc.FirstChildElement("Project");
+        if (!root) {
+			Logger::Get().Log(MessageType::Error, "Invalid project file " + projectFile.string());
             return nullptr;
         }
 
-        auto name = projectFile.stem().string();
-        auto path = projectFile.parent_path();
-        auto m_project = new Project(name, path);
-        return std::shared_ptr<Project>(m_project);
-    }
-    catch (const fs::filesystem_error& e) {
-        Logger::Get().Log(MessageType::Error,
-            "Filesystem error while loading project: " + std::string(e.what()));
-    }
+		auto nameElement = root->FirstChildElement("Name");
+		auto pathElement = root->FirstChildElement("Path");
+
+		if (!nameElement || !pathElement) {
+			Logger::Get().Log(MessageType::Error, "Missing project properties! " + projectFile.string());
+			return nullptr;
+		}
+
+		auto project = std::shared_ptr<Project>(new Project(nameElement->GetText(), pathElement->GetText()));
+
+		if (!project->LoadScenesFromXml(root)) {
+			Logger::Get().Log(MessageType::Warning, "Failed to load scenes from project file: " + projectFile.string());
+		}
+
+        // Set active Scene
+		auto activeSceneElement = root->FirstChildElement("ActiveScene");
+        if (activeSceneElement) {
+			project->SetActiveScene(activeSceneElement->GetText());
+        }
+		else if (!project->GetScenes().empty()) {
+			project->SetActiveScene(project->GetScenes().front()->GetName());
+		}
+
+		project->m_isModified = false;
+        return project;
+
+	}
     catch (const std::exception& e) {
         Logger::Get().Log(MessageType::Error,
             "General error while loading project: " + std::string(e.what()));
@@ -130,9 +135,51 @@ std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
 }
 
 bool Project::Save() {
-    // Currently just returns true as the project file is created in Create()
-    // Will be implemented when we add scene management
-    return true;
+    try {
+		tinyxml2::XMLDocument doc;
+
+		auto decl = doc.NewDeclaration();
+		doc.LinkEndChild(decl);
+
+		auto root = doc.NewElement("Project");
+		doc.LinkEndChild(root);
+
+        // Project properties
+		auto nameElement = doc.NewElement("Name");
+		nameElement->SetText(m_name.c_str());
+		root->LinkEndChild(nameElement);
+
+		auto pathElement = doc.NewElement("Path");
+		pathElement->SetText(m_path.string().c_str());
+		root->LinkEndChild(pathElement);
+
+        // Active Scene
+        if (m_activeScene) {
+			auto activeSceneElement = doc.NewElement("ActiveScene");
+			activeSceneElement->SetText(m_activeScene->GetName().c_str());
+			root->LinkEndChild(activeSceneElement);
+        }
+
+        // Save scenes
+        if (!SaveScenesToXml(doc, root)) {
+            return false;
+        }
+
+        if (doc.SaveFile(GetFullPath().string().c_str()) != tinyxml2::XML_SUCCESS) {
+            Logger::Get().Log(MessageType::Error, "Failed to save project file");
+            return false;
+        }
+
+        m_isModified = false;
+        Logger::Get().Log(MessageType::Info, "Project saved successfully");
+        return true;
+
+    }
+	catch (const std::exception& e) {
+		Logger::Get().Log(MessageType::Error, "Error saving project: " + std::string(e.what()));
+		return false;
+	}
+
 }
 
 void Project::Unload() {
@@ -141,35 +188,48 @@ void Project::Unload() {
 
 Project::Project(const std::string& name, const fs::path& path)
     : m_name(name)
-    , m_path(path) {
+    , m_path(path)
+    , m_activeScene(nullptr)
+    , m_isModified(false) {
 }
 
-void Project::AddScene(const std::string& sceneName) {
+std::shared_ptr<Scene> Project::AddScene(const std::string& sceneName) {
     auto scene = std::make_shared<Scene>(sceneName, shared_from_this());
     m_scenes.push_back(scene);
+
+    if (!m_activeScene) {
+        m_activeScene = scene;
+    }
+
+    SetModified();
     Logger::Get().Log(MessageType::Info, "Added scene: " + sceneName);
+    return scene;
 }
 
 bool Project::RemoveScene(const std::string& sceneName) {
-    try {
-        auto it = std::find_if(m_scenes.begin(), m_scenes.end(),
-            [&sceneName](const std::shared_ptr<Scene>& scene) {
-                return scene->GetName() == sceneName;
-            });
+    auto it = std::find_if(m_scenes.begin(), m_scenes.end(),
+        [&](const auto& scene) { return scene->GetName() == sceneName; });
 
-        if (it != m_scenes.end()) {
-            m_scenes.erase(it);
-            Logger::Get().Log(MessageType::Info, "Removed scene: " + sceneName);
-            return true;
+    if (it != m_scenes.end()) {
+        if (*it == m_activeScene) {
+            m_activeScene = m_scenes.size() > 1 ? m_scenes.front() : nullptr;
         }
-        Logger::Get().Log(MessageType::Warning, "Scene not found: " + sceneName);
-        return false;
+        m_scenes.erase(it);
+        SetModified();
+        Logger::Get().Log(MessageType::Info, "Removed scene: " + sceneName);
+        return true;
     }
-    catch (const std::exception& e) {
-        Logger::Get().Log(MessageType::Error,
-            "Error removing scene: " + sceneName + " - " + e.what());
-        return false;
+    return false;
+}
+
+bool Project::SetActiveScene(const std::string& sceneName) {
+    auto scene = GetScene(sceneName);
+    if (scene) {
+        m_activeScene = scene;
+        SetModified();
+        return true;
     }
+    return false;
 }
 
 std::shared_ptr<Scene> Project::GetScene(const std::string& sceneName) const {
@@ -180,4 +240,40 @@ std::shared_ptr<Scene> Project::GetScene(const std::string& sceneName) const {
     }
     Logger::Get().Log(MessageType::Warning, "Scene not found: " + sceneName);
     return nullptr;
+}
+
+bool Project::SaveScenesToXml(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root) const {
+    auto scenesElement = doc.NewElement("Scenes");
+    root->LinkEndChild(scenesElement);
+
+    for (const auto& scene : m_scenes) {
+        auto sceneElement = doc.NewElement("Scene");
+
+        auto nameElement = doc.NewElement("Name");
+        nameElement->SetText(scene->GetName().c_str());
+        sceneElement->LinkEndChild(nameElement);
+
+        // TODO: Add game entity serialization when implemented
+
+        scenesElement->LinkEndChild(sceneElement);
+    }
+    return true;
+}
+
+bool Project::LoadScenesFromXml(tinyxml2::XMLElement* root) {
+    auto scenesElement = root->FirstChildElement("Scenes");
+    if (!scenesElement) return false;
+
+    for (auto sceneElement = scenesElement->FirstChildElement("Scene");
+        sceneElement;
+        sceneElement = sceneElement->NextSiblingElement("Scene")) {
+
+        auto nameElement = sceneElement->FirstChildElement("Name");
+        if (!nameElement) continue;
+
+        AddScene(nameElement->GetText());
+
+        // TODO: Add game entity deserialization when implemented
+    }
+    return true;
 }

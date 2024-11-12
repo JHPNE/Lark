@@ -137,7 +137,9 @@ namespace editor {
 				if (ImGui::MenuItem("Open Project", "Ctrl+O")) {
 					ProjectBrowserView::Get().GetShowState() = true;
 				}
-				if (ImGui::MenuItem("Save", "Ctrl+S")) {}
+				if (ImGui::MenuItem("Save", "Ctrl+S")) {
+					ProjectBrowserView::Get().GetLoadedProject()->Save();
+				}
 				ImGui::Separator();
 				if (ImGui::MenuItem("Exit", "Alt+F4")) {
 					m_Running = false;

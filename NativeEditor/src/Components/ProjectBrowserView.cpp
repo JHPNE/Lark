@@ -148,6 +148,18 @@ void ProjectBrowserView::DrawOpenProject() {
             if (ImGui::Selectable(project.name.c_str(), m_selectedRecentProject == (int)i)) {
                 m_selectedRecentProject = (int)i;
             }
+
+            // Add context menu for each project
+            if (ImGui::BeginPopupContextItem()) {
+                if (ImGui::MenuItem("Remove from list")) {
+                    m_recentProjects.erase(m_recentProjects.begin() + i);
+                    WriteProjectData();
+                    if (m_selectedRecentProject >= m_recentProjects.size()) {
+                        m_selectedRecentProject = m_recentProjects.empty() ? -1 : 0;
+                    }
+                }
+                ImGui::EndPopup();
+            }
         }
 
         ImGui::EndChild();
@@ -161,6 +173,11 @@ void ProjectBrowserView::DrawOpenProject() {
             ImGui::Text("Name: %s", project.name.c_str());
             ImGui::Text("Path: %s", project.path.string().c_str());
             ImGui::Text("Last Opened: %s", project.date.c_str());
+
+            // Check if project file exists
+            if (!fs::exists(project.GetFullPath())) {
+                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Project file not found!");
+            }
         }
         ImGui::EndChild();
     }
@@ -168,30 +185,48 @@ void ProjectBrowserView::DrawOpenProject() {
 	ImGui::EndChild(); // End of OpenProject child
 
     // Open button
-	ImGui::BeginDisabled(m_selectedRecentProject < 0);
+    ImGui::BeginDisabled(m_selectedRecentProject < 0);
     if (ImGui::Button("Open Project", ImVec2(-1, 0))) {
-        if (m_selectedRecentProject >= 0 && m_selectedRecentProject < m_recentProjects.size()) {
-            auto& projectData = m_recentProjects[m_selectedRecentProject];
-            if (auto project = Project::Load(projectData.GetFullPath())) {
-                // Update last opened time
-                auto now = std::chrono::system_clock::now();
-                auto timeT = std::chrono::system_clock::to_time_t(now);
-                std::stringstream ss;
-                ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
-                projectData.date = ss.str();
-
-				// load project instance
-				m_loadedProject = project;
-
-                // Save updated project data
-                WriteProjectData();
-
-                Logger::Get().Log(MessageType::Info, "Project opened successfully: " + projectData.name);
-                m_show = false;
-            }
-        }
+        OpenSelectedProject();
     }
     ImGui::EndDisabled();
+}
+
+void ProjectBrowserView::OpenSelectedProject() {
+    if (m_selectedRecentProject >= 0 && m_selectedRecentProject < m_recentProjects.size()) {
+        auto& projectData = m_recentProjects[m_selectedRecentProject];
+
+        // Check if project file exists
+        if (!fs::exists(projectData.GetFullPath())) {
+            Logger::Get().Log(MessageType::Error, "Project file not found: " + projectData.GetFullPath().string());
+            return;
+        }
+
+        if (auto project = Project::Load(projectData.GetFullPath())) {
+            // Update last opened time
+            auto now = std::chrono::system_clock::now();
+            auto timeT = std::chrono::system_clock::to_time_t(now);
+            std::stringstream ss;
+            ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
+            projectData.date = ss.str();
+
+            // Move this project to the top of the list
+            std::rotate(
+                m_recentProjects.begin(),
+                m_recentProjects.begin() + m_selectedRecentProject,
+                m_recentProjects.begin() + m_selectedRecentProject + 1
+            );
+
+            // load project instance
+            m_loadedProject = project;
+
+            // Save updated project data
+            WriteProjectData();
+
+            Logger::Get().Log(MessageType::Info, "Project opened successfully: " + projectData.name);
+            m_show = false;
+        }
+    }
 }
 
 void ProjectBrowserView::LoadRecentProjects() {
