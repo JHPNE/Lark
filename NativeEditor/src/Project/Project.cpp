@@ -68,7 +68,7 @@ std::shared_ptr<Project> Project::Create(const std::string& name,
         // Create project instance
         auto project = std::shared_ptr<Project>(new Project(name, projectDir));
 
-		project->AddScene("Scene");
+		project->AddSceneInternal("Scene");
 
         // Save initial project state
         if (!project->Save()) {
@@ -193,7 +193,7 @@ Project::Project(const std::string& name, const fs::path& path)
     , m_isModified(false) {
 }
 
-std::shared_ptr<Scene> Project::AddScene(const std::string& sceneName) {
+std::shared_ptr<Scene> Project::AddSceneInternal(const std::string& sceneName) {
     auto scene = std::make_shared<Scene>(sceneName, shared_from_this());
     m_scenes.push_back(scene);
 
@@ -206,7 +206,7 @@ std::shared_ptr<Scene> Project::AddScene(const std::string& sceneName) {
     return scene;
 }
 
-bool Project::RemoveScene(const std::string& sceneName) {
+bool Project::RemoveSceneInternal(const std::string& sceneName) {
     auto it = std::find_if(m_scenes.begin(), m_scenes.end(),
         [&](const auto& scene) { return scene->GetName() == sceneName; });
 
@@ -217,6 +217,50 @@ bool Project::RemoveScene(const std::string& sceneName) {
         m_scenes.erase(it);
         SetModified();
         Logger::Get().Log(MessageType::Info, "Removed scene: " + sceneName);
+        return true;
+    }
+    return false;
+}
+
+std::shared_ptr<Scene> Project::AddScene(const std::string& sceneName) {
+	auto scene = AddSceneInternal(sceneName);
+
+
+    if (scene) {
+
+		auto action = std::make_shared<UndoRedoAction>(
+			// Undo function - removes scene
+			[this, sceneName]() {
+				RemoveSceneInternal(sceneName);
+			},
+			// redo function - adds scene
+			[this, sceneName]() {
+				AddSceneInternal(sceneName);
+			},
+			"Add Scene: " + sceneName
+		);
+
+		m_undoRedo.Add(action);
+    }
+
+    return scene;
+}
+
+bool Project::RemoveScene(const std::string& sceneName) {
+    auto sceneToRemove = GetScene(sceneName);
+    if (!sceneToRemove) return false;
+
+    if (RemoveSceneInternal(sceneName)) {
+        auto action = std::make_shared<UndoRedoAction>(
+            [this, sceneName]() {
+                AddSceneInternal(sceneName);
+            },
+            [this, sceneName]() {
+                RemoveSceneInternal(sceneName);
+            },
+            "Remove Scene: " + sceneName
+        );
+        m_undoRedo.Add(action);
         return true;
     }
     return false;
@@ -271,7 +315,7 @@ bool Project::LoadScenesFromXml(tinyxml2::XMLElement* root) {
         auto nameElement = sceneElement->FirstChildElement("Name");
         if (!nameElement) continue;
 
-        AddScene(nameElement->GetText());
+        AddSceneInternal(nameElement->GetText());
 
         // TODO: Add game entity deserialization when implemented
     }

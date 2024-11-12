@@ -6,10 +6,14 @@
 void SceneView::Draw() {
     if (!m_show || !project)
         return;
-    if (ImGui::Begin("Scene Manager", &m_show)) {
+
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
+    window_flags |= ImGuiWindowFlags_NoCollapse;
+
+    if (ImGui::Begin("Scene Manager", &m_show, window_flags)) {
         if (ImGui::Button("+ Add Scene")) {
             static int sceneCounter = 1;
-            std::string sceneName = "Scene " + std::to_string(sceneCounter++);
+            std::string sceneName = "New Scene";
             project->AddScene(sceneName);
         }
         ImGui::Separator();

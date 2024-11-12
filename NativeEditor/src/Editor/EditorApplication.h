@@ -27,6 +27,8 @@ namespace editor {
 		void EndFrame();
 		void Update();
 
+		void DrawMenuAndToolbar();
+
 		GLFWwindow* m_window = nullptr;
 		ImVec4 m_clearColor = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
 		bool m_Running = false;

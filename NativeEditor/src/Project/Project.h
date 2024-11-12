@@ -3,6 +3,7 @@
 #include "ProjectTemplate.h"
 #include <memory>
 #include "../Utils/FileSystem.h" 
+#include "../Utils/UndoRedo.h" 
 #include "Scene.h"
 #include <string>
 #include <vector>
@@ -37,15 +38,23 @@ public:
     bool IsModified() const { return m_isModified; }
     void SetModified(bool modified = true) { m_isModified = modified; }
 
+	// Undo/Redo
+	UndoRedo& GetUndoRedo() { return m_undoRedo; }
 
 private:
     Project(const std::string& name, const fs::path& path);
     bool SaveScenesToXml(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root) const;
     bool LoadScenesFromXml(tinyxml2::XMLElement* root);
 
+	// Internal Methods for Undo/Redo
+    std::shared_ptr<Scene> AddSceneInternal(const std::string& sceneName);
+    bool RemoveSceneInternal(const std::string& sceneName);
+
+
     std::string m_name;
     fs::path m_path;
     std::vector<std::shared_ptr<Scene>> m_scenes;
 	std::shared_ptr<Scene> m_activeScene;
     bool m_isModified = false;
+	UndoRedo m_undoRedo;
 };

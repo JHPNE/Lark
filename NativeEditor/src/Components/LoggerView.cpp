@@ -9,7 +9,10 @@ namespace LoggerView {
 		if (!m_show)
 			return;
 
-		if (ImGui::Begin("Logger", &m_show))
+		ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
+		window_flags |= ImGuiWindowFlags_NoCollapse;
+
+		if (ImGui::Begin("Logger", &m_show, window_flags))
 		{
 			if (ImGui::Button("Clear")) Logger::Get().Clear();
 			ImGui::SameLine();

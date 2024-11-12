@@ -126,36 +126,8 @@ namespace editor {
 		if (show_demo_window)
 			ImGui::ShowDemoWindow(&show_demo_window);
 
-
-		// Main menu bar
-		if (ImGui::BeginMainMenuBar()) {
-			if (ImGui::BeginMenu("File")) {
-				if (ImGui::MenuItem("New Project", "Ctrl+N")) {
-					ProjectBrowserView::Get().GetShowState() = true;
-				}
-
-				if (ImGui::MenuItem("Open Project", "Ctrl+O")) {
-					ProjectBrowserView::Get().GetShowState() = true;
-				}
-				if (ImGui::MenuItem("Save", "Ctrl+S")) {
-					ProjectBrowserView::Get().GetLoadedProject()->Save();
-				}
-				ImGui::Separator();
-				if (ImGui::MenuItem("Exit", "Alt+F4")) {
-					m_Running = false;
-				}
-
-				//TODO REMOVE
-				if (ImGui::MenuItem("Test Logger")) {
-					Logger::Get().Log(MessageType::Info, "This is an info message");
-					Logger::Get().Log(MessageType::Warning, "This is a warning message");
-					Logger::Get().Log(MessageType::Error, "This is an error message", __FILE__, __FUNCTION__, __LINE__);
-				}
-				ImGui::EndMenu();
-			}
-			ImGui::EndMainMenuBar();
-		}
-
+		DrawMenuAndToolbar();
+		
 		// Logger window
 		LoggerView::LoggerView::Get().Draw();
 
@@ -169,6 +141,90 @@ namespace editor {
 
 			SceneView::Get().Draw();
 		}
+	}
+
+	void EditorApplication::DrawMenuAndToolbar() {
+		// Main menu bar
+		if (ImGui::BeginMainMenuBar()) {
+			// File Menu
+			if (ImGui::BeginMenu("File")) {
+				if (ImGui::MenuItem("New Project", "Ctrl+N")) {
+					ProjectBrowserView::Get().GetShowState() = true;
+				}
+				if (ImGui::MenuItem("Open Project", "Ctrl+O")) {
+					ProjectBrowserView::Get().GetShowState() = true;
+				}
+				if (ImGui::MenuItem("Save", "Ctrl+S")) {
+					ProjectBrowserView::Get().GetLoadedProject()->Save();
+				}
+				ImGui::Separator();
+				if (ImGui::MenuItem("Exit", "Alt+F4")) {
+					m_Running = false;
+				}
+				//TODO REMOVE
+				if (ImGui::MenuItem("Test Logger")) {
+					Logger::Get().Log(MessageType::Info, "This is an info message");
+					Logger::Get().Log(MessageType::Warning, "This is a warning message");
+					Logger::Get().Log(MessageType::Error, "This is an error message", __FILE__, __FUNCTION__, __LINE__);
+				}
+				ImGui::EndMenu();
+			}
+
+			// Add separator line between menu and toolbar
+			ImGui::SameLine(0, 20);
+
+			// Undo/Redo Controls
+			auto project = ProjectBrowserView::Get().GetLoadedProject();
+			bool hasProject = project != nullptr;
+
+			// Style the buttons to look like toolbar buttons
+			ImGuiStyle& style = ImGui::GetStyle();
+			float originalPadding = style.FramePadding.y;
+			style.FramePadding.y = 2; // Reduce vertical padding
+
+			// Undo Button
+			if (ImGui::Button("Undo") && hasProject && project->GetUndoRedo().CanUndo()) {
+				project->GetUndoRedo().Undo();
+			}
+			if (ImGui::IsItemHovered() && hasProject && project->GetUndoRedo().CanUndo()) {
+				const auto& undoList = project->GetUndoRedo().GetUndoList();
+				if (!undoList.empty()) {
+					ImGui::BeginTooltip();
+					ImGui::Text("Undo: %s", undoList.back()->GetName().c_str());
+					ImGui::EndTooltip();
+				}
+			}
+
+			ImGui::SameLine(0, 5);
+
+			// Redo Button
+			if (ImGui::Button("Redo") && hasProject && project->GetUndoRedo().CanRedo()) {
+				project->GetUndoRedo().Redo();
+			}
+			if (ImGui::IsItemHovered() && hasProject && project->GetUndoRedo().CanRedo()) {
+				const auto& redoList = project->GetUndoRedo().GetRedoList();
+				if (!redoList.empty()) {
+					ImGui::BeginTooltip();
+					ImGui::Text("Redo: %s", redoList.front()->GetName().c_str());
+					ImGui::EndTooltip();
+				}
+			}
+
+			// No project tooltip
+			if (!hasProject) {
+				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+					ImGui::BeginTooltip();
+					ImGui::Text("No project loaded");
+					ImGui::EndTooltip();
+				}
+			}
+
+			// Restore original style
+			style.FramePadding.y = originalPadding;
+
+			ImGui::EndMainMenuBar();
+		}
+
 	}
 
 
