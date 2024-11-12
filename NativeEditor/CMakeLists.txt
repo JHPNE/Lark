@@ -32,6 +32,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
+# Fetch TinyXML2
+FetchContent_Declare(
+    tinyxml2
+    GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git
+    GIT_TAG 9.0.0
+)
+# Configure TinyXML2 options
+set(tinyxml2_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(tinyxml2)
+
 # Find packages
 find_package(OpenGL REQUIRED)
 
@@ -59,7 +69,6 @@ add_library(imgui STATIC
         "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
         "${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp"
 )
-
 target_include_directories(imgui PUBLIC
         "${imgui_SOURCE_DIR}"
         "${imgui_SOURCE_DIR}/backends"
@@ -91,6 +100,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${glfw_SOURCE_DIR}/include
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
+        ${tinyxml2_SOURCE_DIR}
 )
 
 # Link libraries
@@ -98,6 +108,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         imgui
         glad
         glfw
+        tinyxml2
 )
 
 # Print some debug info

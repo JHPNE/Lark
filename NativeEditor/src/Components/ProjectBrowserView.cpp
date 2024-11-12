@@ -252,6 +252,7 @@ bool ProjectBrowserView::ReadProjectData() {
     return false;
 }
 
+// TODO: seperate update and write we dont wanna rewrite everytime
 bool ProjectBrowserView::WriteProjectData() {
     try {
         // First ensure the directory exists
