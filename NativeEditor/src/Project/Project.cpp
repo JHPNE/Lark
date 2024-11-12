@@ -87,46 +87,42 @@ std::shared_ptr<Project> Project::Create(const std::string& name,
 
 std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
     try {
-
-		tinyxml2::XMLDocument doc;
-		if (doc.LoadFile(projectFile.string().c_str()) != tinyxml2::XML_SUCCESS) {
-			Logger::Get().Log(MessageType::Error, "Failed to load project file: " + projectFile.string());
-			return nullptr;
-		}
-
-		auto root = doc.FirstChildElement("Project");
-        if (!root) {
-			Logger::Get().Log(MessageType::Error, "Invalid project file " + projectFile.string());
+        tinyxml2::XMLDocument doc;
+        if (doc.LoadFile(projectFile.string().c_str()) != tinyxml2::XML_SUCCESS) {
+            Logger::Get().Log(MessageType::Error, "Failed to load project file: " + projectFile.string());
             return nullptr;
         }
 
-		auto nameElement = root->FirstChildElement("Name");
-		auto pathElement = root->FirstChildElement("Path");
-
-		if (!nameElement || !pathElement) {
-			Logger::Get().Log(MessageType::Error, "Missing project properties! " + projectFile.string());
-			return nullptr;
-		}
-
-		auto project = std::shared_ptr<Project>(new Project(nameElement->GetText(), pathElement->GetText()));
-
-		if (!project->LoadScenesFromXml(root)) {
-			Logger::Get().Log(MessageType::Warning, "Failed to load scenes from project file: " + projectFile.string());
-		}
-
-        // Set active Scene
-		auto activeSceneElement = root->FirstChildElement("ActiveScene");
-        if (activeSceneElement) {
-			project->SetActiveScene(activeSceneElement->GetText());
+        auto root = doc.FirstChildElement("Project");
+        if (!root) {
+            Logger::Get().Log(MessageType::Error, "Invalid project file " + projectFile.string());
+            return nullptr;
         }
-		else if (!project->GetScenes().empty()) {
-			project->SetActiveScene(project->GetScenes().front()->GetName());
-		}
 
-		project->m_isModified = false;
+        auto nameElement = root->FirstChildElement("Name");
+        auto pathElement = root->FirstChildElement("Path");
+
+        if (!nameElement || !pathElement) {
+            Logger::Get().Log(MessageType::Error, "Missing project properties! " + projectFile.string());
+            return nullptr;
+        }
+
+        auto project = std::shared_ptr<Project>(new Project(nameElement->GetText(), pathElement->GetText()));
+
+        // Load scenes - active scene will be set within LoadScenesFromXml
+        if (!project->LoadScenesFromXml(root)) {
+            Logger::Get().Log(MessageType::Warning, "Failed to load scenes from project file: " + projectFile.string());
+            // Continue loading even if scenes fail - project might be empty
+        }
+
+        // Set unmodified since we just loaded
+        project->m_isModified = false;
+
+        // Log success
+        Logger::Get().Log(MessageType::Info, "Successfully loaded project: " + project->GetName());
+
         return project;
-
-	}
+    }
     catch (const std::exception& e) {
         Logger::Get().Log(MessageType::Error,
             "General error while loading project: " + std::string(e.what()));
@@ -136,50 +132,48 @@ std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
 
 bool Project::Save() {
     try {
-		tinyxml2::XMLDocument doc;
+        tinyxml2::XMLDocument doc;
 
-		auto decl = doc.NewDeclaration();
-		doc.LinkEndChild(decl);
+        // Add XML declaration
+        auto decl = doc.NewDeclaration();
+        doc.LinkEndChild(decl);
 
-		auto root = doc.NewElement("Project");
-		doc.LinkEndChild(root);
+        // Create root element
+        auto root = doc.NewElement("Project");
+        doc.LinkEndChild(root);
+
+        // Add version attribute for future compatibility
+        root->SetAttribute("version", "1.0");
 
         // Project properties
-		auto nameElement = doc.NewElement("Name");
-		nameElement->SetText(m_name.c_str());
-		root->LinkEndChild(nameElement);
+        auto nameElement = doc.NewElement("Name");
+        nameElement->SetText(m_name.c_str());
+        root->LinkEndChild(nameElement);
 
-		auto pathElement = doc.NewElement("Path");
-		pathElement->SetText(m_path.string().c_str());
-		root->LinkEndChild(pathElement);
+        auto pathElement = doc.NewElement("Path");
+        pathElement->SetText(m_path.string().c_str());
+        root->LinkEndChild(pathElement);
 
-        // Active Scene
-        if (m_activeScene) {
-			auto activeSceneElement = doc.NewElement("ActiveScene");
-			activeSceneElement->SetText(m_activeScene->GetName().c_str());
-			root->LinkEndChild(activeSceneElement);
-        }
-
-        // Save scenes
+        // Save scenes (active scene is handled within SaveScenesToXml)
         if (!SaveScenesToXml(doc, root)) {
+            Logger::Get().Log(MessageType::Error, "Failed to save scenes");
             return false;
         }
 
+        // Save to file
         if (doc.SaveFile(GetFullPath().string().c_str()) != tinyxml2::XML_SUCCESS) {
-            Logger::Get().Log(MessageType::Error, "Failed to save project file");
+            Logger::Get().Log(MessageType::Error, "Failed to save project file: " + GetFullPath().string());
             return false;
         }
 
         m_isModified = false;
-        Logger::Get().Log(MessageType::Info, "Project saved successfully");
+        Logger::Get().Log(MessageType::Info, "Project saved successfully: " + GetFullPath().string());
         return true;
-
     }
-	catch (const std::exception& e) {
-		Logger::Get().Log(MessageType::Error, "Error saving project: " + std::string(e.what()));
-		return false;
-	}
-
+    catch (const std::exception& e) {
+        Logger::Get().Log(MessageType::Error, "Error saving project: " + std::string(e.what()));
+        return false;
+    }
 }
 
 void Project::Unload() {
@@ -194,7 +188,8 @@ Project::Project(const std::string& name, const fs::path& path)
 }
 
 std::shared_ptr<Scene> Project::AddSceneInternal(const std::string& sceneName) {
-    auto scene = std::make_shared<Scene>(sceneName, shared_from_this());
+    uint32_t newId = GenerateUniqueSceneID();
+    auto scene = std::make_shared<Scene>(sceneName, newId, shared_from_this());
     m_scenes.push_back(scene);
 
     if (!m_activeScene) {
@@ -206,57 +201,65 @@ std::shared_ptr<Scene> Project::AddSceneInternal(const std::string& sceneName) {
     return scene;
 }
 
-bool Project::RemoveSceneInternal(const std::string& sceneName) {
+bool Project::RemoveSceneInternal(uint32_t sceneId) {
     auto it = std::find_if(m_scenes.begin(), m_scenes.end(),
-        [&](const auto& scene) { return scene->GetName() == sceneName; });
+        [&](const auto& scene) { return scene->GetID() == sceneId; });
 
     if (it != m_scenes.end()) {
+		std::string removedSceneName = (*it)->GetName();
         if (*it == m_activeScene) {
             m_activeScene = m_scenes.size() > 1 ? m_scenes.front() : nullptr;
         }
         m_scenes.erase(it);
         SetModified();
-        Logger::Get().Log(MessageType::Info, "Removed scene: " + sceneName);
+        Logger::Get().Log(MessageType::Info, "Removed scene: " + removedSceneName);
         return true;
     }
     return false;
 }
 
 std::shared_ptr<Scene> Project::AddScene(const std::string& sceneName) {
-	auto scene = AddSceneInternal(sceneName);
-
+    auto scene = AddSceneInternal(sceneName);
 
     if (scene) {
+        // Store both ID and name since we can't lookup scene after deletion
+        uint32_t sceneId = scene->GetID();
+        std::string name = scene->GetName();
 
-		auto action = std::make_shared<UndoRedoAction>(
-			// Undo function - removes scene
-			[this, sceneName]() {
-				RemoveSceneInternal(sceneName);
-			},
-			// redo function - adds scene
-			[this, sceneName]() {
-				AddSceneInternal(sceneName);
-			},
-			"Add Scene: " + sceneName
-		);
+        auto action = std::make_shared<UndoRedoAction>(
+            // Undo function - removes scene
+            [this, sceneId]() {
+                RemoveSceneInternal(sceneId);
+            },
+            // redo function - adds scene with same name
+            [this, name]() {
+                AddSceneInternal(name);
+            },
+            "Add Scene: " + name
+        );
 
-		m_undoRedo.Add(action);
+        m_undoRedo.Add(action);
     }
 
     return scene;
 }
 
-bool Project::RemoveScene(const std::string& sceneName) {
-    auto sceneToRemove = GetScene(sceneName);
+bool Project::RemoveScene(uint32_t sceneId) {
+    auto sceneToRemove = GetSceneById(sceneId);
     if (!sceneToRemove) return false;
 
-    if (RemoveSceneInternal(sceneName)) {
+    // Store scene info before removal
+    std::string sceneName = sceneToRemove->GetName();
+
+    if (RemoveSceneInternal(sceneId)) {
         auto action = std::make_shared<UndoRedoAction>(
+            // Undo function - recreates the scene
             [this, sceneName]() {
                 AddSceneInternal(sceneName);
             },
-            [this, sceneName]() {
-                RemoveSceneInternal(sceneName);
+            // Redo function - removes the scene again
+            [this, sceneId]() {
+                RemoveSceneInternal(sceneId);
             },
             "Remove Scene: " + sceneName
         );
@@ -266,8 +269,8 @@ bool Project::RemoveScene(const std::string& sceneName) {
     return false;
 }
 
-bool Project::SetActiveScene(const std::string& sceneName) {
-    auto scene = GetScene(sceneName);
+bool Project::SetActiveScene(uint32_t sceneId) {
+    auto scene = GetScene(sceneId);
     if (scene) {
         m_activeScene = scene;
         SetModified();
@@ -276,14 +279,8 @@ bool Project::SetActiveScene(const std::string& sceneName) {
     return false;
 }
 
-std::shared_ptr<Scene> Project::GetScene(const std::string& sceneName) const {
-    for (const auto& scene : m_scenes) {
-        if (scene->GetName() == sceneName) {
-            return scene;
-        }
-    }
-    Logger::Get().Log(MessageType::Warning, "Scene not found: " + sceneName);
-    return nullptr;
+std::shared_ptr<Scene> Project::GetScene(uint32_t sceneId) const {
+	return GetSceneById(sceneId);
 }
 
 bool Project::SaveScenesToXml(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root) const {
@@ -292,6 +289,12 @@ bool Project::SaveScenesToXml(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* 
 
     for (const auto& scene : m_scenes) {
         auto sceneElement = doc.NewElement("Scene");
+
+		sceneElement->SetAttribute("ID", scene->GetID());
+
+        if (scene == m_activeScene) {
+			sceneElement->SetAttribute("Active", true);
+        }
 
         auto nameElement = doc.NewElement("Name");
         nameElement->SetText(scene->GetName().c_str());
@@ -308,16 +311,70 @@ bool Project::LoadScenesFromXml(tinyxml2::XMLElement* root) {
     auto scenesElement = root->FirstChildElement("Scenes");
     if (!scenesElement) return false;
 
+    uint32_t activeSceneId = 0;
+
+    // First pass: load all scenes
     for (auto sceneElement = scenesElement->FirstChildElement("Scene");
         sceneElement;
         sceneElement = sceneElement->NextSiblingElement("Scene")) {
 
+        // Get scene ID from attribute
+        uint32_t id;
+        if (sceneElement->QueryUnsignedAttribute("id", &id) != tinyxml2::XML_SUCCESS) {
+            continue;  // Skip if no valid ID
+        }
+
+        // Check if this is the active scene
+        bool isActive = false;
+        sceneElement->QueryBoolAttribute("active", &isActive);
+        if (isActive) {
+            activeSceneId = id;
+        }
+
         auto nameElement = sceneElement->FirstChildElement("Name");
         if (!nameElement) continue;
 
-        AddSceneInternal(nameElement->GetText());
-
-        // TODO: Add game entity deserialization when implemented
+        auto scene = std::make_shared<Scene>(
+            nameElement->GetText(),
+            id,
+            shared_from_this()
+        );
+        m_scenes.push_back(scene);
     }
+
+    // Set active scene
+    if (activeSceneId != 0) {
+        SetActiveScene(activeSceneId);
+    }
+    else if (!m_scenes.empty()) {
+        SetActiveScene(m_scenes.front()->GetID());
+    }
+
     return true;
 }
+
+uint32_t Project::GenerateUniqueSceneID() const {
+    // If there are no scenes, start with ID 1
+    if (m_scenes.empty()) {
+        return 1;
+    }
+
+    // Otherwise find highest existing ID and increment by 1
+    uint32_t maxId = 0;  // Start from 0 instead of m_nextSceneId
+    for (const auto& scene : m_scenes) {
+        maxId = std::max(maxId, scene->GetID());
+    }
+    return maxId + 1;
+}
+
+std::shared_ptr<Scene> Project::GetSceneById(uint32_t id) const {
+    auto it = std::find_if(m_scenes.begin(), m_scenes.end(),
+        [id](const auto& scene) { return scene->GetID() == id; });
+
+    if (it != m_scenes.end()) {
+        return *it;
+    }
+
+    return nullptr;
+}
+

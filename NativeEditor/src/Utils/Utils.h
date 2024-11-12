@@ -18,4 +18,10 @@ public:
     static fs::path GetEngineResourcePath();
     static std::optional<fs::path> GetBundlePath();
     static fs::path GetDefaultEnginePath();
+
+	// New method for checking if an ID is invalid
+    static bool IsInvalidID(int id) { return id != INVALIDID; };
+
+private:
+	static const int INVALIDID = -1;
 };

@@ -2,6 +2,7 @@
 #include "../Project/Project.h"  
 #include <imgui.h>
 #include "../src/Utils/Logger.h"
+#include "../src/Utils/Utils.h"
 
 void SceneView::Draw() {
     if (!m_show || !project)
@@ -20,19 +21,19 @@ void SceneView::Draw() {
 
         // Get a copy of scenes to iterate over
         auto scenes = project->GetScenes();
-        std::string sceneToDelete;
+        uint32_t sceneToDelete;
 
         // First pass: render UI and mark scene for deletion
         for (const auto& scene : scenes) {
             ImGui::TextUnformatted(scene->GetName().c_str());
             ImGui::SameLine();
             if (ImGui::Button(("Delete##" + scene->GetName()).c_str())) {
-                sceneToDelete = scene->GetName(); // Mark for deletion instead of deleting immediately
+                sceneToDelete = scene->GetID(); // Mark for deletion instead of deleting immediately
             }
         }
 
         // Second pass: handle deletion after iteration
-        if (!sceneToDelete.empty()) {
+        if (Utils::IsInvalidID(sceneToDelete)) {
             project->RemoveScene(sceneToDelete);
         }
     }

@@ -28,10 +28,10 @@ public:
     fs::path GetFullPath() const { return m_path / (m_name + Extension); }
 
     std::shared_ptr<Scene> AddScene(const std::string& sceneName);
-    bool RemoveScene(const std::string& sceneName);
-    std::shared_ptr<Scene> GetScene(const std::string& sceneName) const;
+    bool RemoveScene(uint32_t sceneId);
+    std::shared_ptr<Scene> GetScene(uint32_t sceneId) const;
     std::shared_ptr<Scene> GetActiveScene() const { return m_activeScene; };
-	bool SetActiveScene(const std::string& sceneName);
+	bool SetActiveScene(uint32_t sceneId);
     const std::vector<std::shared_ptr<Scene>>& GetScenes() const { return m_scenes; }
 
     // Project modified state
@@ -48,8 +48,9 @@ private:
 
 	// Internal Methods for Undo/Redo
     std::shared_ptr<Scene> AddSceneInternal(const std::string& sceneName);
-    bool RemoveSceneInternal(const std::string& sceneName);
-
+    bool RemoveSceneInternal(uint32_t sceneId);
+	uint32_t GenerateUniqueSceneID() const;
+	std::shared_ptr<Scene> GetSceneById(uint32_t id) const;
 
     std::string m_name;
     fs::path m_path;
