@@ -1,14 +1,16 @@
 #pragma once
 #include "EditorApplication.h"
+#include "Project/Project.h"
 #include <glad/glad.h>
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include "../Components/LoggerView.h"
-#include "../Components/ProjectBrowserView.h"
-#include "../Components/SceneView.h"
+#include "../View/LoggerView.h"
+#include "../View/ProjectBrowserView.h"
+#include "../View/SceneView.h"
+#include "../View/ComponentView.h"
 #include "../Utils/GlobalUndoRedo.h"
-#include "Project/Project.h"
+#include "../Utils/VectorBox.h"
 
 namespace editor {
 
@@ -135,12 +137,17 @@ namespace editor {
 		// Project Browser Window
 		ProjectBrowserView::Get().Draw();
 
-		// Scene Window
+		// Scene and Component Windows
 		auto loadedProject = ProjectBrowserView::Get().GetLoadedProject();
 		if (loadedProject) {
-			SceneView::Get().SetActiveProject(loadedProject);
 
+			// Scene Window
+			SceneView::Get().SetActiveProject(loadedProject);
 			SceneView::Get().Draw();
+
+			// Component Window
+			ComponentView::Get().SetActiveProject(loadedProject);
+			ComponentView::Get().Draw();
 		}
 	}
 

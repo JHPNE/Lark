@@ -89,6 +89,10 @@ void SceneView::Draw() {
                         ImGui::OpenPopup(("EntityContext##" + std::to_string(entity->GetID())).c_str());
                     }
 
+					if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+						entity->SetSelected(!entity->IsSelected());
+					}
+
                     if (ImGui::BeginPopup(("EntityContext##" + std::to_string(entity->GetID())).c_str())) {
                         if (ImGui::MenuItem(entity->IsEnabled() ? "Disable" : "Enable")) {
                             entity->SetEnabled(!entity->IsEnabled());

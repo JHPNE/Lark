@@ -32,7 +32,7 @@ public:
     T* GetComponent() const {
         static_assert(std::is_base_of<Component, T>::value, "T must derive from Component");
 
-        ComponentType type = T(this).GetType(); // Temporary to get type
+        ComponentType type = T::GetStaticType(); // Temporary to get type
         auto it = m_components.find(type);
         return it != m_components.end() ? static_cast<T*>(it->second.get()) : nullptr;
     }
@@ -63,6 +63,8 @@ public:
     bool IsEnabled() const { return m_isEnabled; }
 	void SetEnabled(bool enabled) { m_isEnabled = enabled; }
     std::shared_ptr<Scene> GetScene() const { return m_scene; }
+	void SetSelected(bool highlight) { m_isSelected = highlight; }
+	bool IsSelected() const { return m_isSelected; }
 
     bool IsActive() const { return m_isActive; }
 
@@ -82,12 +84,13 @@ private:
         if (m_isActive == active) return;
 
         m_isActive = active;
-   }
+    }
 
     std::string m_name;
     bool m_isActive;
     uint32_t m_id;
     bool m_isEnabled;
+    bool m_isSelected = false;
     std::shared_ptr<Scene> m_scene;
     std::unordered_map<ComponentType, std::unique_ptr<Component>> m_components;
 };

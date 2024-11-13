@@ -17,6 +17,7 @@ public:
 	virtual ~Component() = default;
 
 	GameEntity* GetOwner() const { return m_owner; }
+	static ComponentType GetStaticType() { return ComponentType::Count; }
 	ComponentType GetType() const { return m_type;  }
 
 protected:
