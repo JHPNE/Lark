@@ -13,7 +13,6 @@ void SceneView::Draw() {
 
     if (ImGui::Begin("Scene Manager", &m_show, window_flags)) {
         if (ImGui::Button("+ Add Scene")) {
-            static int sceneCounter = 1;
             std::string sceneName = "New Scene";
             project->AddScene(sceneName);
         }
@@ -26,6 +25,10 @@ void SceneView::Draw() {
         // First pass: render UI and mark scene for deletion
         for (const auto& scene : scenes) {
             ImGui::TextUnformatted(scene->GetName().c_str());
+            if (ImGui::Button("+ Add Entity")) {
+                std::string entityName = "Empty Entity";
+                scene->CreateEntity(entityName);
+            }
             ImGui::SameLine();
             if (ImGui::Button(("Delete##" + scene->GetName()).c_str())) {
                 sceneToDelete = scene->GetID(); // Mark for deletion instead of deleting immediately

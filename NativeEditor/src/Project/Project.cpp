@@ -210,6 +210,7 @@ bool Project::RemoveSceneInternal(uint32_t sceneId) {
         if (*it == m_activeScene) {
             m_activeScene = m_scenes.size() > 1 ? m_scenes.front() : nullptr;
         }
+        it->get()->RemoveAllEntities();
         m_scenes.erase(it);
         SetModified();
         Logger::Get().Log(MessageType::Info, "Removed scene: " + removedSceneName);
@@ -339,6 +340,7 @@ bool Project::LoadScenesFromXml(tinyxml2::XMLElement* root) {
             id,
             shared_from_this()
         );
+
         m_scenes.push_back(scene);
     }
 

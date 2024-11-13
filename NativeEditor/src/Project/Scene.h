@@ -4,6 +4,7 @@
 #include <vector>
 #include "GameEntity.h"
 #include "../Utils/Logger.h"
+#include "../Utils/UndoRedo.h"
 
 // Forward declare Project to avoid circular dependency
 class Project;
@@ -43,6 +44,10 @@ public:
         }
         Logger::Get().Log(MessageType::Warning, "Failed to remove entity with ID: " + std::to_string(entityId));
         return false;
+    }
+
+    void RemoveAllEntities() {
+        m_entities.clear();
     }
 
     std::shared_ptr<GameEntity> GetEntity(uint32_t entityId) const {
