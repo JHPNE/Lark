@@ -14,7 +14,8 @@ public:
     Scene(const std::string& name, uint32_t id, std::shared_ptr<Project> owner)
         : m_name(name)
         , m_id(id)
-        , m_owner(owner) {}
+        , m_owner(owner)
+        , m_isActive(false) {}
 
     const std::string& GetName() const { return m_name; }
     uint32_t GetID() const { return m_id; }
@@ -43,12 +44,13 @@ public:
     }
 
     std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name) {
-        uint32_t entityId = GenerateEntityID();
+        uint32_t entityId = GenerateEntityID(); //TODO: Use EngineAPI for that
         auto entity = std::shared_ptr<GameEntity>(
             new GameEntity(name, entityId, shared_from_this())
         );
-        m_entities.push_back(entity);
 
+		entity->SetActive(m_isActive);
+        m_entities.push_back(entity);
         Logger::Get().Log(MessageType::Info, "Created entity: " + name);
         return entity;
     }
@@ -58,6 +60,10 @@ public:
             [entityId](const auto& entity) { return entity->GetID() == entityId; });
 
         if (it != m_entities.end()) {
+
+			//TODO: EngineAPI.EntityAPI.RemoveEntity(entityId);
+			// it->is_active = false;
+
             std::string removedName = (*it)->GetName();
             m_entities.erase(it);
             Logger::Get().Log(MessageType::Info, "Removed entity: " + removedName);
@@ -84,6 +90,17 @@ public:
     // Undo/Redo
     UndoRedo& GetUndoRedo() { return m_undoRedo; }
 
+    // Active Cycle
+	bool IsActive() const { return m_isActive; }
+    void SetActive(bool active) {
+        if (m_isActive == active) return;
+        m_isActive = active;
+
+        for (auto& entity : m_entities) {
+            entity->SetActive(active);
+        }
+    }
+
 private:
     uint32_t GenerateEntityID() const {
         return m_entities.empty() ? 1 :
@@ -92,6 +109,7 @@ private:
             )->get()->GetID() + 1;
     }
 
+	bool m_isActive;
     std::string m_name;
     uint32_t m_id;
     std::shared_ptr<Project> m_owner;

@@ -293,17 +293,23 @@ bool Project::SaveScenesToXml(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* 
     for (const auto& scene : m_scenes) {
         auto sceneElement = doc.NewElement("Scene");
 
-		sceneElement->SetAttribute("ID", scene->GetID());
+		sceneElement->SetAttribute("id", scene->GetID());
 
         if (scene == m_activeScene) {
-			sceneElement->SetAttribute("Active", true);
+			sceneElement->SetAttribute("active", true);
         }
 
         auto nameElement = doc.NewElement("Name");
         nameElement->SetText(scene->GetName().c_str());
         sceneElement->LinkEndChild(nameElement);
 
-        // TODO: Add game entity serialization when implemented
+		auto entities = scene->GetEntities();
+		for (const auto& entity : entities) {
+			auto entityElement = doc.NewElement("Entity");
+			entityElement->SetAttribute("id", entity->GetID());
+			entityElement->SetAttribute("name", entity->GetName().c_str());
+			sceneElement->LinkEndChild(entityElement);
+		}
 
         scenesElement->LinkEndChild(sceneElement);
     }
@@ -343,8 +349,48 @@ bool Project::LoadScenesFromXml(tinyxml2::XMLElement* root) {
             shared_from_this()
         );
 
+        // Load entities for this scene
+        for (auto entityElement = sceneElement->FirstChildElement("Entity");
+            entityElement;
+            entityElement = entityElement->NextSiblingElement("Entity")) {
+
+            // Get entity attributes
+            uint32_t entityId;
+            const char* entityName = entityElement->Attribute("name");
+
+            if (!entityName ||
+                entityElement->QueryUnsignedAttribute("id", &entityId) != tinyxml2::XML_SUCCESS) {
+                Logger::Get().Log(MessageType::Warning,
+                    "Skipping entity with missing required attributes in scene: " + scene->GetName());
+                continue;
+            }
+
+            // Create the entity using Scene's internal method to preserve the ID
+            auto entity = scene->CreateEntity(entityName);
+            if (!entity) {
+                Logger::Get().Log(MessageType::Error,
+                    "Failed to create entity: " + std::string(entityName));
+                continue;
+            }
+
+            // TODO: Load entity components when implemented
+            // This would go here, iterating through component elements
+            // for (auto componentElement = entityElement->FirstChildElement("Component"); ...)
+
+            Logger::Get().Log(MessageType::Info,
+                "Loaded entity: " + entity->GetName() + " (ID: " + std::to_string(entity->GetID()) +
+                ") in scene: " + scene->GetName());
+        }
+
         m_scenes.push_back(scene);
     }
+
+    // Log scenes TODO: REMOVE LATER
+    std::string scenesStr;
+    for (const auto& scene : m_scenes) {
+        scenesStr += "Name: " + scene->GetName() + "\n";
+    }
+    Logger::Get().Log(MessageType::Info, "Loaded scenes:\n" + scenesStr);
 
     // Set active scene
     if (activeSceneId != 0) {

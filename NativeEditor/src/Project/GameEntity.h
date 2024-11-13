@@ -61,7 +61,10 @@ public:
     const std::string& GetName() const { return m_name; }
     uint32_t GetID() const { return m_id; }
     bool IsEnabled() const { return m_isEnabled; }
+	void SetEnabled(bool enabled) { m_isEnabled = enabled; }
     std::shared_ptr<Scene> GetScene() const { return m_scene; }
+
+    bool IsActive() const { return m_isActive; }
 
 private:
     friend class Scene; // Only Scene can create entities
@@ -75,7 +78,14 @@ private:
         AddComponent<Transform>();
     }
 
+    void SetActive(bool active) {
+        if (m_isActive == active) return;
+
+        m_isActive = active;
+   }
+
     std::string m_name;
+    bool m_isActive;
     uint32_t m_id;
     bool m_isEnabled;
     std::shared_ptr<Scene> m_scene;

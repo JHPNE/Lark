@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <tinyxml2.h>
 
 namespace detail {
 	
@@ -295,6 +296,16 @@ bool ProjectBrowserView::WriteProjectData() {
             fs::create_directories(m_appDataPath);
         }
 
+		/*
+		tinyxml2::XMLDocument doc;
+		if (doc.LoadFile(m_projectDataPath.string().c_str()) == tinyxml2::XML_SUCCESS) {
+			tinyxml2::XMLElement* root = doc.FirstChildElement("ProjectDataList");
+			if (root) {
+				root->DeleteChildren();
+			}
+		}
+		*/
+
         std::stringstream xml;
         xml << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
         xml << "<ProjectDataList xmlns=\"http://schemas.datacontract.org/2004/07/DrosimEditor.SimProject\" "
@@ -302,6 +313,11 @@ bool ProjectBrowserView::WriteProjectData() {
         xml << "<Projects>\n";
 
         for (const auto& project : m_recentProjects) {
+            if (project.name.empty() || project.path.empty()) continue;
+
+
+            if (!fs::exists(project.path.string())) continue;
+
             xml << "  <ProjectData>\n";
             xml << "    <Date>" << project.date << "</Date>\n";
             xml << "    <ProjectName>" << project.name << "</ProjectName>\n";
