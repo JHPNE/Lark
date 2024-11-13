@@ -38,9 +38,6 @@ public:
     bool IsModified() const { return m_isModified; }
     void SetModified(bool modified = true) { m_isModified = modified; }
 
-	// Undo/Redo
-	UndoRedo& GetUndoRedo() { return m_undoRedo; }
-
 private:
     Project(const std::string& name, const fs::path& path);
     bool SaveScenesToXml(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root) const;
@@ -57,5 +54,4 @@ private:
     std::vector<std::shared_ptr<Scene>> m_scenes;
 	std::shared_ptr<Scene> m_activeScene;
     bool m_isModified = false;
-	UndoRedo m_undoRedo;
 };

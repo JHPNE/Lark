@@ -7,6 +7,7 @@
 #include "../Components/LoggerView.h"
 #include "../Components/ProjectBrowserView.h"
 #include "../Components/SceneView.h"
+#include "../Utils/GlobalUndoRedo.h"
 #include "Project/Project.h"
 
 namespace editor {
@@ -183,11 +184,11 @@ namespace editor {
 			style.FramePadding.y = 2; // Reduce vertical padding
 
 			// Undo Button
-			if (ImGui::Button("Undo") && hasProject && project->GetUndoRedo().CanUndo()) {
-				project->GetUndoRedo().Undo();
+			if (ImGui::Button("Undo") && hasProject && GlobalUndoRedo::Instance().GetUndoRedo().CanUndo()) {
+				GlobalUndoRedo::Instance().GetUndoRedo().Undo();
 			}
-			if (ImGui::IsItemHovered() && hasProject && project->GetUndoRedo().CanUndo()) {
-				const auto& undoList = project->GetUndoRedo().GetUndoList();
+			if (ImGui::IsItemHovered() && hasProject && GlobalUndoRedo::Instance().GetUndoRedo().CanUndo()) {
+				const auto& undoList = GlobalUndoRedo::Instance().GetUndoRedo().GetUndoList();
 				if (!undoList.empty()) {
 					ImGui::BeginTooltip();
 					ImGui::Text("Undo: %s", undoList.back()->GetName().c_str());
@@ -198,11 +199,11 @@ namespace editor {
 			ImGui::SameLine(0, 5);
 
 			// Redo Button
-			if (ImGui::Button("Redo") && hasProject && project->GetUndoRedo().CanRedo()) {
-				project->GetUndoRedo().Redo();
+			if (ImGui::Button("Redo") && hasProject && GlobalUndoRedo::Instance().GetUndoRedo().CanRedo()) {
+				GlobalUndoRedo::Instance().GetUndoRedo().Redo();
 			}
-			if (ImGui::IsItemHovered() && hasProject && project->GetUndoRedo().CanRedo()) {
-				const auto& redoList = project->GetUndoRedo().GetRedoList();
+			if (ImGui::IsItemHovered() && hasProject && GlobalUndoRedo::Instance().GetUndoRedo().CanRedo()) {
+				const auto& redoList = GlobalUndoRedo::Instance().GetUndoRedo().GetRedoList();
 				if (!redoList.empty()) {
 					ImGui::BeginTooltip();
 					ImGui::Text("Redo: %s", redoList.front()->GetName().c_str());

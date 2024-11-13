@@ -4,7 +4,7 @@
 #include <vector>
 #include "GameEntity.h"
 #include "../Utils/Logger.h"
-#include "../Utils/UndoRedo.h"
+#include "../Utils/GlobalUndoRedo.h"
 
 // Forward declare Project to avoid circular dependency
 class Project;
@@ -22,6 +22,27 @@ public:
 
     // Entity Management
     std::shared_ptr<GameEntity> CreateEntity(const std::string& name) {
+        auto entity = CreateEntityInternal(name);
+
+        if (entity) {
+            uint32_t entityId = entity->GetID();
+            auto action = std::make_shared<UndoRedoAction>(
+                [this, entityId]() {
+                    RemoveEntity(entityId);
+                },
+                [this, name]() {
+                    CreateEntityInternal(name);
+                },
+                "Add Scene: " + name
+            );
+
+            GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
+        }
+
+        return entity;
+    }
+
+    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name) {
         uint32_t entityId = GenerateEntityID();
         auto entity = std::shared_ptr<GameEntity>(
             new GameEntity(name, entityId, shared_from_this())
@@ -60,6 +81,9 @@ public:
         return m_entities;
     }
 
+    // Undo/Redo
+    UndoRedo& GetUndoRedo() { return m_undoRedo; }
+
 private:
     uint32_t GenerateEntityID() const {
         return m_entities.empty() ? 1 :
@@ -72,4 +96,5 @@ private:
     uint32_t m_id;
     std::shared_ptr<Project> m_owner;
     std::vector<std::shared_ptr<GameEntity>> m_entities;
+    UndoRedo m_undoRedo;
 };

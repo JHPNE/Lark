@@ -2,6 +2,7 @@
 #include "Project.h"
 #include "../Utils/Logger.h"
 #include "../Utils/FileSystem.h"
+#include "../Utils/GlobalUndoRedo.h"
 #include <fstream>
 #include "Scene.h"
 #include "tinyxml2.h"
@@ -239,7 +240,8 @@ std::shared_ptr<Scene> Project::AddScene(const std::string& sceneName) {
             "Add Scene: " + name
         );
 
-        m_undoRedo.Add(action);
+
+        GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
     }
 
     return scene;
@@ -264,7 +266,7 @@ bool Project::RemoveScene(uint32_t sceneId) {
             },
             "Remove Scene: " + sceneName
         );
-        m_undoRedo.Add(action);
+        GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
         return true;
     }
     return false;
