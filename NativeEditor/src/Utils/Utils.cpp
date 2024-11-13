@@ -94,10 +94,12 @@ fs::path Utils::GetEngineResourcePath() {
     }
 
 #ifdef __APPLE__
+    /*
     auto bundlePath = GetBundlePath();
     if (bundlePath) {
         return *bundlePath / "Contents/Resources/ProjectTemplates";
     }
+	*/
     // Fallback to engine path
     return fs::path(enginePathString) / "NativeEditor/ProjectTemplates";
 #else
