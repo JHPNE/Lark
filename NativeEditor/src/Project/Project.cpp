@@ -1,4 +1,3 @@
-#pragma once
 #include "Project.h"
 #include "../Utils/Logger.h"
 #include "../Utils/FileSystem.h"

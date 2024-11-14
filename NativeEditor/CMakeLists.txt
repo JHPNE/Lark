@@ -42,6 +42,13 @@ FetchContent_Declare(
 set(tinyxml2_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(tinyxml2)
 
+FetchContent_Declare(
+        glm
+        GIT_REPOSITORY https://github.com/g-truc/glm.git
+        GIT_TAG 0.9.9.8
+)
+FetchContent_MakeAvailable(glm)
+
 # Find packages
 find_package(OpenGL REQUIRED)
 
@@ -109,6 +116,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         glad
         glfw
         tinyxml2
+        glm
 )
 
 # Print some debug info
