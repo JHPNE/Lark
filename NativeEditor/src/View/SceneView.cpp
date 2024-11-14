@@ -28,19 +28,13 @@ void SceneView::Draw() {
 
         // Draw each scene and its entities
         for (const auto& scene : scenes) {
-            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
-                | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+            bool isSelected = project->GetActiveScene() == scene;
 
-            // If this is active scene, add Selected flag
-            if (project->GetActiveScene() == scene) {
-                flags |= ImGuiTreeNodeFlags_Selected;
+            // Scene Selectable
+            if (ImGui::Selectable((scene->GetName() + "##" + std::to_string(scene->GetID())).c_str(),
+                                isSelected)) {
+                project->SetActiveScene(scene->GetID());
             }
-
-            // Scene Tree Node
-            bool isOpen = ImGui::TreeNodeEx(
-                (scene->GetName() + "##" + std::to_string(scene->GetID())).c_str(),
-                flags
-            );
 
             // Scene Context Menu
             if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
@@ -57,13 +51,10 @@ void SceneView::Draw() {
                 ImGui::EndPopup();
             }
 
-            // Handle scene selection
-            if (ImGui::IsItemClicked()) {
-                project->SetActiveScene(scene->GetID());
-            }
+            // Draw entities if this scene is selected
+            if (isSelected) {
+                ImGui::Indent();
 
-            // Scene Controls
-            if (isOpen) {
                 // Add Entity Button
                 if (ImGui::Button(("+ Add Entity##" + std::to_string(scene->GetID())).c_str())) {
                     scene->CreateEntity("Empty Entity");
@@ -72,26 +63,22 @@ void SceneView::Draw() {
                 // List all entities in the scene
                 uint32_t entityToDelete = detail::INVALIDID;
                 for (const auto& entity : scene->GetEntities()) {
-                    ImGuiTreeNodeFlags entityFlags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-
                     // Show enabled/disabled state
                     if (!entity->IsEnabled()) {
                         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
                     }
 
-                    ImGui::TreeNodeEx(
+                    bool entitySelected = entity->IsSelected();
+                    if (ImGui::Selectable(
                         (entity->GetName() + "##" + std::to_string(entity->GetID())).c_str(),
-                        entityFlags
-                    );
+                        entitySelected)) {
+                        entity->SetSelected(!entitySelected);
+                    }
 
                     // Entity Context Menu
                     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
                         ImGui::OpenPopup(("EntityContext##" + std::to_string(entity->GetID())).c_str());
                     }
-
-					if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-						entity->SetSelected(!entity->IsSelected());
-					}
 
                     if (ImGui::BeginPopup(("EntityContext##" + std::to_string(entity->GetID())).c_str())) {
                         if (ImGui::MenuItem(entity->IsEnabled() ? "Disable" : "Enable")) {
@@ -113,7 +100,7 @@ void SceneView::Draw() {
                     scene->RemoveEntity(entityToDelete);
                 }
 
-                ImGui::TreePop();
+                ImGui::Unindent();
             }
         }
 

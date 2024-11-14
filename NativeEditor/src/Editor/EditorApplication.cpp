@@ -124,11 +124,6 @@ namespace editor {
 	}
 
 	void EditorApplication::Update() {
-		// Demo window for testing
-		static bool show_demo_window = true;
-		if (show_demo_window)
-			ImGui::ShowDemoWindow(&show_demo_window);
-
 		DrawMenuAndToolbar();
 		
 		// Logger window
