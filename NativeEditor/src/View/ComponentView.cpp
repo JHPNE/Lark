@@ -42,38 +42,42 @@ void ComponentView::Draw() {
             if (auto transform = selectedEntity->GetComponent<Transform>()) {
                 if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
                     // Position
-                    float position[3] = {
-                        transform->GetPosition().x,
-                        transform->GetPosition().y,
-                        transform->GetPosition().z
-                    };
-                    VectorBox positionBox;
-                    positionBox.Draw("Position", VectorType::Vector3, position);
-					transform->SetPosition({ position[0], position[1], position[2] });
+                    static float position[3] = { transform->GetPosition().x,
+                                               transform->GetPosition().y,
+                                               transform->GetPosition().z };
 
-                    ImGui::Spacing();
+                    NumberBox::Config config;
+                    config.dragSpeed = 0.01f;
+                    config.min = -100.0f;
+                    config.max = 100.0f;
+
+                    ImGui::Text("Position");  // Add label before VectorBox
+                    if(VectorBox::Draw("##Position", position, 3, config)) {
+                        // Update transform position if changed
+                        transform->SetPosition({position[0], position[1], position[2]});
+                    }
 
                     // Rotation
-                    float rotation[3] = {
-                        transform->GetRotation().x,
-                        transform->GetRotation().y,
-                        transform->GetRotation().z
-                    };
-                    VectorBox rotationBox;
-                    rotationBox.Draw("Rotation", VectorType::Vector3, rotation);
-                    transform->SetRotation({ rotation[0], rotation[1], rotation[2] });
+                    static float rotation[3] = { transform->GetRotation().x,
+                                               transform->GetRotation().y,
+                                               transform->GetRotation().z };
 
-                    ImGui::Spacing();
+                    ImGui::Text("Rotation");  // Add label before VectorBox
+                    if(VectorBox::Draw("##Rotation", rotation, 3, config)) {
+                        // Update transform rotation if changed
+                        transform->SetRotation({rotation[0], rotation[1], rotation[2]});
+                    }
 
                     // Scale
-                    float scale[3] = {
-                        transform->GetScale().x,
-                        transform->GetScale().y,
-                        transform->GetScale().z
-                    };
-                    VectorBox scaleBox;
-                    scaleBox.Draw("Scale", VectorType::Vector3, scale);
-                    transform->SetScale({ scale[0], scale[1], scale[2] });
+                    static float scale[3] = { transform->GetScale().x,
+                                            transform->GetScale().y,
+                                            transform->GetScale().z };
+
+                    ImGui::Text("Scale");  // Add label before VectorBox
+                    if(VectorBox::Draw("##Scale", scale, 3, config)) {
+                        // Update transform scale if changed
+                        transform->SetScale({scale[0], scale[1], scale[2]});
+                    }
                 }
             }
 

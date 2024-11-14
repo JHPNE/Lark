@@ -1,34 +1,38 @@
 #pragma once
-#include <memory>
-#include <string>
 #include <cassert>
+#include <memory>
 
 class GameEntity;
 
-// Component types enum
 enum class ComponentType {
-	Transform = 0,
+	None = 0,
+	Transform,
 	Script,
+	// Add other component types here
 	Count
 };
 
 class Component {
 public:
 	virtual ~Component() = default;
+	virtual ComponentType GetType() const = 0;
 
+	// Static type getter that derived classes will override
+	static ComponentType GetStaticType() { return ComponentType::None; }
+
+	// Getter for owner
 	GameEntity* GetOwner() const { return m_owner; }
-	static ComponentType GetStaticType() { return ComponentType::Count; }
-	ComponentType GetType() const { return m_type;  }
 
 protected:
-	// Only derived components can be constructed
-	Component(GameEntity* owner, ComponentType type)
-		: m_owner(owner)
-		, m_type(type) {
-		assert(owner && "Component must have an owner!");
+	explicit Component(GameEntity* owner) : m_owner(owner) {
+		// Assert owner is not null in debug builds
+		assert(owner != nullptr);
 	}
+
+	// Prevent copying
+	Component(const Component&) = delete;
+	Component& operator=(const Component&) = delete;
 
 private:
 	GameEntity* m_owner;
-	ComponentType m_type;
 };

@@ -1,22 +1,12 @@
 #pragma once
 #include "NumberBox.h"
 #include <array>
-#include <cmath>
-
-enum class VectorType {
-	Vector2,
-	Vector3,
-	Vector4
-};
 
 class VectorBox {
 public:
-	VectorBox() = default;
-	~VectorBox() = default;
+    static bool Draw(const char* label, float* values, int components, const NumberBox::Config& config = NumberBox::Config());
 
-	void Draw(const char* label, float* values, int components, float multiplier = 1.0f);
-	void Draw(const char* label, VectorType type, float* values, float multiplier = 1.0f);
 private:
-	std::array<NumberBox, 4> m_numberBoxes;
-	const char* const m_labels[4] = { "X", "Y", "Z", "W" };
+    static const char* s_labels[];
+    static const ImVec4 s_colors[];
 };

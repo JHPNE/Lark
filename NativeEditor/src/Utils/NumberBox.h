@@ -1,31 +1,32 @@
 #pragma once
 #include <imgui.h>
-#include <string>
-#include <functional>
-#include <cmath>
 
 class NumberBox {
 public:
-	NumberBox() = default;
-	virtual ~NumberBox() = default;
+    struct Config {
+        float dragSpeed;
+        float min;
+        float max;
+        int decimals;
+        bool showButtons;
+        float buttonSize;
 
-	void Draw(const char* label, float* value, float multiplier = 1.0f);
+        Config() :
+            dragSpeed(0.01f),
+            min(-FLT_MAX),
+            max(FLT_MAX),
+            decimals(3),
+            showButtons(false),
+            buttonSize(0.0f)
+        {}
+    };
 
-protected:
-	struct DragState {
-		bool active = false;
-		float originalValue = 0.0f;
-		float mouseXStart = 0.0f;
-		bool valueChanged = false;
-		float multiplier = 0.01f;
-	};
-
-	bool HandleDrag(float* value, DragState& state, float multiplier);
-	void HandleTextInput(float* value);
+    static bool Draw(const char* label, float* value, const Config& config = Config());
 
 private:
-	bool m_isEditing = false;
-	char m_inputBuffer[32] = "";
-	DragState m_dragState;
+    static bool s_dragStarted;
+    static float s_dragStartValue;
+    static float s_dragStartMouseX;
+    static ImGuiID s_editingId;
+    static ImGuiID s_activeId;
 };
-
