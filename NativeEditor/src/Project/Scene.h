@@ -29,7 +29,7 @@ public:
             uint32_t entityId = entity->GetID();
             auto action = std::make_shared<UndoRedoAction>(
                 [this, entityId]() {
-                    RemoveEntity(entityId);
+                    RemoveEntityInternal(entityId);
                 },
                 [this, name]() {
                     CreateEntityInternal(name);
@@ -55,7 +55,7 @@ public:
         return entity;
     }
 
-    bool RemoveEntity(uint32_t entityId) {
+    bool RemoveEntityInternal(uint32_t entityId) {
         auto it = std::find_if(m_entities.begin(), m_entities.end(),
             [entityId](const auto& entity) { return entity->GetID() == entityId; });
 
@@ -70,6 +70,41 @@ public:
             return true;
         }
         Logger::Get().Log(MessageType::Warning, "Failed to remove entity with ID: " + std::to_string(entityId));
+        return false;
+    }
+
+    bool RemoveEntity(uint32_t entityId) {
+        // Get the entity before removal to store its data for undo
+        auto entity = GetEntity(entityId);
+        if (!entity) {
+            Logger::Get().Log(MessageType::Warning, "Cannot remove entity - ID not found: " + std::to_string(entityId));
+            return false;
+        }
+
+        // Store entity data for restoration
+        std::string entityName = entity->GetName();
+        bool wasActive = entity->IsActive();
+
+        if (RemoveEntityInternal(entityId)) {
+            auto action = std::make_shared<UndoRedoAction>(
+                // Undo function - recreates the entity with original data
+                [this, entityName, wasActive]() {
+                    auto restoredEntity = CreateEntityInternal(entityName);
+                    if (restoredEntity) {
+                        restoredEntity->SetActive(wasActive);
+                    }
+                },
+                // Redo function - removes the entity again
+                [this, entityId]() {
+                    RemoveEntityInternal(entityId);
+                },
+                "Remove Entity: " + entityName
+            );
+
+            GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
+            return true;
+        }
+
         return false;
     }
 

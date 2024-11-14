@@ -366,7 +366,7 @@ bool Project::LoadScenesFromXml(tinyxml2::XMLElement* root) {
             }
 
             // Create the entity using Scene's internal method to preserve the ID
-            auto entity = scene->CreateEntity(entityName);
+            auto entity = scene->CreateEntityInternal(entityName);
             if (!entity) {
                 Logger::Get().Log(MessageType::Error,
                     "Failed to create entity: " + std::string(entityName));
