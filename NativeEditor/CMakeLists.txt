@@ -13,6 +13,14 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # Include FetchContent
 include(FetchContent)
 
+# Fetch GLAD
+FetchContent_Declare(
+        glad
+        GIT_REPOSITORY https://github.com/Dav1dde/glad.git
+        GIT_TAG v0.1.36
+)
+FetchContent_MakeAvailable(glad)
+
 # Fetch GLFW
 FetchContent_Declare(
         glfw
@@ -34,14 +42,14 @@ FetchContent_MakeAvailable(imgui)
 
 # Fetch TinyXML2
 FetchContent_Declare(
-    tinyxml2
-    GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git
-    GIT_TAG 9.0.0
+        tinyxml2
+        GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git
+        GIT_TAG 9.0.0
 )
-# Configure TinyXML2 options
 set(tinyxml2_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(tinyxml2)
 
+# Fetch GLM
 FetchContent_Declare(
         glm
         GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -55,18 +63,7 @@ find_package(OpenGL REQUIRED)
 # Print the imgui source directory for debugging
 message(STATUS "ImGui source directory: ${imgui_SOURCE_DIR}")
 
-# Use existing GLAD
-add_library(glad STATIC
-        ThirdParty/glad/src/glad.c
-)
-target_include_directories(glad PUBLIC
-        ThirdParty/glad/include
-)
-target_link_libraries(glad PRIVATE
-        ${OPENGL_LIBRARIES}
-)
-
-# ImGui library (using FetchContent paths)
+# ImGui library
 add_library(imgui STATIC
         "${imgui_SOURCE_DIR}/imgui.cpp"
         "${imgui_SOURCE_DIR}/imgui_demo.cpp"
@@ -81,7 +78,7 @@ target_include_directories(imgui PUBLIC
         "${imgui_SOURCE_DIR}/backends"
 )
 target_include_directories(imgui PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/glad/include
+        ${glad_SOURCE_DIR}/include
         ${glfw_SOURCE_DIR}/include
 )
 target_link_libraries(imgui PUBLIC
@@ -103,7 +100,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_include_directories(${PROJECT_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/glad/include
+        ${glad_SOURCE_DIR}/include
         ${glfw_SOURCE_DIR}/include
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
