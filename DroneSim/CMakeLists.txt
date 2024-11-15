@@ -1,10 +1,9 @@
-# DroneSim/CMakeLists.txt
 set(PROJECT_NAME DroneSim)
 
 # Collect source files
 file(GLOB_RECURSE SOURCE_FILES
-        "*.cpp"
-        "*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
 # Create static library

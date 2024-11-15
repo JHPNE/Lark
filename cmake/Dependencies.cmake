@@ -9,14 +9,7 @@ FetchContent_Declare(
         GIT_TAG v0.1.36
 )
 
-# Configure GLAD before making it available
-set(GLAD_PROFILE "core" CACHE STRING "OpenGL profile")
-set(GLAD_API "gl=4.6" CACHE STRING "API type/version pairs")
-set(GLAD_GENERATOR "c" CACHE STRING "Language to generate the binding for")
-set(GLAD_EXTENSIONS "" CACHE STRING "Path to extensions file or comma separated list of extensions")
-set(GLAD_SPEC "gl" CACHE STRING "Name of the spec")
-set(GLAD_NO_LOADER OFF CACHE BOOL "No loader")
-set(GLAD_REPRODUCIBLE ON CACHE BOOL "Reproducible build")
+FetchContent_MakeAvailable(glad)
 
 # GLFW
 FetchContent_Declare(
@@ -52,7 +45,7 @@ FetchContent_Declare(
 )
 
 # Make all dependencies available
-FetchContent_MakeAvailable(glad glfw imgui tinyxml2 glm)
+FetchContent_MakeAvailable(glfw imgui tinyxml2 glm)
 
 if(TARGET glad)
     set_target_properties(glad PROPERTIES

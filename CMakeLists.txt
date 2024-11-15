@@ -1,4 +1,3 @@
-# Root CMakeLists.txt (CMakeLists.txt)
 cmake_minimum_required(VERSION 3.16.0 FATAL_ERROR)
 
 # Set project name and languages
@@ -14,7 +13,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Add this after your existing output directory settings
+# Per-configuration output directories
 foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
     string(TOUPPER ${CONFIG} CONFIG_UPPER)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UPPER} ${CMAKE_BINARY_DIR}/bin)
@@ -22,31 +21,17 @@ foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${CONFIG_UPPER} ${CMAKE_BINARY_DIR}/lib)
 endforeach()
 
-# Also add this to ensure proper build settings
-if(MINGW)
-    set(CMAKE_AR "gcc-ar")
-    set(CMAKE_RANLIB "gcc-ranlib")
-    set(CMAKE_C_ARCHIVE_CREATE "<CMAKE_AR> qcs <TARGET> <LINK_FLAGS> <OBJECTS>")
-    set(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> qcs <TARGET> <LINK_FLAGS> <OBJECTS>")
-endif()
-
 # Platform detection
 if(WIN32)
-    set(PLATFORM_WINDOWS 1)
+    add_definitions(-DPLATFORM_WINDOWS)
 elseif(APPLE)
-    set(PLATFORM_MACOS 1)
+    add_definitions(-DPLATFORM_MACOS)
 elseif(UNIX AND NOT APPLE)
-    set(PLATFORM_LINUX 1)
+    add_definitions(-DPLATFORM_LINUX)
 endif()
 
 # Global configuration types
-set(CMAKE_CONFIGURATION_TYPES
-        "Debug"
-        "DebugEditor"
-        "Release"
-        "ReleaseEditor"
-        CACHE STRING "" FORCE
-)
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 
 # Include FetchContent for third-party dependencies
 include(FetchContent)

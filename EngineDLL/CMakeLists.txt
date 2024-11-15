@@ -1,10 +1,9 @@
-# EngineDLL/CMakeLists.txt
 set(PROJECT_NAME EngineDLL)
 
 # Collect source files
 file(GLOB_RECURSE SOURCE_FILES
-        "*.cpp"
-        "*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
 # Create shared library

@@ -1,5 +1,4 @@
-﻿# NativeEditor/CMakeLists.txt
-set(PROJECT_NAME DroSimEditor)
+﻿set(PROJECT_NAME DroSimEditor)
 
 # Collect source files
 file(GLOB_RECURSE EDITOR_FILES
