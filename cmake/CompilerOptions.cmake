@@ -1,13 +1,12 @@
-# cmake/CompilerOptions.cmake
 # Compiler-specific options
 if(MSVC)
-    # MSVC-specific options
     add_compile_options(
             /W4
             /MP
             /permissive-
             /Zc:preprocessor
             /Zc:__cplusplus
+            /wd4251
             $<$<CONFIG:Release,ReleaseEditor>:/O2>
             $<$<CONFIG:Debug,DebugEditor>:/Od>
     )
@@ -17,40 +16,39 @@ if(MSVC)
             -DNOMINMAX
             -DWIN32_LEAN_AND_MEAN
     )
-
 else()
-    # GCC/Clang options
+    # Common flags for GCC/Clang
     add_compile_options(
             -Wall
             -Wextra
             -Wpedantic
-            -fext-numeric-literals  # Enable extended numeric literals
             $<$<CONFIG:Release,ReleaseEditor>:-O3>
             $<$<CONFIG:Debug,DebugEditor>:-O0>
     )
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(-fext-numeric-literals)
+    endif()
 endif()
 
 if(MINGW)
-    add_compile_options(
-            -Wall
-            -Wextra
-            -Wpedantic
-            -fext-numeric-literals
-            $<$<CONFIG:Release,ReleaseEditor>:-O3>
-            $<$<CONFIG:Debug,DebugEditor>:-O0>
-            -fPIC  # Add position independent code flag
-    )
-
-    # Add linker flags for MinGW
+    add_compile_options(-fPIC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
+# Set default visibility for shared libraries
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
+
+# Enable PIC by default for shared libraries
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Platform-specific definitions
-if(PLATFORM_WINDOWS)
+if(WIN32)
     add_definitions(-DPLATFORM_WINDOWS)
-elseif(PLATFORM_MACOS)
+elseif(APPLE)
     add_definitions(-DPLATFORM_MACOS)
-elseif(PLATFORM_LINUX)
+elseif(UNIX AND NOT APPLE)
     add_definitions(-DPLATFORM_LINUX)
 endif()

@@ -1,3 +1,4 @@
+/*
 #pragma comment(lib, "dronesim.lib")
 
 // DllMain.cpp : Defines the entry point for the DLL application.
@@ -24,3 +25,5 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     return TRUE;
 }
 
+
+*/

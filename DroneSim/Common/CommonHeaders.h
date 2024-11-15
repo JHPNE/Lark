@@ -13,8 +13,8 @@
 #include "PrimitiveTypes.h"
 
 // Utils
-#include "..\Utils\Util.h"
-#include "..\Utils\MathTypes.h"
+#include "../Utils/Util.h"
+#include "../Utils/MathTypes.h"
 
 // GLM
 #include <glm/glm.hpp>

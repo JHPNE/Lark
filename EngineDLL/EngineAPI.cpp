@@ -1,9 +1,10 @@
+/*
 #include "Common.h"
 #include "CommonHeaders.h"
 #include "Id.h"
-#include "..\DroneSim\Components\Entity.h"
-#include "..\DroneSim\Components\Transform.h"
-#include "..\DroneSim\Components\Script.h"
+#include "../DroneSim/Components/Entity.h"
+#include "../DroneSim/Components/Transform.h"
+#include "../DroneSim/Components/Script.h"
 #include <glm/gtx/euler_angles.hpp>
 
 using namespace drosim;
@@ -124,3 +125,4 @@ EDITOR_INTERFACE id::id_type CreateGameEntity(game_entity_descriptor* e) {
 EDITOR_INTERFACE void RemoveGameEntity(id::id_type id) {
     remove_entity(id);
 }
+*/

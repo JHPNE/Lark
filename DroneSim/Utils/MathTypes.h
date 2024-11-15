@@ -1,6 +1,6 @@
 #pragma once
 
-#include "..\Common\CommonHeaders.h"
+#include "../Common/CommonHeaders.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>

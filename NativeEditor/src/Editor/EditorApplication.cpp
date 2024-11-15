@@ -1,4 +1,3 @@
-#pragma once
 #include "EditorApplication.h"
 #include "Project/Project.h"
 #include <glad/glad.h>

@@ -1,5 +1,5 @@
 #pragma once
-#include "..\Components\ComponentCommon.h"
+#include "../Components/ComponentCommon.h"
 
 namespace drosim::script {
 

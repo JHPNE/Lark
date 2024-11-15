@@ -1,7 +1,7 @@
 #pragma once
 
-#include "..\Common\CommonHeaders.h"
-#include "..\Components\ComponentCommon.h"
+#include "../Common/CommonHeaders.h"
+#include "../Components/ComponentCommon.h"
 #include "TransformComponent.h"
 #include "ScriptComponent.h"
 

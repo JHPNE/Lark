@@ -1,6 +1,7 @@
+/*
 #include "Common.h"
 #include "CommonHeaders.h"
-#include "..\DroneSim\Components\Script.h"
+#include "../DroneSim/Components/Script.h"
 #ifndef WIN32_MEAN_AND_LEAN
 #define WIN32_MEAN_AND_LEAN
 #endif
@@ -49,3 +50,4 @@ EDITOR_INTERFACE LPSAFEARRAY GetScriptNames()
 {
     return (game_code_dll && get_script_names) ? get_script_names() : nullptr;
 }
+*/
