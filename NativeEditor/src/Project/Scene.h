@@ -5,6 +5,7 @@
 #include "GameEntity.h"
 #include "../Utils/Logger.h"
 #include "../Utils/GlobalUndoRedo.h"
+#include "EngineAPI.h"
 
 // Forward declare Project to avoid circular dependency
 class Project;
@@ -44,7 +45,16 @@ public:
     }
 
     std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name) {
-        uint32_t entityId = GenerateEntityID(); //TODO: Use EngineAPI for that
+        game_entity_descriptor desc{};
+        desc.transform.position[0] = 1.0f;
+        desc.transform.position[1] = 2.0f;
+        desc.transform.position[2] = 3.0f;
+        // Zero out rotation
+        std::memset(desc.transform.rotation, 0, sizeof(float) * 3);
+        // Set scale to 1
+        desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
+
+        uint32_t entityId = CreateGameEntity(&desc); //TODO: Use EngineAPI for that
         auto entity = std::shared_ptr<GameEntity>(
             new GameEntity(name, entityId, shared_from_this())
         );

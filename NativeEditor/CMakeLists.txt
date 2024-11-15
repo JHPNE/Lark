@@ -10,11 +10,13 @@ file(GLOB_RECURSE EDITOR_FILES
 add_executable(${PROJECT_NAME} ${EDITOR_FILES})
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-
 target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/EngineDLL      # Add direct path to EngineDLL
+        ${CMAKE_SOURCE_DIR}/DroneSim       # Add DroneSim root
+        ${CMAKE_SOURCE_DIR}/DroneSim/Common
+        ${CMAKE_SOURCE_DIR}/DroneSim/Components
+        ${CMAKE_SOURCE_DIR}/DroneSim/DroneSimAPI
         ${glad_SOURCE_DIR}/include
         ${glfw_SOURCE_DIR}/include
         ${imgui_SOURCE_DIR}
@@ -45,3 +47,10 @@ if(MSVC)
             _UNICODE
     )
 endif()
+
+# Copy DLL after build
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:EngineDLL>
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+)

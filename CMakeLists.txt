@@ -43,7 +43,10 @@ include(cmake/CompilerOptions.cmake)
 # Enable folders for IDE organization
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+set(CMAKE_DEBUG_POSTFIX "d")
 # Add subdirectories
 add_subdirectory(DroneSim)
 add_subdirectory(EngineDLL)
 add_subdirectory(NativeEditor)
+
+add_dependencies(DroSimEditor EngineDLL)
