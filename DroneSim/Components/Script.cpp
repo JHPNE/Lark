@@ -25,7 +25,7 @@ namespace drosim::script {
 		}
 #endif
 
-#if _DEBUG
+
 		bool exists(script_id id)
 		{
 			assert(id::is_valid(id));
@@ -37,7 +37,7 @@ namespace drosim::script {
 				entity_scripts[id_mapping[index]] &&
 				entity_scripts[id_mapping[index]]->is_valid();
 		}
-#endif
+
 
 	} // namespace
 

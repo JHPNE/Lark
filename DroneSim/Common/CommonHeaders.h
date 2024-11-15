@@ -9,7 +9,6 @@
 #include <memory>
 #include <unordered_map>
 
-
 // Primitive Types
 #include "PrimitiveTypes.h"
 
@@ -17,7 +16,7 @@
 #include "..\Utils\Util.h"
 #include "..\Utils\MathTypes.h"
 
-#if defined(_WIN64) || defined(_WIN32)
-#include <DirectXMath.h>
-#endif
-
+// GLM
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>

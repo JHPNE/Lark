@@ -4,6 +4,7 @@
 #include "..\DroneSim\Components\Entity.h"
 #include "..\DroneSim\Components\Transform.h"
 #include "..\DroneSim\Components\Script.h"
+#include <glm/gtx/euler_angles.hpp>
 
 using namespace drosim;
 
@@ -13,15 +14,21 @@ namespace {
         f32 rotation[3];
         f32 scale[3];
         transform::init_info to_init_info() {
-            using namespace DirectX;
             transform::init_info info{};
-            memcpy(&info.position[0], &position[0], sizeof(f32) * _countof(position));
-            memcpy(&info.scale[0], &scale[0], sizeof(f32) * _countof(scale));
-            XMFLOAT3A rot(&rotation[0]);
-            XMVECTOR quat{ XMQuaternionRotationRollPitchYawFromVector(XMLoadFloat3A(&rot)) };
-            XMFLOAT4A rot_quat{};
-            XMStoreFloat4A(&rot_quat, quat);
-            memcpy(&info.rotation[0], &rot_quat.x, sizeof(f32) * _countof(rotation));
+            // Copy position and scale directly
+            memcpy(&info.position[0], &position[0], sizeof(f32) * 3);
+            memcpy(&info.scale[0], &scale[0], sizeof(f32) * 3);
+
+            // Convert Euler angles to quaternion using GLM
+            glm::vec3 euler_angles(rotation[0], rotation[1], rotation[2]);
+            glm::quat quaternion = glm::quat(euler_angles);
+
+            // Store the quaternion components
+            info.rotation[0] = quaternion.x;
+            info.rotation[1] = quaternion.y;
+            info.rotation[2] = quaternion.z;
+            info.rotation[3] = quaternion.w;
+
             return info;
         }
     };
