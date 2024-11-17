@@ -1,6 +1,6 @@
 #pragma once
 #include "ProjectTemplate.h"
-#include "../Utils/Logger.h"
+#include "../Utils/Etc/Logger.h"
 #include <fstream>
 
 namespace {

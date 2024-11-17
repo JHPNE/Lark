@@ -1,7 +1,7 @@
 #include "Project.h"
-#include "../Utils/Logger.h"
-#include "../Utils/FileSystem.h"
-#include "../Utils/GlobalUndoRedo.h"
+#include "../Utils/Etc/Logger.h"
+#include "../Utils/Etc/FileSystem.h"
+#include "../Utils/System/GlobalUndoRedo.h"
 #include <fstream>
 #include "Scene.h"
 #include "tinyxml2.h"

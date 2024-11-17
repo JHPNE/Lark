@@ -1,5 +1,5 @@
 #pragma once
-#include "../src/Utils/Logger.h"
+#include "../src/Utils/Etc/Logger.h"
 
 namespace LoggerView {
 	class LoggerView {

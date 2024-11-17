@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include "../Components/Component.h"
 #include "../Components/Transform.h"
-#include "../Utils/Logger.h"
+#include "../Utils/Etc/Logger.h"
 
 class Scene;
 

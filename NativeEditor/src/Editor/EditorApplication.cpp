@@ -8,8 +8,8 @@
 #include "../View/ProjectBrowserView.h"
 #include "../View/SceneView.h"
 #include "../View/ComponentView.h"
-#include "../Utils/GlobalUndoRedo.h"
-#include "../Utils/VectorBox.h"
+#include "../Utils/System/GlobalUndoRedo.h"
+#include "../Utils/Visual/VectorBox.h"
 
 namespace editor {
 

@@ -1,6 +1,6 @@
 #pragma once
 #include "ProjectBrowserView.h"
-#include "Utils/Logger.h"
+#include "Utils/Etc/Logger.h"
 #include "Utils/Utils.h"
 #include "imgui.h"
 #include <filesystem>

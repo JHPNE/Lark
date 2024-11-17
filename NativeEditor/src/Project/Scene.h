@@ -3,10 +3,10 @@
 #include <memory>
 #include <vector>
 #include "GameEntity.h"
-#include "../Utils/Logger.h"
-#include "../Utils/GlobalUndoRedo.h"
+#include "../Utils/Etc/Logger.h"
+#include "../Utils/System/GlobalUndoRedo.h"
 #include "EngineAPI.h"
-#include "Utils/Serialization.h"
+#include "Utils/System/Serialization.h"
 
 // Forward declare Project to avoid circular dependency
 class Project;

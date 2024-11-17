@@ -1,9 +1,9 @@
 #include "ComponentView.h"
 #include "../Project/Project.h"  
 #include <imgui.h>
-#include "../src/Utils/Logger.h"
+#include "../src/Utils/Etc/Logger.h"
 #include "../src/Utils/Utils.h"
-#include "../src/Utils/VectorBox.h"
+#include "../src/Utils/Visual/VectorBox.h"
 
 void ComponentView::Draw() {
     if (!project) {

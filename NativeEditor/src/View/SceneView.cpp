@@ -1,7 +1,7 @@
 #include "SceneView.h"
-#include "../Project/Project.h"  
+#include "../Project/Project.h"
 #include <imgui.h>
-#include "../src/Utils/Logger.h"
+#include "../src/Utils/etc/Logger.h"
 #include "../src/Utils/Utils.h"
 
 namespace detail {
@@ -16,6 +16,19 @@ void SceneView::Draw() {
     window_flags |= ImGuiWindowFlags_NoCollapse;
 
     if (ImGui::Begin("Scene Manager", &m_show, window_flags)) {
+        // Check if window is focused
+        bool isWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+        bool isAnyPopupOpen = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
+
+        // Clear selection if window loses focus and no popup is open
+        if (!isWindowFocused && !isAnyPopupOpen) {
+            if (auto activeScene = project->GetActiveScene()) {
+                for (const auto& entity : activeScene->GetEntities()) {
+                    entity->SetSelected(false);
+                }
+            }
+        }
+
         // Add Scene Button at top
         if (ImGui::Button("+ Add Scene")) {
             project->AddScene("New Scene");
@@ -28,12 +41,20 @@ void SceneView::Draw() {
 
         // Draw each scene and its entities
         for (const auto& scene : scenes) {
-            bool isSelected = project->GetActiveScene() == scene;
+            bool isActive = project->GetActiveScene() == scene;
 
             // Scene Selectable
             if (ImGui::Selectable((scene->GetName() + "##" + std::to_string(scene->GetID())).c_str(),
-                                isSelected)) {
+                                isActive)) {
+                // Set as active scene
                 project->SetActiveScene(scene->GetID());
+
+                // Clear previous selections when changing active scene
+                for (const auto& s : scenes) {
+                    for (const auto& entity : s->GetEntities()) {
+                        entity->SetSelected(false);
+                    }
+                }
             }
 
             // Scene Context Menu
@@ -51,8 +72,8 @@ void SceneView::Draw() {
                 ImGui::EndPopup();
             }
 
-            // Draw entities if this scene is selected
-            if (isSelected) {
+            // Draw entities if this scene is active
+            if (isActive) {
                 ImGui::Indent();
 
                 // Add Entity Button
@@ -72,7 +93,24 @@ void SceneView::Draw() {
                     if (ImGui::Selectable(
                         (entity->GetName() + "##" + std::to_string(entity->GetID())).c_str(),
                         entitySelected)) {
-                        entity->SetSelected(!entitySelected);
+
+                        bool isShiftHeld = ImGui::GetIO().KeyShift;
+
+                        if (entitySelected && !isShiftHeld) {
+                            // If already selected and not shift-clicking, deselect everything
+                            for (const auto& e : scene->GetEntities()) {
+                                e->SetSelected(false);
+                            }
+                        } else {
+                            if (!isShiftHeld) {
+                                // Regular click - deselect all others
+                                for (const auto& e : scene->GetEntities()) {
+                                    e->SetSelected(false);
+                                }
+                            }
+                            // Select the clicked entity
+                            entity->SetSelected(true);
+                        }
                     }
 
                     // Entity Context Menu
