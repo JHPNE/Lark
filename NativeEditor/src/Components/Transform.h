@@ -1,10 +1,13 @@
 #pragma once
+#include <Utils/Serialization.h>
+
 #include "Component.h"
+#include "tinyxml2.h"
 #include "../Utils/MathUtils.h" // Assuming you have a math utility header
 
 using namespace MathUtils;
 
-class Transform : public Component {
+class Transform : public Component, public ISerializable {
 public:
     explicit Transform(GameEntity* owner) : Component(owner),
         m_position(0.0f, 0.0f, 0.0f),
@@ -37,6 +40,59 @@ public:
         m_position = Vec3(0.0f, 0.0f, 0.0f);
         m_rotation = Vec3(0.0f, 0.0f, 0.0f);
         m_scale = Vec3(1.0f, 1.0f, 1.0f);
+    }
+
+    // Serialization interface
+    void Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const override {
+        // Create components for each vector
+        auto positionElement = context.document.NewElement("Position");
+        SerializerUtils::WriteAttribute(positionElement, "x", m_position.x);
+        SerializerUtils::WriteAttribute(positionElement, "y", m_position.y);
+        SerializerUtils::WriteAttribute(positionElement, "z", m_position.z);
+        element->LinkEndChild(positionElement);
+
+        auto rotationElement = context.document.NewElement("Rotation");
+        SerializerUtils::WriteAttribute(rotationElement, "x", m_rotation.x);
+        SerializerUtils::WriteAttribute(rotationElement, "y", m_rotation.y);
+        SerializerUtils::WriteAttribute(rotationElement, "z", m_rotation.z);
+        element->LinkEndChild(rotationElement);
+
+        auto scaleElement = context.document.NewElement("Scale");
+        SerializerUtils::WriteAttribute(scaleElement, "x", m_scale.x);
+        SerializerUtils::WriteAttribute(scaleElement, "y", m_scale.y);
+        SerializerUtils::WriteAttribute(scaleElement, "z", m_scale.z);
+        element->LinkEndChild(scaleElement);
+    }
+
+    bool Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) override {
+        // Read position
+        if (auto positionElement = element->FirstChildElement("Position")) {
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            SerializerUtils::ReadAttribute(positionElement, "x", x);
+            SerializerUtils::ReadAttribute(positionElement, "y", y);
+            SerializerUtils::ReadAttribute(positionElement, "z", z);
+            m_position = Vec3(x, y, z);
+        }
+
+        // Read rotation
+        if (auto rotationElement = element->FirstChildElement("Rotation")) {
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            SerializerUtils::ReadAttribute(rotationElement, "x", x);
+            SerializerUtils::ReadAttribute(rotationElement, "y", y);
+            SerializerUtils::ReadAttribute(rotationElement, "z", z);
+            m_rotation = Vec3(x, y, z);
+        }
+
+        // Read scale
+        if (auto scaleElement = element->FirstChildElement("Scale")) {
+            float x = 1.0f, y = 1.0f, z = 1.0f;  // Default scale is 1
+            SerializerUtils::ReadAttribute(scaleElement, "x", x);
+            SerializerUtils::ReadAttribute(scaleElement, "y", y);
+            SerializerUtils::ReadAttribute(scaleElement, "z", z);
+            m_scale = Vec3(x, y, z);
+        }
+
+        return true;
     }
 
 private:

@@ -253,6 +253,13 @@ void Project::Serialize(tinyxml2::XMLElement* element, SerializationContext& con
             auto entityElement = context.document.NewElement("Entity");
             SerializerUtils::WriteAttribute(entityElement, "id", entity->GetID());
             SerializerUtils::WriteAttribute(entityElement, "name", entity->GetName());
+
+            if (auto transform = entity->GetComponent<Transform>()) {
+                auto transformElement = context.document.NewElement("Transform");
+                transform->Serialize(transformElement, context);
+                entityElement->LinkEndChild(transformElement);
+            }
+
             sceneElement->LinkEndChild(entityElement);
         }
 
@@ -326,6 +333,13 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
             if (!entity) {
                 Logger::Get().Log(MessageType::Error,
                     "Failed to create entity: " + entityName);
+            }
+            else {
+                if (auto transformElement = entityElement->FirstChildElement("Transform")) {
+                    if (auto transform = entity->GetComponent<Transform>()) {
+                        transform->Deserialize(transformElement, context);
+                    }
+                }
             }
         }
 

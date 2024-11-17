@@ -9,7 +9,6 @@ enum class ComponentType {
 	Transform,
 	Script,
 	// Add other component types here
-	Count
 };
 
 class Component {
