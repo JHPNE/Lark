@@ -1,14 +1,16 @@
+# cmake/CompilerOptions.cmake
+
 # Compiler-specific options
 if(MSVC)
     add_compile_options(
-            /W4
-            /MP
-            /permissive-
-            /Zc:preprocessor
-            /Zc:__cplusplus
-            /wd4251
-            $<$<CONFIG:Release,ReleaseEditor>:/O2>
-            $<$<CONFIG:Debug,DebugEditor>:/Od>
+            /W4             # Warning level 4
+            /MP             # Multi-processor compilation
+            /permissive-    # Standards conformance
+            /Zc:preprocessor # Enable preprocessor conformance mode
+            /Zc:__cplusplus # Enable proper __cplusplus macro
+            /wd4251         # Disable warning about dll-interface
+            $<$<CONFIG:Release>:/O2>
+            $<$<CONFIG:Debug>:/Od>
     )
 
     add_definitions(
@@ -22,8 +24,8 @@ else()
             -Wall
             -Wextra
             -Wpedantic
-            $<$<CONFIG:Release,ReleaseEditor>:-O3>
-            $<$<CONFIG:Debug,DebugEditor>:-O0>
+            $<$<CONFIG:Release>:-O3>
+            $<$<CONFIG:Debug>:-O0>
     )
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -43,12 +45,3 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
 # Enable PIC by default for shared libraries
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-# Platform-specific definitions
-if(WIN32)
-    add_definitions(-DPLATFORM_WINDOWS)
-elseif(APPLE)
-    add_definitions(-DPLATFORM_MACOS)
-elseif(UNIX AND NOT APPLE)
-    add_definitions(-DPLATFORM_LINUX)
-endif()
