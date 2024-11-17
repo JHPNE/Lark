@@ -27,12 +27,17 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_SOURCE_DIR}/DroneSim/Common
         ${CMAKE_SOURCE_DIR}/DroneSim/Components
         ${CMAKE_SOURCE_DIR}/DroneSim/DroneSimAPI
+        ${CMAKE_SOURCE_DIR}/DroneSim/Scripting
+        ${Python_INCLUDE_DIRS}
+        ${pybind11_INCLUDE_DIRS}
 )
 
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE
         DroneSim
         glm
+        Python::Python
+        pybind11::pybind11
 )
 
 # Set properties

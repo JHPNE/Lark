@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include <string>
+#include "EngineAPI.h"
 
 class Script : public Component {
 public:

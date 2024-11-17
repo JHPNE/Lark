@@ -106,4 +106,8 @@ extern "C" {
     ENGINE_API void RemoveGameEntity(id::id_type id) {
         remove_entity(id);
     }
+
+    ENGINE_API script_component CreateScriptComponent(drosim::id::id_type id) {
+        script::init_info info{};
+    }
 }

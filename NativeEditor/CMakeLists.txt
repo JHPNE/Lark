@@ -22,6 +22,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${imgui_SOURCE_DIR}
         ${imgui_SOURCE_DIR}/backends
         ${tinyxml2_SOURCE_DIR}
+        ${Python_INCLUDE_DIRS}
+        ${pybind11_INCLUDE_DIRS}
 )
 
 # Link dependencies
@@ -33,6 +35,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         glm
         DroneSim
         EngineDLL
+        Python::Python
+        pybind11::embed
 )
 
 # Set properties

@@ -13,11 +13,15 @@ add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/Common
+        ${Python_INCLUDE_DIRS}
+        ${pybind11_INCLUDE_DIRS}
 )
 
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PUBLIC
         glm
+        Python::Python
+        pybind11::pybind11
 )
 
 # Set properties

@@ -42,6 +42,7 @@ extern "C" {
 
     ENGINE_API drosim::id::id_type CreateGameEntity(game_entity_descriptor* e);
     ENGINE_API void RemoveGameEntity(drosim::id::id_type id);
+    ENGINE_API script_component CreateScriptComponent(drosim::id::id_type id);
 
 #ifdef __cplusplus
 }
