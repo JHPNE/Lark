@@ -6,6 +6,7 @@
 #include "../Utils/Logger.h"
 #include "../Utils/GlobalUndoRedo.h"
 #include "EngineAPI.h"
+#include "Utils/Serialization.h"
 
 // Forward declare Project to avoid circular dependency
 class Project;
@@ -71,8 +72,8 @@ public:
 
         if (it != m_entities.end()) {
 
-			//TODO: EngineAPI.EntityAPI.RemoveEntity(entityId);
-			// it->is_active = false;
+            // Uses EngineDLL
+            RemoveGameEntity(entityId);
 
             std::string removedName = (*it)->GetName();
             m_entities.erase(it);
@@ -147,13 +148,6 @@ public:
     }
 
 private:
-    uint32_t GenerateEntityID() const {
-        return m_entities.empty() ? 1 :
-            std::max_element(m_entities.begin(), m_entities.end(),
-                [](const auto& a, const auto& b) { return a->GetID() < b->GetID(); }
-            )->get()->GetID() + 1;
-    }
-
 	bool m_isActive;
     std::string m_name;
     uint32_t m_id;

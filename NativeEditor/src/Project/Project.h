@@ -2,15 +2,14 @@
 #pragma once
 #include "ProjectTemplate.h"
 #include <memory>
-#include "../Utils/FileSystem.h" 
-#include "../Utils/UndoRedo.h" 
+#include "../Utils/FileSystem.h"
 #include "Scene.h"
 #include <string>
 #include <vector>
 #include <tinyxml2.h>
 
 
-class Project : public std::enable_shared_from_this<Project> {
+class Project : public std::enable_shared_from_this<Project>, public ISerializable {
 public:
     static constexpr const char* Extension = ".drosim";
 
@@ -19,7 +18,6 @@ public:
         const ProjectTemplate& tmpl);
     static std::shared_ptr<Project> Load(const fs::path& projectFile);
 
-    bool Save();
     bool SaveAs(const fs::path& newPath);
     void Unload();
 
@@ -38,10 +36,43 @@ public:
     bool IsModified() const { return m_isModified; }
     void SetModified(bool modified = true) { m_isModified = modified; }
 
+    // Serialization
+    void Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const override;
+    bool Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) override;
+
+    bool Save() {
+        try {
+            // Log current state
+            Logger::Get().Log(MessageType::Info,
+                "Saving project - Name: " + m_name +
+                ", Path: " + m_path.string());
+
+            tinyxml2::XMLDocument doc;
+            SerializationContext context(doc);
+
+            auto decl = doc.NewDeclaration();
+            doc.LinkEndChild(decl);
+
+            auto root = doc.NewElement("Project");
+            doc.LinkEndChild(root);
+
+            Serialize(root, context);
+
+            auto fullPath = GetFullPath();
+            Logger::Get().Log(MessageType::Info,
+                "Saving to: " + fullPath.string());
+
+            return doc.SaveFile(fullPath.string().c_str()) == tinyxml2::XML_SUCCESS;
+        }
+        catch (const std::exception& e) {
+            Logger::Get().Log(MessageType::Error,
+                "Error saving project: " + std::string(e.what()));
+            return false;
+        }
+    }
+
 private:
     Project(const std::string& name, const fs::path& path);
-    bool SaveScenesToXml(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root) const;
-    bool LoadScenesFromXml(tinyxml2::XMLElement* root);
 
 	// Internal Methods for Undo/Redo
     std::shared_ptr<Scene> AddSceneInternal(const std::string& sceneName);

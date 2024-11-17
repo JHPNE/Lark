@@ -4,6 +4,7 @@
 #include "../Project/ProjectData.h"
 #include <memory>
 #include <vector>
+#include <filesystem>
 
 class ProjectBrowserView {
 public:
@@ -18,8 +19,8 @@ public:
     void SetLoadedProject(const std::shared_ptr<Project>& project) { m_loadedProject = project; }
 
 private:
-    ProjectBrowserView() { 
-        LoadTemplates(); 
+    ProjectBrowserView() {
+        LoadTemplates();
         LoadRecentProjects();
     }
 
@@ -28,18 +29,16 @@ private:
     void LoadTemplates();
     bool ValidateProjectPath();
 
-    // Enhanced project management
+    // Project management
     void LoadRecentProjects();
     bool ReadProjectData();
     bool WriteProjectData();
     void OpenSelectedProject();
-    bool PromptSaveChanges(); // For handling unsaved changes
-    void UpdateRecentProject(const ProjectData& projectData);
-    void RemoveRecentProject(size_t index);
+    bool CreateNewProject();  // Added this method
 
     // UI state
     bool m_show = false;
-    bool m_isNewProject = true;  // false = open project
+    bool m_isNewProject = true;
     std::string m_newProjectName = "NewProject";
 #ifdef _WIN32
     fs::path m_projectPath = fs::path(std::getenv("USERPROFILE")) / "Documents" / "Drosim";
@@ -62,10 +61,4 @@ private:
 
     // Constants
     static constexpr size_t MAX_RECENT_PROJECTS = 10;
-    static constexpr const char* PROJECT_DATA_FILENAME = "ProjectData.xml";
-
-    // Helper methods for project management
-    bool EnsureProjectDirectoryExists(const fs::path& path);
-    fs::path GetUniqueProjectPath(const fs::path& basePath, const std::string& projectName);
-    void CleanupOldProjects(); // Remove non-existent projects from recent list
 };

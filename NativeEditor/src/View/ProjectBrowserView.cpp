@@ -105,31 +105,7 @@ void ProjectBrowserView::DrawNewProject() {
 
     // Create button at the bottom
     if (ImGui::Button("Create Project", ImVec2(-1, 0))) {
-        if (ValidateProjectPath() && m_selectedTemplate < m_templates.size()) {
-            auto tmpl = m_templates[m_selectedTemplate];
-            if (auto project = Project::Create(m_newProjectName, m_projectPath, *tmpl)) {
-				ProjectData projectData;
-				projectData.name = m_newProjectName;
-				projectData.path = m_projectPath / m_newProjectName;
-
-                // load project instance
-				m_loadedProject = project;
-
-				// Get current time
-				auto now = std::chrono::system_clock::now();
-				auto timeT = std::chrono::system_clock::to_time_t(now);
-                std::stringstream ss;
-				ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
-				projectData.date = ss.str();
-
-				m_recentProjects.push_back(projectData);
-                WriteProjectData();
-
-
-                Logger::Get().Log(MessageType::Info, "Project created successfully");
-                m_show = false;
-            }
-        }
+        CreateNewProject();
     }
 }
 
@@ -193,43 +169,6 @@ void ProjectBrowserView::DrawOpenProject() {
     ImGui::EndDisabled();
 }
 
-void ProjectBrowserView::OpenSelectedProject() {
-    if (m_selectedRecentProject >= 0 && m_selectedRecentProject < m_recentProjects.size()) {
-        auto& projectData = m_recentProjects[m_selectedRecentProject];
-
-        // Check if project file exists
-        if (!fs::exists(projectData.GetFullPath())) {
-            Logger::Get().Log(MessageType::Error, "Project file not found: " + projectData.GetFullPath().string());
-            return;
-        }
-
-        if (auto project = Project::Load(projectData.GetFullPath())) {
-            // Update last opened time
-            auto now = std::chrono::system_clock::now();
-            auto timeT = std::chrono::system_clock::to_time_t(now);
-            std::stringstream ss;
-            ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
-            projectData.date = ss.str();
-
-            // Move this project to the top of the list
-            std::rotate(
-                m_recentProjects.begin(),
-                m_recentProjects.begin() + m_selectedRecentProject,
-                m_recentProjects.begin() + m_selectedRecentProject + 1
-            );
-
-            // load project instance
-            m_loadedProject = project;
-
-            // Save updated project data
-            WriteProjectData();
-
-            Logger::Get().Log(MessageType::Info, "Project opened successfully: " + projectData.name);
-            m_show = false;
-        }
-    }
-}
-
 void ProjectBrowserView::LoadRecentProjects() {
 	m_appDataPath = Utils::GetApplicationDataPath();
 	m_projectDataPath = m_appDataPath / "ProjectData.xml";
@@ -244,103 +183,122 @@ void ProjectBrowserView::LoadRecentProjects() {
 			return a.date > b.date;
 		});
     
-	ReadProjectData();
+    ReadProjectData();
 }
 
 bool ProjectBrowserView::ReadProjectData() {
-	m_recentProjects.clear();
+    Logger::Get().Log(MessageType::Info, "ReadProjectData called");
+
+    m_recentProjects.clear();
+    Logger::Get().Log(MessageType::Info, "Cleared existing projects");
 
     if (!fs::exists(m_projectDataPath)) {
+        Logger::Get().Log(MessageType::Warning,
+            "Project data file not found: " + m_projectDataPath.string());
         return false;
     }
 
     try {
-        std::string content = detail::ReadFileContent(m_projectDataPath);
-        if (content.empty()) {
+        tinyxml2::XMLDocument doc;
+        if (doc.LoadFile(m_projectDataPath.string().c_str()) != tinyxml2::XML_SUCCESS) {
             Logger::Get().Log(MessageType::Error,
-                "Failed to read project data file: " + m_projectDataPath.string());
+                "Failed to load project data file: " + m_projectDataPath.string());
             return false;
         }
 
-        if (ProjectData::ParseProjectXml(content, m_recentProjects)) {
-            //Filter out non-existing projects
-            m_recentProjects.erase(
-                std::remove_if(m_recentProjects.begin(), m_recentProjects.end(),
-                    [](const ProjectData& data) {
-                        return !fs::exists(data.GetFullPath());
-                    }),
-                m_recentProjects.end());
+        auto root = doc.FirstChildElement("ProjectDataList");
+        if (!root) {
+            Logger::Get().Log(MessageType::Error, "No ProjectDataList element found");
+            return false;
+        }
 
-            // Sort by date
+        auto projectsElement = root->FirstChildElement("Projects");
+        if (!projectsElement) {
+            Logger::Get().Log(MessageType::Error, "No Projects element found");
+            return false;
+        }
+
+        int count = 0;
+        for (auto element = projectsElement->FirstChildElement("ProjectData");
+             element;
+             element = element->NextSiblingElement("ProjectData")) {
+            count++;
+
+            ProjectData data;
+            auto dateElement = element->FirstChildElement("Date");
+            auto nameElement = element->FirstChildElement("ProjectName");
+            auto pathElement = element->FirstChildElement("ProjectPath");
+
+            if (!dateElement || !nameElement || !pathElement) {
+                Logger::Get().Log(MessageType::Error, "Missing required elements in ProjectData");
+                continue;
+            }
+
+            data.date = dateElement->GetText() ? dateElement->GetText() : "";
+            data.name = nameElement->GetText() ? nameElement->GetText() : "";
+            data.path = pathElement->GetText() ? pathElement->GetText() : "";
+
+            if (fs::exists(data.GetFullPath())) {
+                m_recentProjects.push_back(data);
+                Logger::Get().Log(MessageType::Info, "Added project to list");
+            } else {
+                Logger::Get().Log(MessageType::Warning,
+                    "Project file not found: " + data.GetFullPath().string());
+            }
+        }
+
+        Logger::Get().Log(MessageType::Info,
+            "Found " + std::to_string(count) + " projects in XML, " +
+            "Added " + std::to_string(m_recentProjects.size()) + " valid projects");
+
+        // Sort by date
+        if (!m_recentProjects.empty()) {
             std::sort(m_recentProjects.begin(), m_recentProjects.end(),
                 [](const ProjectData& a, const ProjectData& b) {
                     return a.date > b.date;
                 });
-
-            return true;
         }
-    }
-	catch (const std::exception& e) {
-		Logger::Get().Log(MessageType::Error,
-			"Error reading project data: " + std::string(e.what()));
-	}
 
-    return false;
+        return true;
+    }
+    catch (const std::exception& e) {
+        Logger::Get().Log(MessageType::Error,
+            "Error reading project data: " + std::string(e.what()));
+        return false;
+    }
 }
 
 // TODO: seperate update and write we dont wanna rewrite everytime
 bool ProjectBrowserView::WriteProjectData() {
     try {
-        // First ensure the directory exists
         if (!fs::exists(m_appDataPath)) {
             fs::create_directories(m_appDataPath);
         }
 
-		/*
-		tinyxml2::XMLDocument doc;
-		if (doc.LoadFile(m_projectDataPath.string().c_str()) == tinyxml2::XML_SUCCESS) {
-			tinyxml2::XMLElement* root = doc.FirstChildElement("ProjectDataList");
-			if (root) {
-				root->DeleteChildren();
-			}
-		}
-		*/
+        tinyxml2::XMLDocument doc;
+        SerializationContext context(doc);
 
-        std::stringstream xml;
-        xml << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
-        xml << "<ProjectDataList xmlns=\"http://schemas.datacontract.org/2004/07/DrosimEditor.SimProject\" "
-            << "xmlns:i=\"http://www.w3.org/2001/XMLSchema-instance\">\n";
-        xml << "<Projects>\n";
+        auto decl = doc.NewDeclaration();
+        doc.LinkEndChild(decl);
+
+        auto root = doc.NewElement("ProjectDataList");
+        root->SetAttribute("xmlns", "http://schemas.datacontract.org/2004/07/DrosimEditor.SimProject");
+        root->SetAttribute("xmlns:i", "http://www.w3.org/2001/XMLSchema-instance");
+        doc.LinkEndChild(root);
+
+        auto projectsElement = doc.NewElement("Projects");
+        root->LinkEndChild(projectsElement);
 
         for (const auto& project : m_recentProjects) {
             if (project.name.empty() || project.path.empty()) continue;
+            if (!fs::exists(project.path)) continue;
 
-
-            if (!fs::exists(project.path.string())) continue;
-
-            xml << "  <ProjectData>\n";
-            xml << "    <Date>" << project.date << "</Date>\n";
-            xml << "    <ProjectName>" << project.name << "</ProjectName>\n";
-            xml << "    <ProjectPath>" << project.path.string() << "</ProjectPath>\n";
-            xml << "  </ProjectData>\n";
+            auto projectElement = doc.NewElement("ProjectData");
+            project.Serialize(projectElement, context);
+            projectsElement->LinkEndChild(projectElement);
         }
 
-        xml << "</Projects>\n";
-        xml << "</ProjectDataList>";
-
-        // Debug log to see if we get here
-        Logger::Get().Log(MessageType::Info,
-            "Attempting to write project data to: " + m_projectDataPath.string());
-
-
-        std::ofstream file(m_projectDataPath, std::ios::binary);
-        if (!file || !(file << xml.str())) {
-            Logger::Get().Log(MessageType::Error,
-                "Failed to write project data: " + m_projectDataPath.string());
-            return false;
-        }
-
-        return true;
+        return doc.SaveFile(m_projectDataPath.string().c_str()) == tinyxml2::XML_SUCCESS;
     }
     catch (const std::exception& e) {
         Logger::Get().Log(MessageType::Error,
@@ -395,4 +353,73 @@ bool ProjectBrowserView::ValidateProjectPath() {
             "Invalid project path: " + std::string(e.what()));
         return false;
     }
+}
+
+void ProjectBrowserView::OpenSelectedProject() {
+    if (m_selectedRecentProject >= 0 && m_selectedRecentProject < m_recentProjects.size()) {
+        auto& projectData = m_recentProjects[m_selectedRecentProject];
+
+        // Check if project file exists
+        if (!fs::exists(projectData.GetFullPath())) {
+            Logger::Get().Log(MessageType::Error,
+                "Project file not found: " + projectData.GetFullPath().string());
+            return;
+        }
+
+        if (auto project = Project::Load(projectData.GetFullPath())) {
+            // Update last opened time
+            auto now = std::chrono::system_clock::now();
+            auto timeT = std::chrono::system_clock::to_time_t(now);
+            std::stringstream ss;
+            ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
+            projectData.date = ss.str();
+
+            // Move this project to the top of the list
+            std::rotate(
+                m_recentProjects.begin(),
+                m_recentProjects.begin() + m_selectedRecentProject,
+                m_recentProjects.begin() + m_selectedRecentProject + 1
+            );
+
+            // load project instance
+            m_loadedProject = project;
+
+            // Save updated project data
+            WriteProjectData();
+
+            Logger::Get().Log(MessageType::Info,
+                "Project opened successfully: " + projectData.name);
+            m_show = false;
+        }
+    }
+}
+
+bool ProjectBrowserView::CreateNewProject() {
+    if (!ValidateProjectPath() || m_selectedTemplate >= m_templates.size()) {
+        return false;
+    }
+
+    auto tmpl = m_templates[m_selectedTemplate];
+    if (auto project = Project::Create(m_newProjectName, m_projectPath, *tmpl)) {
+        ProjectData projectData;
+        projectData.name = m_newProjectName;
+        projectData.path = m_projectPath / m_newProjectName;
+
+        // Get current time
+        auto now = std::chrono::system_clock::now();
+        auto timeT = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
+        projectData.date = ss.str();
+
+        m_recentProjects.push_back(projectData);
+        m_loadedProject = project;
+        WriteProjectData();
+
+        Logger::Get().Log(MessageType::Info, "Project created successfully");
+        m_show = false;
+        return true;
+    }
+
+    return false;
 }

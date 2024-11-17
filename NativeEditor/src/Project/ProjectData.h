@@ -1,72 +1,33 @@
-#pragma once
-#include <string>
-#include <vector>
-#include <filesystem>
-#include "Project.h"
+class ProjectData : public ISerializable {
+public:
+    std::string name;
+    fs::path path;
+    std::string date;
 
+    fs::path GetFullPath() const { return path / (name + Project::Extension); }
 
-namespace fs = std::filesystem;
+    void Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const override {
+        SerializerUtils::WriteElement(context.document, element, "Date", date);
+        SerializerUtils::WriteElement(context.document, element, "ProjectName", name);
+        SerializerUtils::WriteElement(context.document, element, "ProjectPath", path.string());
+    }
 
-struct ProjectData {
-	std::string name;
-	fs::path path;
-	std::string date;
-	
-	fs::path GetFullPath() const {
-		return path / (name + Project::Extension);
-	}
-
-	// contains Projects and Path to Project which contains the Info
-    static bool ParseProjectXml(const std::string& xml, std::vector<ProjectData>& outProjects) {
-        const std::string projectDataTag = "<ProjectData>";
-        const std::string projectDataEndTag = "</ProjectData>";
-        const std::string dateTag = "<Date>";
-        const std::string dateEndTag = "</Date>";
-        const std::string nameTag = "<ProjectName>";
-        const std::string nameEndTag = "</ProjectName>";
-        const std::string pathTag = "<ProjectPath>";
-        const std::string pathEndTag = "</ProjectPath>";
-
-        size_t currentPos = 0;
-        while ((currentPos = xml.find(projectDataTag, currentPos)) != std::string::npos) {
-            ProjectData projectData;
-            size_t endPos = xml.find(projectDataEndTag, currentPos);
-            if (endPos == std::string::npos) break;
-
-            // Get project segment
-            std::string projectSegment = xml.substr(currentPos, endPos - currentPos + projectDataEndTag.length());
-
-            // Parse date
-            size_t dateStart = projectSegment.find(dateTag);
-            if (dateStart != std::string::npos) {
-                dateStart += dateTag.length();
-                size_t dateEnd = projectSegment.find(dateEndTag, dateStart);
-                projectData.date = projectSegment.substr(dateStart, dateEnd - dateStart);
+    bool Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) override {
+        std::string pathStr;
+        if (!SerializerUtils::ReadElement(element, "Date", date) ||
+            !SerializerUtils::ReadElement(element, "ProjectName", name) ||
+            !SerializerUtils::ReadElement(element, "ProjectPath", pathStr)) {
+            return false;
             }
 
-            // Parse name
-            size_t nameStart = projectSegment.find(nameTag);
-            if (nameStart != std::string::npos) {
-                nameStart += nameTag.length();
-                size_t nameEnd = projectSegment.find(nameEndTag, nameStart);
-                projectData.name = projectSegment.substr(nameStart, nameEnd - nameStart);
-            }
+        path = fs::path(pathStr);
 
-            // Parse path
-            size_t pathStart = projectSegment.find(pathTag);
-            if (pathStart != std::string::npos) {
-                pathStart += pathTag.length();
-                size_t pathEnd = projectSegment.find(pathEndTag, pathStart);
-                projectData.path = projectSegment.substr(pathStart, pathEnd - pathStart);
-            }
+        // Log for debugging
+        Logger::Get().Log(MessageType::Info,
+            "Deserialized ProjectData - Name: " + name +
+            ", Path: " + path.string() +
+            ", Date: " + date);
 
-            if (!projectData.name.empty() && !projectData.path.empty()) {
-                outProjects.push_back(projectData);
-            }
-
-            currentPos = endPos + projectDataEndTag.length();
-        }
-
-        return !outProjects.empty();
+        return true;
     }
 };

@@ -99,82 +99,25 @@ std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
             return nullptr;
         }
 
-        auto nameElement = root->FirstChildElement("Name");
-        auto pathElement = root->FirstChildElement("Path");
+        SerializationContext context(doc);
+        auto project = std::shared_ptr<Project>(new Project("", ""));
 
-        if (!nameElement || !pathElement) {
-            Logger::Get().Log(MessageType::Error, "Missing project properties! " + projectFile.string());
+        if (!project->Deserialize(root, context)) {
+            Logger::Get().Log(MessageType::Error, "Failed to deserialize project: " + projectFile.string());
             return nullptr;
         }
 
-        auto project = std::shared_ptr<Project>(new Project(nameElement->GetText(), pathElement->GetText()));
-
-        // Load scenes - active scene will be set within LoadScenesFromXml
-        if (!project->LoadScenesFromXml(root)) {
-            Logger::Get().Log(MessageType::Warning, "Failed to load scenes from project file: " + projectFile.string());
-            // Continue loading even if scenes fail - project might be empty
-        }
-
-        // Set unmodified since we just loaded
         project->m_isModified = false;
-
-        // Log success
         Logger::Get().Log(MessageType::Info, "Successfully loaded project: " + project->GetName());
-
         return project;
     }
     catch (const std::exception& e) {
         Logger::Get().Log(MessageType::Error,
             "General error while loading project: " + std::string(e.what()));
-    }
-    return nullptr;
-}
-
-bool Project::Save() {
-    try {
-        tinyxml2::XMLDocument doc;
-
-        // Add XML declaration
-        auto decl = doc.NewDeclaration();
-        doc.LinkEndChild(decl);
-
-        // Create root element
-        auto root = doc.NewElement("Project");
-        doc.LinkEndChild(root);
-
-        // Add version attribute for future compatibility
-        root->SetAttribute("version", "1.0");
-
-        // Project properties
-        auto nameElement = doc.NewElement("Name");
-        nameElement->SetText(m_name.c_str());
-        root->LinkEndChild(nameElement);
-
-        auto pathElement = doc.NewElement("Path");
-        pathElement->SetText(m_path.string().c_str());
-        root->LinkEndChild(pathElement);
-
-        // Save scenes (active scene is handled within SaveScenesToXml)
-        if (!SaveScenesToXml(doc, root)) {
-            Logger::Get().Log(MessageType::Error, "Failed to save scenes");
-            return false;
-        }
-
-        // Save to file
-        if (doc.SaveFile(GetFullPath().string().c_str()) != tinyxml2::XML_SUCCESS) {
-            Logger::Get().Log(MessageType::Error, "Failed to save project file: " + GetFullPath().string());
-            return false;
-        }
-
-        m_isModified = false;
-        Logger::Get().Log(MessageType::Info, "Project saved successfully: " + GetFullPath().string());
-        return true;
-    }
-    catch (const std::exception& e) {
-        Logger::Get().Log(MessageType::Error, "Error saving project: " + std::string(e.what()));
-        return false;
+        return nullptr;
     }
 }
+
 
 void Project::Unload() {
     // Will be implemented when we add resource management
@@ -285,111 +228,109 @@ std::shared_ptr<Scene> Project::GetScene(uint32_t sceneId) const {
 	return GetSceneById(sceneId);
 }
 
-bool Project::SaveScenesToXml(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* root) const {
-    auto scenesElement = doc.NewElement("Scenes");
-    root->LinkEndChild(scenesElement);
+void Project::Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const {
+    // Write project properties
+    SerializerUtils::WriteAttribute(element, "version", "1.0");
+    SerializerUtils::WriteElement(context.document, element, "Name", m_name);
+    SerializerUtils::WriteElement(context.document, element, "Path", m_path.string());
+
+    // Serialize scenes
+    auto scenesElement = context.document.NewElement("Scenes");
+    element->LinkEndChild(scenesElement);
 
     for (const auto& scene : m_scenes) {
-        auto sceneElement = doc.NewElement("Scene");
-
-		sceneElement->SetAttribute("id", scene->GetID());
+        auto sceneElement = context.document.NewElement("Scene");
+        SerializerUtils::WriteAttribute(sceneElement, "id", scene->GetID());
 
         if (scene == m_activeScene) {
-			sceneElement->SetAttribute("active", true);
+            SerializerUtils::WriteAttribute(sceneElement, "active", true);
         }
 
-        auto nameElement = doc.NewElement("Name");
-        nameElement->SetText(scene->GetName().c_str());
-        sceneElement->LinkEndChild(nameElement);
+        SerializerUtils::WriteElement(context.document, sceneElement, "Name", scene->GetName());
 
-		auto entities = scene->GetEntities();
-		for (const auto& entity : entities) {
-			auto entityElement = doc.NewElement("Entity");
-			entityElement->SetAttribute("id", entity->GetID());
-			entityElement->SetAttribute("name", entity->GetName().c_str());
-			sceneElement->LinkEndChild(entityElement);
-		}
+        // Serialize entities
+        for (const auto& entity : scene->GetEntities()) {
+            auto entityElement = context.document.NewElement("Entity");
+            SerializerUtils::WriteAttribute(entityElement, "id", entity->GetID());
+            SerializerUtils::WriteAttribute(entityElement, "name", entity->GetName());
+            sceneElement->LinkEndChild(entityElement);
+        }
 
         scenesElement->LinkEndChild(sceneElement);
     }
-    return true;
 }
 
-bool Project::LoadScenesFromXml(tinyxml2::XMLElement* root) {
-    auto scenesElement = root->FirstChildElement("Scenes");
+bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) {
+    // Read project properties
+    std::string name, pathStr;
+    if (!SerializerUtils::ReadElement(element, "Name", name) ||
+        !SerializerUtils::ReadElement(element, "Path", pathStr)) {
+        Logger::Get().Log(MessageType::Error, "Failed to read Name or Path elements");
+        return false;
+        }
+
+    // Log the values we read
+    Logger::Get().Log(MessageType::Info,
+        "Read from XML - Name: " + name + ", Path: " + pathStr);
+
+    // Update member variables
+    m_name = name;
+    m_path = fs::path(pathStr);
+
+    Logger::Get().Log(MessageType::Info,
+        "After assignment - Name: " + m_name +
+        ", Path: " + m_path.string());
+
+    // Read scenes
+    auto scenesElement = element->FirstChildElement("Scenes");
     if (!scenesElement) return false;
 
     uint32_t activeSceneId = 0;
 
-    // First pass: load all scenes
     for (auto sceneElement = scenesElement->FirstChildElement("Scene");
-        sceneElement;
-        sceneElement = sceneElement->NextSiblingElement("Scene")) {
+         sceneElement;
+         sceneElement = sceneElement->NextSiblingElement("Scene")) {
 
-        // Get scene ID from attribute
         uint32_t id;
-        if (sceneElement->QueryUnsignedAttribute("id", &id) != tinyxml2::XML_SUCCESS) {
-            continue;  // Skip if no valid ID
+        std::string sceneName;
+        bool isActive = false;
+
+        if (!SerializerUtils::ReadAttribute(sceneElement, "id", id) ||
+            !SerializerUtils::ReadElement(sceneElement, "Name", sceneName)) {
+            continue;
         }
 
-        // Check if this is the active scene
-        bool isActive = false;
-        sceneElement->QueryBoolAttribute("active", &isActive);
+        SerializerUtils::ReadAttribute(sceneElement, "active", isActive);
         if (isActive) {
             activeSceneId = id;
         }
 
-        auto nameElement = sceneElement->FirstChildElement("Name");
-        if (!nameElement) continue;
+        auto scene = std::make_shared<Scene>(sceneName, id, shared_from_this());
 
-        auto scene = std::make_shared<Scene>(
-            nameElement->GetText(),
-            id,
-            shared_from_this()
-        );
-
-        // Load entities for this scene
+        // Load entities
         for (auto entityElement = sceneElement->FirstChildElement("Entity");
-            entityElement;
-            entityElement = entityElement->NextSiblingElement("Entity")) {
+             entityElement;
+             entityElement = entityElement->NextSiblingElement("Entity")) {
 
-            // Get entity attributes
             uint32_t entityId;
-            const char* entityName = entityElement->Attribute("name");
+            std::string entityName;
 
-            if (!entityName ||
-                entityElement->QueryUnsignedAttribute("id", &entityId) != tinyxml2::XML_SUCCESS) {
+            if (!SerializerUtils::ReadAttribute(entityElement, "id", entityId) ||
+                !SerializerUtils::ReadAttribute(entityElement, "name", entityName)) {
                 Logger::Get().Log(MessageType::Warning,
-                    "Skipping entity with missing required attributes in scene: " + scene->GetName());
+                    "Skipping entity with missing attributes in scene: " + scene->GetName());
                 continue;
             }
 
-            // Create the entity using Scene's internal method to preserve the ID
             auto entity = scene->CreateEntityInternal(entityName);
             if (!entity) {
                 Logger::Get().Log(MessageType::Error,
-                    "Failed to create entity: " + std::string(entityName));
-                continue;
+                    "Failed to create entity: " + entityName);
             }
-
-            // TODO: Load entity components when implemented
-            // This would go here, iterating through component elements
-            // for (auto componentElement = entityElement->FirstChildElement("Component"); ...)
-
-            Logger::Get().Log(MessageType::Info,
-                "Loaded entity: " + entity->GetName() + " (ID: " + std::to_string(entity->GetID()) +
-                ") in scene: " + scene->GetName());
         }
 
         m_scenes.push_back(scene);
     }
-
-    // Log scenes TODO: REMOVE LATER
-    std::string scenesStr;
-    for (const auto& scene : m_scenes) {
-        scenesStr += "Name: " + scene->GetName() + "\n";
-    }
-    Logger::Get().Log(MessageType::Info, "Loaded scenes:\n" + scenesStr);
 
     // Set active scene
     if (activeSceneId != 0) {
