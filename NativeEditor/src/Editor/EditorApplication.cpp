@@ -1,4 +1,7 @@
 #include "EditorApplication.h"
+
+#include <fstream>
+
 #include "Project/Project.h"
 #include <glad/glad.h>
 #include "imgui_impl_opengl3.h"
@@ -212,6 +215,18 @@ namespace editor {
 				}
 			}
 
+			ImGui::SameLine(0, 15);
+
+			// Script Creation Button
+			if (ImGui::Button("Create Script")) {
+				m_showScriptCreation = true;
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::BeginTooltip();
+				ImGui::Text("Create new Python script");
+				ImGui::EndTooltip();
+			}
+
 			// No project tooltip
 			if (!hasProject) {
 				if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
@@ -225,6 +240,40 @@ namespace editor {
 			style.FramePadding.y = originalPadding;
 
 			ImGui::EndMainMenuBar();
+		}
+
+		// Script Creation Popup
+		if (m_showScriptCreation) {
+			ImGui::OpenPopup("Create Script");
+
+			// Center the popup
+			const ImGuiViewport* viewport = ImGui::GetMainViewport();
+			ImVec2 center = viewport->GetCenter();
+			ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+			if (ImGui::BeginPopupModal("Create Script", &m_showScriptCreation, ImGuiWindowFlags_AlwaysAutoResize)) {
+				ImGui::Text("Enter script name:");
+				ImGui::InputText("##ScriptName", m_scriptNameBuffer, sizeof(m_scriptNameBuffer));
+
+				ImGui::Separator();
+
+				if (ImGui::Button("Create", ImVec2(120, 0))) {
+					CreateNewScript(m_scriptNameBuffer);
+					m_showScriptCreation = false;
+					ImGui::CloseCurrentPopup();
+					// Reset buffer for next time
+					strcpy(m_scriptNameBuffer, "NewScript");
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+					m_showScriptCreation = false;
+					ImGui::CloseCurrentPopup();
+					// Reset buffer for next time
+					strcpy(m_scriptNameBuffer, "NewScript");
+				}
+
+				ImGui::EndPopup();
+			}
 		}
 
 	}
@@ -261,5 +310,38 @@ namespace editor {
 
 		glfwDestroyWindow(m_window);
 		glfwTerminate();
+	}
+
+	void EditorApplication::CreateNewScript(const char* scriptName) {
+		fs::path scriptsDir = "scripts";
+		if (!fs::exists(scriptsDir)) {
+			fs::create_directory(scriptsDir);
+		}
+
+		fs::path scriptPath = scriptsDir / (std::string(scriptName) + ".py");
+		std::ofstream scriptFile(scriptPath);
+		if (scriptFile.is_open()) {
+			// Write template Python script content
+			scriptFile << "class Script:\n"
+					  << "    def __init__(self, entity):\n"
+					  << "        self.entity = entity\n\n"
+					  << "    def begin_play(self):\n"
+					  << "        # Initialize script here\n"
+					  << "        pass\n\n"
+					  << "    def update(self, delta_time):\n"
+					  << "        # Update logic here\n"
+					  << "        pass\n";
+
+			scriptFile.close();
+
+			// Register script through EngineAPI
+			if (RegisterScript(scriptName)) {
+				Logger::Get().Log(MessageType::Info, "Created and registered script: " + scriptPath.string());
+			} else {
+				Logger::Get().Log(MessageType::Error, "Failed to register script: " + scriptPath.string());
+			}
+		} else {
+			Logger::Get().Log(MessageType::Error, "Failed to create script: " + scriptPath.string());
+		}
 	}
 }

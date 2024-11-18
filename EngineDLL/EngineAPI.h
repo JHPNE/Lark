@@ -48,6 +48,7 @@ extern "C" {
 
     // Function to get available script names
     ENGINE_API const char** GetScriptNames(size_t* count);
+    ENGINE_API bool RegisterScript(const char* script_name);
 
 #ifdef __cplusplus
 }

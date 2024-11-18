@@ -62,6 +62,12 @@ namespace {
         active_entities[index] = false;
     }
 
+    // Create a concrete script class for each script
+    class PythonScriptWrapper : public drosim::script::entity_script {
+    public:
+        explicit PythonScriptWrapper(drosim::game_entity::entity entity)
+            : entity_script(entity) {}
+    };
 
 }
 
@@ -120,5 +126,23 @@ extern "C" {
         static std::vector<const char*> name_ptrs;
         script::detail::get_script_names(name_ptrs.data(), count);
         return name_ptrs.data();
+    }
+
+    ENGINE_API bool RegisterScript(const char* script_name) {
+        if (!script_name) return false;
+
+        auto creator = [](drosim::game_entity::entity entity) -> drosim::script::detail::script_ptr {
+            return std::make_unique<PythonScriptWrapper>(entity);
+        };
+
+        bool success = drosim::script::detail::register_script(
+            drosim::script::detail::string_hash()(script_name),
+            creator);
+
+        if (success) {
+            drosim::script::detail::add_script_name(script_name);
+        }
+
+        return success;
     }
 }

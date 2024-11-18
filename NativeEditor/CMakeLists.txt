@@ -58,3 +58,25 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         $<TARGET_FILE:EngineDLL>
         $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        # Copy EngineDLL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:EngineDLL>
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+
+        # Copy Python DLL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${Python_RUNTIME_LIBRARY_RELEASE}
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+
+        # Create scripts directory
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/scripts
+)
+
+# Add Python package path to environment
+if(WIN32)
+    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_ENVIRONMENT
+            "PATH=${Python_RUNTIME_LIBRARY_DIRS};$ENV{PATH}")
+endif()

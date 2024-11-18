@@ -32,5 +32,11 @@ namespace editor {
 		GLFWwindow* m_window = nullptr;
 		ImVec4 m_clearColor = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
 		bool m_Running = false;
+
+		void CreateNewScript(const char* scriptName);
+
+		// Add member for script creation popup state
+		bool m_showScriptCreation = false;
+		char m_scriptNameBuffer[256] = "NewScript";
 	};
 }
