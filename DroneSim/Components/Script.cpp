@@ -18,12 +18,6 @@ namespace drosim::script {
 			return reg;
 		}
 
-#ifdef USE_WITH_EDITOR
-		util::vector<std::string>& script_name() {
-			static util::vector<std::string> names;
-			return names;
-		}
-#endif
 
 
 		bool exists(script_id id)
@@ -54,13 +48,26 @@ namespace drosim::script {
 		}
 
 
+		util::vector<std::string>& script_name() {
+			static util::vector<std::string> names;
+			return names;
+		}
 
-#ifdef USE_WITH_EDITOR
 		u8 add_script_name(const char* name) {
 			script_name().emplace_back(name);
 			return true;
-	}
-#endif
+		}
+
+		void get_script_names(const char** names, size_t* count) {
+			auto& script_names = drosim::script::detail::script_name();
+			*count = script_names.size();
+			if (*count > 0) {
+				for (size_t i = 0; i < *count; ++i) {
+					names[i] = script_names[i].c_str();
+				}
+			}
+		}
+
 	} // namespace detail
 
 	void shutdown() {
@@ -70,9 +77,8 @@ namespace drosim::script {
 		generations.clear();
 		free_ids.clear();
 		registry().clear();
-#ifdef USE_WITH_EDITOR
 		detail::script_name().clear();
-#endif
+
 	}
 
 	component create(init_info info, game_entity::entity entity) {
@@ -121,18 +127,3 @@ namespace drosim::script {
 	}
 
 }
-
-#ifdef USE_WITH_EDITOR
-#include <atlsafe.h>
-extern "C" __declspec(dllexport)
-LPSAFEARRAY get_script_names()
-{
-	const u32 size{ (u32)drosim::script::script_name().size() };
-	if (!size) return nullptr;
-	CComSafeArray<BSTR> names(size);
-	for (u32 i{ 0 }; i < size; ++i) {
-        names.SetAt(i, A2BSTR_EX(drosim::script::script_name()[i].c_str()), false);
-	}
-	return names.Detach();
-}
-#endif

@@ -42,7 +42,12 @@ extern "C" {
 
     ENGINE_API drosim::id::id_type CreateGameEntity(game_entity_descriptor* e);
     ENGINE_API void RemoveGameEntity(drosim::id::id_type id);
-    ENGINE_API script_component CreateScriptComponent(drosim::id::id_type id);
+
+    // Function to get script creator by name using engine's registration system
+    ENGINE_API drosim::script::detail::script_creator GetScriptCreator(const char* name);
+
+    // Function to get available script names
+    ENGINE_API const char** GetScriptNames(size_t* count);
 
 #ifdef __cplusplus
 }

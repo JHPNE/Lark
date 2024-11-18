@@ -61,6 +61,8 @@ namespace {
         const auto index = id::index(id);
         active_entities[index] = false;
     }
+
+
 }
 
 namespace engine {
@@ -107,7 +109,16 @@ extern "C" {
         remove_entity(id);
     }
 
-    ENGINE_API script_component CreateScriptComponent(drosim::id::id_type id) {
-        script::init_info info{};
+    ENGINE_API script::detail::script_creator GetScriptCreator(const char* name) {
+        if (!name) return nullptr;
+        // Use engine's existing script registry system
+        return script::detail::get_script_creator(
+            script::detail::string_hash()(name));
+    }
+
+    ENGINE_API const char** GetScriptNames(size_t* count) {
+        static std::vector<const char*> name_ptrs;
+        script::detail::get_script_names(name_ptrs.data(), count);
+        return name_ptrs.data();
     }
 }

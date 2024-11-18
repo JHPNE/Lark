@@ -4,6 +4,9 @@
 #include "../Components/ComponentCommon.h"
 #include "TransformComponent.h"
 #include "ScriptComponent.h"
+#include <pybind11/operators.h>
+#include <pybind11/stl.h>
+#include <pybind11/embed.h>
 
 namespace drosim {
 	namespace game_entity {
@@ -29,10 +32,45 @@ namespace drosim {
 
 		public:
 			virtual ~entity_script() = default;
-			virtual void begin_play() {}
-			virtual void update(float) {}
+
+			void begin_play() {
+				try {
+					if (m_instance && pybind11::hasattr(m_instance, "begin_play")) {
+						m_instance.attr("begin_play")();
+					}
+				}
+				catch (const pybind11::error_already_set& e) {
+				}
+			}
+
+			void update(float dt) {
+				try {
+					if (m_instance && pybind11::hasattr(m_instance, "update")) {
+						m_instance.attr("update")(dt);
+					}
+				}
+				catch (const pybind11::error_already_set& e) {
+				}
+			}
 		protected:
-			constexpr explicit entity_script(game_entity::entity entity) : game_entity::entity{ entity.get_id() }{}
+			explicit entity_script(game_entity::entity entity)
+			: game_entity::entity{ entity.get_id() } {
+				try {
+					static pybind11::scoped_interpreter guard{};
+					// Assuming scripts are in a "scripts" folder relative to executable
+					const char* script_name = typeid(*this).name();
+					m_module = pybind11::module_::import(script_name);
+
+					if (pybind11::hasattr(m_module, "Script")) {
+						m_instance = m_module.attr("Script")(entity);
+					}
+				}
+				catch (const pybind11::error_already_set& e) {
+				}
+			}
+		private:
+			pybind11::module m_module;
+			pybind11::object m_instance;
 		};
 
 		namespace detail {
@@ -41,19 +79,16 @@ namespace drosim {
 			using string_hash = std::hash<std::string>;
 
 			u8 register_script(size_t, script_creator);
-
-#ifdef USE_WITH_EDITOR
-			extern "C" __declspec(dllexport)
-#endif
 			script_creator get_script_creator(size_t tag);
+			void get_script_names(const char** names, size_t* count);
 
 
-			template<class script_class> script_ptr create_script(game_entity::entity entity) {
+			template<class script_class>
+			script_ptr create_script(game_entity::entity entity) {
 				assert(entity.is_valid());
 				return std::make_unique<script_class>(entity);
 			}
 
-#ifdef USE_WITH_EDITOR
 			u8 add_script_name(const char* name);
 #define REGISTER_SCRIPT(TYPE) \
                     namespace { \
@@ -66,19 +101,7 @@ namespace drosim {
                             drosim::script::detail::add_script_name(#TYPE) \
                         }; \
                     }
-#else
-#define REGISTER_SCRIPT(TYPE) \
-                    namespace { \
-                        const u8 _reg##TYPE { \
-                            drosim::script::detail::register_script( \
-                                drosim::script::detail::string_hash()(#TYPE), \
-                                &drosim::script::detail::create_script<TYPE>) \
-                        }; \
-                    }
-#endif
-
 		}
-
-
 	}
 }
+
