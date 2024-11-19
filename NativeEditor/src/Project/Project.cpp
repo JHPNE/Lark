@@ -391,7 +391,7 @@ bool Project::CreateNewScript(const char *scriptName) {
     std::ofstream scriptFile(scriptPath);
     if (scriptFile.is_open()) {
         // Write template Python script content
-        scriptFile << "class Script:\n"
+        scriptFile << "class "<< scriptName <<":\n"
                   << "    def __init__(self, entity):\n"
                   << "        self.entity = entity\n\n"
                   << "    def begin_play(self):\n"
