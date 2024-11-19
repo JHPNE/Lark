@@ -123,8 +123,23 @@ extern "C" {
     }
 
     ENGINE_API const char** GetScriptNames(size_t* count) {
+        // First get the count of script names
+        size_t name_count = 0;
+        script::detail::get_script_names(nullptr, &name_count);
+
+        if (name_count == 0) {
+            *count = 0;
+            return nullptr;
+        }
+
+        // Resize the static vector to hold all name pointers
         static std::vector<const char*> name_ptrs;
-        script::detail::get_script_names(name_ptrs.data(), count);
+        name_ptrs.resize(name_count);
+
+        // Now get the actual names
+        script::detail::get_script_names(name_ptrs.data(), &name_count);
+        *count = name_count;
+
         return name_ptrs.data();
     }
 

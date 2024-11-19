@@ -3,23 +3,19 @@
 #include <imgui.h>
 #include "../src/Utils/Utils.h"
 #include "../src/Utils/Visual/VectorBox.h"
+#include "Components/Script.h"
 
 void ComponentView::Draw() {
-    if (!project) {
-        return;
-    }
+    if (!project) return;
 
-    // Always show the window, control visibility through other means if needed
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
     window_flags |= ImGuiWindowFlags_NoCollapse;
 
-    // Begin the window - make sure it's visible
     ImGui::Begin("Component View", nullptr, window_flags);
 
     ImGui::Text("Components");
     ImGui::Separator();
 
-    // Get active scene and selected entity
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
 
     if (activeScene) {
@@ -37,13 +33,12 @@ void ComponentView::Draw() {
             ImGui::Text("Selected Entity: %s", selectedEntity->GetName().c_str());
             ImGui::Separator();
 
-            // Get Transform component
+            // Transform Component
             if (auto transform = selectedEntity->GetComponent<Transform>()) {
                 if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
                     // Position
                     Vec3 position = transform->GetPosition();
                     float pos[3] = { position.x, position.y, position.z };
-
                     ImGui::Text("Position");
                     if(VectorBox::Draw("##Position", pos, 3)) {
                         transform->SetPosition({ pos[0], pos[1], pos[2] });
@@ -52,7 +47,6 @@ void ComponentView::Draw() {
                     // Rotation
                     Vec3 rotation = transform->GetRotation();
                     float rot[3] = { rotation.x, rotation.y, rotation.z };
-
                     ImGui::Text("Rotation");
                     if(VectorBox::Draw("##Rotation", rot, 3)) {
                         transform->SetRotation({ rot[0], rot[1], rot[2] });
@@ -61,7 +55,6 @@ void ComponentView::Draw() {
                     // Scale
                     Vec3 scale = transform->GetScale();
                     float scl[3] = { scale.x, scale.y, scale.z };
-
                     ImGui::Text("Scale");
                     if(VectorBox::Draw("##Scale", scl, 3)) {
                         transform->SetScale({ scl[0], scl[1], scl[2] });
@@ -69,17 +62,53 @@ void ComponentView::Draw() {
                 }
             }
 
-            // Add Component Button
-            if (ImGui::Button("Add Component")) {
+            // Script Component(s)
+            if (auto script = selectedEntity->GetComponent<Script>()) {
+                if (ImGui::CollapsingHeader("Script", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    // Style the script name box
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+
+                    // Create a box showing the script name
+                    ImGui::BeginChild("ScriptBox", ImVec2(ImGui::GetContentRegionAvail().x, 30), true);
+                    ImGui::Text("Script: %s", script->GetScriptName().c_str());
+                    ImGui::EndChild();
+
+                    ImGui::PopStyleColor();
+                    ImGui::PopStyleVar();
+
+                    // Remove script button
+                    if (ImGui::Button("Remove Script", ImVec2(120, 0))) {
+                        //selectedEntity->RemoveComponent<Script>();
+                    }
+                }
+            }
+
+            ImGui::Separator();
+
+            // Add Component Button (always at bottom)
+            if (ImGui::Button("Add Component", ImVec2(120, 0))) {
                 ImGui::OpenPopup("AddComponentPopup");
             }
 
             if (ImGui::BeginPopup("AddComponentPopup")) {
-                if (ImGui::MenuItem("Script")) {
-                    // Add script component
-                    // selectedEntity->AddComponent<Script>();
+                if (!selectedEntity->GetComponent<Script>()) {  // Only show scripts if none exists
+                    size_t script_count = 0;
+                    const char** script_names = GetScriptNames(&script_count);
+
+                    if (script_count > 0) {
+                        if (ImGui::BeginMenu("Script")) {
+                            for (size_t i = 0; i < script_count; i++) {
+                                if (ImGui::MenuItem(script_names[i])) {
+                                    ScriptInitializer scriptInit;
+                                    scriptInit.scriptName = script_names[i];
+                                    activeScene->AddComponentToEntity<Script>(selectedEntity->GetID(), &scriptInit);
+                                }
+                            }
+                            ImGui::EndMenu();
+                        }
+                    }
                 }
-                // Add other component types here
                 ImGui::EndPopup();
             }
         }

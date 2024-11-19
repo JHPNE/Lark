@@ -61,6 +61,9 @@ namespace drosim::script {
 		void get_script_names(const char** names, size_t* count) {
 			auto& script_names = drosim::script::detail::script_name();
 			*count = script_names.size();
+
+			if (!names) return;
+
 			if (*count > 0) {
 				for (size_t i = 0; i < *count; ++i) {
 					names[i] = script_names[i].c_str();

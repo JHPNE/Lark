@@ -2,7 +2,35 @@
 #include <cassert>
 #include <memory>
 
+#include "Utils/MathUtils.h"
+
 class GameEntity;
+
+class Component;
+class Transform;
+class Script;
+class Scene;
+
+using namespace MathUtils;
+
+// Base struct for component initialization data
+struct ComponentInitializer {
+	virtual ~ComponentInitializer() = default;
+};
+
+// Transform component initializer
+struct TransformInitializer : ComponentInitializer {
+	Vec3 position{0.0f, 0.0f, 0.0f};
+	Vec3 rotation{0.0f, 0.0f, 0.0f};
+	Vec3 scale{1.0f, 1.0f, 1.0f};
+};
+
+// Script component initializer
+struct ScriptInitializer : ComponentInitializer {
+	std::string scriptName;
+	// Add any other script-specific initialization data
+};
+
 
 enum class ComponentType {
 	None = 0,
@@ -15,20 +43,16 @@ class Component {
 public:
 	virtual ~Component() = default;
 	virtual ComponentType GetType() const = 0;
+	virtual bool Initialize(const ComponentInitializer* init) { return true; }
 
-	// Static type getter that derived classes will override
 	static ComponentType GetStaticType() { return ComponentType::None; }
-
-	// Getter for owner
 	GameEntity* GetOwner() const { return m_owner; }
 
 protected:
 	explicit Component(GameEntity* owner) : m_owner(owner) {
-		// Assert owner is not null in debug builds
 		assert(owner != nullptr);
 	}
 
-	// Prevent copying
 	Component(const Component&) = delete;
 	Component& operator=(const Component&) = delete;
 

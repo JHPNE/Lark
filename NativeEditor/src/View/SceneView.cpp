@@ -20,6 +20,7 @@ void SceneView::Draw() {
         bool isWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         bool isAnyPopupOpen = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
 
+        /*
         // Clear selection if window loses focus and no popup is open
         if (!isWindowFocused && !isAnyPopupOpen) {
             if (auto activeScene = project->GetActiveScene()) {
@@ -28,6 +29,7 @@ void SceneView::Draw() {
                 }
             }
         }
+        */
 
         // Add Scene Button at top
         if (ImGui::Button("+ Add Scene")) {

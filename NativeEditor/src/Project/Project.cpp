@@ -5,6 +5,7 @@
 #include <fstream>
 #include "Scene.h"
 #include "tinyxml2.h"
+#include "EngineAPI.h"
 
 namespace {
     std::string ReadFileContent(const fs::path& path) {
@@ -380,5 +381,40 @@ std::shared_ptr<Scene> Project::GetSceneById(uint32_t id) const {
     }
 
     return nullptr;
+}
+
+bool Project::CreateNewScript(const char *scriptName) {
+    auto scriptDir = m_path / "SimCode" ;
+    if (!fs::exists(scriptDir)) return false;
+
+    fs::path scriptPath = scriptDir / (std::string(scriptName) + ".py");
+    std::ofstream scriptFile(scriptPath);
+    if (scriptFile.is_open()) {
+        // Write template Python script content
+        scriptFile << "class Script:\n"
+                  << "    def __init__(self, entity):\n"
+                  << "        self.entity = entity\n\n"
+                  << "    def begin_play(self):\n"
+                  << "        # Initialize script here\n"
+                  << "        pass\n\n"
+                  << "    def update(self, delta_time):\n"
+                  << "        # Update logic here\n"
+                  << "        pass\n";
+
+        scriptFile.close();
+
+        // Register script through EngineAPI
+        if (RegisterScript(scriptName)) {
+            Logger::Get().Log(MessageType::Info, "Created and registered script: " + scriptPath.string());
+        } else {
+            Logger::Get().Log(MessageType::Error, "Failed to register script: " + scriptPath.string());
+            return false;
+        }
+    } else {
+        Logger::Get().Log(MessageType::Error, "Failed to create script: " + scriptPath.string());
+        return false;
+    }
+
+    return true;
 }
 

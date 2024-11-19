@@ -40,6 +40,9 @@ public:
     void Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const override;
     bool Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) override;
 
+    // Script helper
+    bool CreateNewScript(const char* scriptName);
+
     bool Save() {
         try {
             // Log current state

@@ -133,6 +133,91 @@ public:
         return m_entities;
     }
 
+    // Component Logic
+    template<typename T>
+    T* AddComponentToEntity(uint32_t entityId, const ComponentInitializer* initializer = nullptr) {
+        static_assert(std::is_base_of<Component, T>::value, "T must derive from Component");
+        static_assert(!std::is_abstract<T>::value, "Cannot create abstract component type");  // Add this check
+
+        auto entity = GetEntity(entityId);
+        if (!entity) {
+            Logger::Get().Log(MessageType::Error, "Entity not found: " + std::to_string(entityId));
+            return nullptr;
+        }
+
+        ComponentType type = T::GetStaticType();
+
+        if (entity->m_components[type]) {
+            Logger::Get().Log(MessageType::Warning, "Component already exists on entity: " + entity->GetName());
+            return nullptr;
+        }
+
+        // Create and initialize the new component
+        T* component = new T(entity.get());
+        if (initializer && !component->Initialize(initializer)) {
+            delete component;
+            Logger::Get().Log(MessageType::Error, "Failed to initialize component");
+            return nullptr;
+        }
+
+        // Store component in entity
+        entity->m_components[type] = std::unique_ptr<Component>(component);
+
+        // Create descriptor with current state
+        game_entity_descriptor desc{};
+
+        // Fill transform data
+        if (auto* transform = entity->GetComponent<Transform>()) {
+            const auto& pos = transform->GetPosition();
+            const auto& rot = transform->GetRotation();
+            const auto& scale = transform->GetScale();
+
+            desc.transform.position[0] = pos.x;
+            desc.transform.position[1] = pos.y;
+            desc.transform.position[2] = pos.z;
+            desc.transform.rotation[0] = rot.x;
+            desc.transform.rotation[1] = rot.y;
+            desc.transform.rotation[2] = rot.z;
+            desc.transform.scale[0] = scale.x;
+            desc.transform.scale[1] = scale.y;
+            desc.transform.scale[2] = scale.z;
+        }
+
+        // Fill script data
+        if (auto* script = entity->GetComponent<Script>()) {
+            desc.script.script_creator = GetScriptCreator(script->GetScriptName().c_str());
+        }
+
+        // Remove old engine entity and create new one
+        RemoveGameEntity(entityId);
+        uint32_t newId = CreateGameEntity(&desc);
+
+        if (newId == 0) { // Assuming 0 is invalid
+            entity->m_components.erase(type);
+            Logger::Get().Log(MessageType::Error, "Failed to recreate entity in engine");
+            return nullptr;
+        }
+
+        // Update entity's ID
+        entity->SetID(newId);
+
+        // Add to undo/redo system
+        auto action = std::make_shared<UndoRedoAction>(
+            [this, entityId, type]() {  // Undo: remove component
+                auto entity = GetEntity(entityId);
+                if (entity) entity->m_components.erase(type);
+            },
+            [this, entityId, type, initializer]() {  // Redo: add component
+                AddComponentToEntity<T>(entityId, initializer);
+            },
+            "Add Component to Entity: " + entity->GetName()
+        );
+
+        GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
+
+        return component;
+    }
+
     // Undo/Redo
     UndoRedo& GetUndoRedo() { return m_undoRedo; }
 
