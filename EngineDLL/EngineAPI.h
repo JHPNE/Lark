@@ -54,6 +54,11 @@ extern "C" {
     ENGINE_API bool AddScriptToEntity(drosim::id::id_type entity_id, const char* script_name);
     ENGINE_API bool RemoveScriptFromEntity(drosim::id::id_type entity_id);
 
+    ENGINE_API bool GameLoop_Initialize(u32 target_fps, f32 fixed_timestep);
+    ENGINE_API void GameLoop_Tick();  // Process a single frame
+    ENGINE_API void GameLoop_Shutdown();
+    ENGINE_API f32 GameLoop_GetDeltaTime();
+    ENGINE_API u32 GameLoop_GetFPS();
 
 #ifdef __cplusplus
 }

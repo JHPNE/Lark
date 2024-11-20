@@ -19,6 +19,7 @@ namespace drosim {
 		entity create(entity_info info);
 		void remove(entity_id id);
 		bool is_alive(entity_id id);
+		const util::vector<entity_id>& get_active_entities();
 	}
 
 }

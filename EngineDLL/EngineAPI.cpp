@@ -1,14 +1,17 @@
 #include <CommonHeaders.h>
+#include "EngineAPI.h"
 #include <Entity.h>
 #include <Transform.h>
 #include <Script.h>
-#include "EngineAPI.h"
+#include "Core/GameLoop.h"
 
 #define ENGINEDLL_EXPORTS
 
 using namespace drosim;
 
 namespace {
+    std::unique_ptr<GameLoop> g_game_loop;
+
     // Internal implementation of transform conversion
     transform::init_info to_engine_transform(const transform_component& transform) {
         transform::init_info info{};
@@ -159,5 +162,37 @@ extern "C" {
         }
 
         return success;
+    }
+
+    ENGINE_API bool GameLoop_Initialize(u32 target_fps, f32 fixed_timestep) {
+        if (g_game_loop) return false;  // Already initialized
+
+        drosim::GameLoop::Config config;
+        config.target_fps = target_fps;
+        config.fixed_timestep = fixed_timestep;
+
+        g_game_loop = std::make_unique<drosim::GameLoop>(config);
+        return g_game_loop->initialize();
+    }
+
+    ENGINE_API void GameLoop_Tick() {
+        if (g_game_loop) {
+            g_game_loop->tick();  // We'll add this method to GameLoop
+        }
+    }
+
+    ENGINE_API void GameLoop_Shutdown() {
+        if (g_game_loop) {
+            g_game_loop->shutdown();
+            g_game_loop.reset();
+        }
+    }
+
+    ENGINE_API f32 GameLoop_GetDeltaTime() {
+        return g_game_loop ? g_game_loop->get_delta_time() : 0.0f;
+    }
+
+    ENGINE_API u32 GameLoop_GetFPS() {
+        return g_game_loop ? g_game_loop->get_fps() : 0;
     }
 }

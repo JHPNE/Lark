@@ -13,6 +13,7 @@
 #include "../View/ComponentView.h"
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "../Utils/Visual/VectorBox.h"
+#include "core/Loop.h"
 
 namespace editor {
 
@@ -217,15 +218,37 @@ namespace editor {
 
 			ImGui::SameLine(0, 15);
 
-			// Script Creation Button
-			if (ImGui::Button("Create Script")) {
-				m_showScriptCreation = true;
+			if (hasProject) {
+				// Script Creation Button
+				if (ImGui::Button("Create Script")) {
+					m_showScriptCreation = true;
+				}
+				if (ImGui::IsItemHovered()) {
+					ImGui::BeginTooltip();
+					ImGui::Text("Create new Python script");
+					ImGui::EndTooltip();
+				}
+
+				ImGui::SameLine(0, 15);
+
+				// Run Button
+				if (ImGui::Button("Run")) {
+					if (Loop::Initialize()) {
+						Loop::SetRunning(true);
+						Loop::Run();
+					}
+
+				}
+
+				// Run Button
+				if (ImGui::Button("Stop")) {
+					if (Loop::Initialize()) {
+						Loop::SetRunning(false);
+						Loop::Stop();
+					}
+				}
 			}
-			if (ImGui::IsItemHovered()) {
-				ImGui::BeginTooltip();
-				ImGui::Text("Create new Python script");
-				ImGui::EndTooltip();
-			}
+
 
 			// No project tooltip
 			if (!hasProject) {

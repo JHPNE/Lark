@@ -1,4 +1,3 @@
-
 #include "Entity.h"
 #include "Transform.h"
 #include "Script.h"
@@ -11,6 +10,8 @@ namespace drosim::game_entity {
 
 		std::vector<id::generation_type> generations;
 		util::deque<entity_id> free_ids;
+
+		util::vector<entity_id> active_entities;
 	}
 
 	entity create(entity_info info) {
@@ -50,6 +51,10 @@ namespace drosim::game_entity {
 			assert(scripts[index].is_valid());
 		}
 
+		if (new_entity.is_valid()) {
+			active_entities.push_back(new_entity.get_id());
+		}
+
 		return new_entity;
 	}
 
@@ -71,6 +76,15 @@ namespace drosim::game_entity {
 		{
 			free_ids.push_back(id);
 		}
+
+		auto it = std::find(active_entities.begin(), active_entities.end(), id);
+		if (it != active_entities.end()) {
+			util::erase_unordered(active_entities, it - active_entities.begin());
+		}
+	}
+
+	const util::vector<entity_id>& get_active_entities() {
+		return active_entities;
 	}
 
 	bool is_alive(entity_id id) {
