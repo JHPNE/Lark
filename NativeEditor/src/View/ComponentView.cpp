@@ -80,6 +80,7 @@ void ComponentView::Draw() {
                     // Remove script button
                     if (ImGui::Button("Remove Script", ImVec2(120, 0))) {
                         //selectedEntity->RemoveComponent<Script>();
+                        activeScene->RemoveComponentFromEntity<Script>(selectedEntity->GetID());
                     }
                 }
             }

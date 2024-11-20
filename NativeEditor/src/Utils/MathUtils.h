@@ -74,5 +74,11 @@ namespace MathUtils {
 
         static Vec3 Zero() { return Vec3(0.0f, 0.0f, 0.0f); }
         static Vec3 One() { return Vec3(1.0f, 1.0f, 1.0f); }
+
+        static float* toFloat(Vec3& v) {
+            static float result[3];
+            result[0] = v.x; result[1] = v.y; result[2] = v.z;
+            return result;
+        }
     };
 }

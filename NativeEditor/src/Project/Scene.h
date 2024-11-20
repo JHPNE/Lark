@@ -4,9 +4,13 @@
 #include <vector>
 #include "GameEntity.h"
 #include "../Utils/Etc/Logger.h"
+#include "../Utils/MathUtils.h"
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "EngineAPI.h"
+#include "Utils/Utils.h"
 #include "Utils/System/Serialization.h"
+
+using namespace MathUtils;
 
 // Forward declare Project to avoid circular dependency
 class Project;
@@ -205,16 +209,7 @@ public:
             const auto& pos = transform->GetPosition();
             const auto& rot = transform->GetRotation();
             const auto& scale = transform->GetScale();
-
-            desc.transform.position[0] = pos.x;
-            desc.transform.position[1] = pos.y;
-            desc.transform.position[2] = pos.z;
-            desc.transform.rotation[0] = rot.x;
-            desc.transform.rotation[1] = rot.y;
-            desc.transform.rotation[2] = rot.z;
-            desc.transform.scale[0] = scale.x;
-            desc.transform.scale[1] = scale.y;
-            desc.transform.scale[2] = scale.z;
+            Utils::SetTransform(desc, pos, rot, scale);
         }
 
         // Fill script data
@@ -250,6 +245,54 @@ public:
         GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
 
         return component;
+    }
+
+    template<typename T>
+    bool RemoveComponentFromEntity(uint32_t entityId) {
+        static_assert(std::is_base_of<Component, T>::value, "T must derive from Component");
+
+        auto entity = GetEntity(entityId);
+        if (entity) {
+            // Get the component type
+            ComponentType componentType = T::GetStaticType();
+
+            // Since we cant remove transform or shouldn't
+            if (!entity->GetComponent<T>()) {
+                Logger::Get().Log(MessageType::Warning, "Entity does not have component of requested type");
+                return false;
+            }
+
+            // Cannot remove Transform component
+            if (componentType == ComponentType::Transform) {
+                Logger::Get().Log(MessageType::Warning, "Cannot remove Transform component");
+                return false;
+            }
+
+            RemoveGameEntity(entityId);
+            // Create descriptor with current state
+            game_entity_descriptor desc{};
+            // Store transform data
+            if (auto transform = entity->GetComponent<Transform>()) {
+                auto pos = transform->GetPosition();
+                auto rot = transform->GetRotation();
+                auto scale = transform->GetScale();
+                Utils::SetTransform(desc, pos, rot, scale);
+            }
+
+            // Handle script component specially
+            if (componentType != ComponentType::Script && entity->GetComponent<Script>()) {
+                desc.script.script_creator = GetScriptCreator(entity->GetComponent<Script>()->GetScriptName().c_str());
+            }
+
+            entity->m_components.erase(componentType);
+
+            auto newEntityId = CreateGameEntity(&desc);
+            entity->SetID(newEntityId);
+
+            return true;
+        }
+
+        return false;
     }
 
     // Undo/Redo
