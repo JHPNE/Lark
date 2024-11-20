@@ -28,15 +28,38 @@ public:
         auto entity = CreateEntityInternal(name);
 
         if (entity) {
+            // Store the newly created entity's ID
             uint32_t entityId = entity->GetID();
+
+            // Create a capture for the current entity state
+            EntityState entityState{
+                .name = name,
+                .id = entityId,
+                .isActive = entity->IsActive()
+            };
+
             auto action = std::make_shared<UndoRedoAction>(
-                [this, entityId]() {
-                    RemoveEntityInternal(entityId);
+                // Undo function - uses the stored state
+                [this, entityState]() {
+                    // Find entity by both ID and name for safety
+                    auto entity = std::find_if(m_entities.begin(), m_entities.end(),
+                        [&entityState](const auto& e) {
+                            return e->GetID() == entityState.id || e->GetName() == entityState.name;
+                        });
+
+                    if (entity != m_entities.end()) {
+                        RemoveEntityInternal((*entity)->GetID());
+                    }
                 },
-                [this, name]() {
-                    CreateEntityInternal(name);
+                // Redo function - recreates with stored state
+                [this, entityState]() -> std::shared_ptr<GameEntity> {
+                    auto newEntity = CreateEntityInternal(entityState.name);
+                    if (newEntity) {
+                        newEntity->SetActive(entityState.isActive);
+                    }
+                    return newEntity;
                 },
-                "Add Scene: " + name
+                "Add Entity: " + name
             );
 
             GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
@@ -92,24 +115,35 @@ public:
             return false;
         }
 
-        // Store entity data for restoration
-        std::string entityName = entity->GetName();
-        bool wasActive = entity->IsActive();
+        // Store complete entity state for restoration
+        EntityState entityState{
+            .name = entity->GetName(),
+            .id = entity->GetID(),
+            .isActive = entity->IsActive()
+        };
 
         if (RemoveEntityInternal(entityId)) {
             auto action = std::make_shared<UndoRedoAction>(
-                // Undo function - recreates the entity with original data
-                [this, entityName, wasActive]() {
-                    auto restoredEntity = CreateEntityInternal(entityName);
+                // Undo function - recreates with stored state
+                [this, entityState]() -> std::shared_ptr<GameEntity> {
+                    auto restoredEntity = CreateEntityInternal(entityState.name);
                     if (restoredEntity) {
-                        restoredEntity->SetActive(wasActive);
+                        restoredEntity->SetActive(entityState.isActive);
+                    }
+                    return restoredEntity;
+                },
+                // Redo function - removes by current ID and name
+                [this, entityState]() {
+                    auto entity = std::find_if(m_entities.begin(), m_entities.end(),
+                        [&entityState](const auto& e) {
+                            return e->GetID() == entityState.id || e->GetName() == entityState.name;
+                        });
+
+                    if (entity != m_entities.end()) {
+                        RemoveEntityInternal((*entity)->GetID());
                     }
                 },
-                // Redo function - removes the entity again
-                [this, entityId]() {
-                    RemoveEntityInternal(entityId);
-                },
-                "Remove Entity: " + entityName
+                "Remove Entity: " + entityState.name
             );
 
             GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
@@ -239,4 +273,11 @@ private:
     std::shared_ptr<Project> m_owner;
     std::vector<std::shared_ptr<GameEntity>> m_entities;
     UndoRedo m_undoRedo;
+
+    // Helper struct to store entity state
+    struct EntityState {
+        std::string name;
+        uint32_t id;
+        bool isActive;
+    };
 };
