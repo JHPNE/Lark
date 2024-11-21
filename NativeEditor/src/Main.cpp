@@ -1,8 +1,7 @@
-#pragma once
 #include "Editor/EditorApplication.h"
 #include <iostream>
 
-int main(int argc, char** argv) {
+int main() {
 	editor::EditorApplication& app = editor::EditorApplication::Get();
 
     if (!app.Initialize()) {
