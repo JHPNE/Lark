@@ -4,7 +4,6 @@ set(PROJECT_NAME EngineDLL)
 set(SOURCE_FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/dllmain.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/EngineAPI.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/EntityAPI.cpp"
 )
 
 set(HEADER_FILES

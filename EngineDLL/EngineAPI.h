@@ -20,6 +20,13 @@
 
 #include <Id.h>
 #include <Script.h>
+#include <CommonHeaders.h>
+#include "EngineAPI.h"
+#include <Entity.h>
+#include <Transform.h>
+#include <Script.h>
+#include "Core/GameLoop.h"
+#include <DroneSimAPI/GeometryAPI.h>
 
 struct transform_component {
     float position[3];
@@ -35,6 +42,40 @@ struct game_entity_descriptor {
     transform_component transform;
     script_component script;
 };
+
+namespace content_tools {
+    // Match the engine's primitive types but in our own namespace
+    enum class PrimitiveMeshType {
+        Plane,
+        Cube,
+        UvSphere,
+        IcoSphere,
+        Cylinder,
+        Capsule
+    };
+
+    struct GeometryImportSettings {
+        float smoothing_angle = 178.0f;
+        uint8_t calculate_normals = 0;
+        uint8_t calculate_tangents = 1;
+        uint8_t reverse_handedness = 0;
+        uint8_t import_embeded_textures = 1;
+        uint8_t import_animations = 1;
+    };
+
+    struct SceneData {
+        uint8_t* buffer = nullptr;
+        uint32_t buffer_size = 0;
+        GeometryImportSettings import_settings;
+    };
+
+    struct PrimitiveInitInfo {
+        PrimitiveMeshType type;
+        uint32_t segments[3] = {1, 1, 1};
+        float size[3] = {1.0f, 1.0f, 1.0f};
+        uint32_t lod = 0;
+    };
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,6 +101,8 @@ extern "C" {
     ENGINE_API f32 GameLoop_GetDeltaTime();
     ENGINE_API u32 GameLoop_GetFPS();
 
+    ENGINE_API bool CreatePrimitiveMesh(content_tools::SceneData* data,
+                                  const content_tools::PrimitiveInitInfo* info);
 #ifdef __cplusplus
 }
 #endif

@@ -1,4 +1,5 @@
 #pragma once
+#include "Geometry.h"
 #include "../Common/CommonHeaders.h"
 
 namespace drosim::tools {
@@ -21,4 +22,6 @@ struct primitive_init_info {
   math::v3 size{1, 1, 1};
   u32 lod{0};
   };
+
+  void CreatePrimitiveMesh(scene_data* data, primitive_init_info* info);
 };

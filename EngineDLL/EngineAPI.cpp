@@ -1,9 +1,4 @@
-#include <CommonHeaders.h>
 #include "EngineAPI.h"
-#include <Entity.h>
-#include <Transform.h>
-#include <Script.h>
-#include "Core/GameLoop.h"
 
 #define ENGINEDLL_EXPORTS
 
@@ -72,6 +67,10 @@ namespace {
             : entity_script(entity) {}
     };
 
+    // Convert from ContentTools types to Engine types
+    drosim::tools::primitive_mesh_type ConvertPrimitiveType(content_tools::PrimitiveMeshType type) {
+        return static_cast<drosim::tools::primitive_mesh_type>(type);
+    }
 }
 
 namespace engine {
@@ -194,5 +193,47 @@ extern "C" {
 
     ENGINE_API u32 GameLoop_GetFPS() {
         return g_game_loop ? g_game_loop->get_fps() : 0;
+    }
+
+    ENGINE_API bool CreatePrimitiveMesh(content_tools::SceneData* data,
+                                      const content_tools::PrimitiveInitInfo* info) {
+        if (!data || !info) return false;
+
+        // Convert content tools types to engine types
+        drosim::tools::scene_data engine_data{};
+        drosim::tools::primitive_init_info engine_info{};
+
+        // Convert primitive info
+        engine_info.mesh_type = static_cast<drosim::tools::primitive_mesh_type>(
+            static_cast<uint32_t>(info->type));
+
+        memcpy(engine_info.segments, info->segments, sizeof(info->segments));
+
+        // Handle size conversion properly since engine uses glm::vec3
+        engine_info.size.x = info->size[0];
+        engine_info.size.y = info->size[1];
+        engine_info.size.z = info->size[2];
+
+        engine_info.lod = info->lod;
+
+        // Convert scene data settings
+        engine_data.settings.smoothing_angle = data->import_settings.smoothing_angle;
+        engine_data.settings.calculate_normals = data->import_settings.calculate_normals;
+        engine_data.settings.calculate_tangents = data->import_settings.calculate_tangents;
+        engine_data.settings.reverse_handedness = data->import_settings.reverse_handedness;
+        engine_data.settings.import_embeded_textures = data->import_settings.import_embeded_textures;
+        engine_data.settings.import_animations = data->import_settings.import_animations;
+
+        // Create primitive mesh using engine's function
+        drosim::tools::CreatePrimitiveMesh(&engine_data, &engine_info);
+
+        // Copy results back to content tools structure
+        if (engine_data.buffer && engine_data.buffer_size > 0) {
+            data->buffer = engine_data.buffer;
+            data->buffer_size = engine_data.buffer_size;
+            return true;
+        }
+
+        return false;
     }
 }

@@ -3,6 +3,8 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 
+#include "Geometry/Geometry.h"
+
 namespace editor {
 	class EditorApplication {
 	public:
@@ -38,5 +40,7 @@ namespace editor {
 		// Add member for script creation popup state
 		bool m_showScriptCreation = false;
 		char m_scriptNameBuffer[256] = "NewScript";
+
+		std::unique_ptr<Geometry> m_geometry;
 	};
 }
