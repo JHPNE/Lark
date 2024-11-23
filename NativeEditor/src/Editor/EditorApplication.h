@@ -2,7 +2,6 @@
 #include <memory>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
-
 #include "Geometry/Geometry.h"
 
 namespace editor {

@@ -11,6 +11,7 @@
 #include "../View/ProjectBrowserView.h"
 #include "../View/SceneView.h"
 #include "../View/ComponentView.h"
+#include "../View/GeometryViewerView.h"
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "../Utils/Visual/VectorBox.h"
 #include "core/Loop.h"
@@ -58,6 +59,12 @@ namespace editor {
 		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 		{
 			std::cerr << "Failed to initialize GLAD" << std::endl;
+			return false;
+		}
+
+		// Initialize GeometryRenderer
+		if (!GeometryRenderer::Initialize()) {
+			std::cerr << "Failed to initialize geometry renderer" << std::endl;
 			return false;
 		}
 
@@ -146,6 +153,10 @@ namespace editor {
 			// Component Window
 			ComponentView::Get().SetActiveProject(loadedProject);
 			ComponentView::Get().Draw();
+
+
+			GeometryViewerView::Get().Draw();
+
 		}
 	}
 
@@ -256,6 +267,8 @@ namespace editor {
 						size,
 						segments
 					);
+
+					GeometryViewerView::Get().SetGeometry(m_geometry.get());
 				}
 
 
