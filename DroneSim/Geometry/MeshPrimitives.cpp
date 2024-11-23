@@ -24,7 +24,7 @@ namespace {
     create_capsule
   };
 
-  static_assert(_countof(creators) == primitive_mesh_type::count);
+  static_assert(glm::countof(creators) == primitive_mesh_type::count);
 
   struct axis {
     enum : u32 {
@@ -60,14 +60,14 @@ namespace {
 
         v2 uv{u_range.x, 1.f - v_range.x};
         uv.x += u_step;
-        uv.y += v_step;
+        uv.y -= v_step;
         uvs.emplace_back(uv);
       }
 
     assert(m.positions.size() == (((u64)horizontal_count + 1) * ((u64)vertical_count + 1)));
 
     const u32 row_length{horizontal_count + 1}; //number of vertices in a row
-    for (u32 j = 0; j <= vertical_count; ++j) {
+    for (u32 j = 0; j < vertical_count; ++j) {
       u32 k{0};
       for (u32 i{k}; i < horizontal_count; ++i) {
 

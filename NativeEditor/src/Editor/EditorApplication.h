@@ -41,6 +41,6 @@ namespace editor {
 		bool m_showScriptCreation = false;
 		char m_scriptNameBuffer[256] = "NewScript";
 
-		std::unique_ptr<Geometry> m_geometry;
+		std::unique_ptr<drosim::editor::Geometry> m_geometry;
 	};
 }
