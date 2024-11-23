@@ -41,7 +41,7 @@ namespace {
     assert(horizontal_index != vertical_index);
 
     const u32 horizontal_count{glm::clamp(info.segments[horizontal_index], 1u, 10u)};
-    const u32 vertical_count{glm::clamp(info.segments[horizontal_index], 1u, 10u)};
+    const u32 vertical_count{glm::clamp(info.segments[vertical_index], 1u, 10u)};
     const f32 horizontal_step{ 1.f/horizontal_count};
     const f32 vertical_step{ 1.f/vertical_count};
     const f32 u_step{(u_range.y - u_range.x)/horizontal_count};
@@ -59,8 +59,8 @@ namespace {
         m.positions.emplace_back(position.x * info.size.x, position.y * info.size.y, position.z * info.size.z);
 
         v2 uv{u_range.x, 1.f - v_range.x};
-        uv.x += u_step;
-        uv.y -= v_step;
+        uv.x += i * u_step;
+        uv.y -= j * v_step;
         uvs.emplace_back(uv);
       }
 
