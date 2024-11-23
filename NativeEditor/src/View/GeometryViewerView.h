@@ -1,5 +1,5 @@
 #pragma once
-#include "glad\glad.h"
+#include "glad/glad.h"
 #include <imgui.h>
 #include "../Geometry/Geometry.h"
 #include "../Geometry/GeometryRenderer.h"
