@@ -120,6 +120,10 @@ void GeometryRenderer::RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
 std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffers(const std::shared_ptr<drosim::editor::Mesh>& mesh) {
     if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) return nullptr;
 
+    printf("[CreateMeshBuffers] Creating buffers for mesh with:\n");
+    printf("  Vertex count: %d, size: %d, total: %zu\n", mesh->vertex_count, mesh->vertex_size, mesh->vertices.size());
+    printf("  Index count: %d, size: %d, total: %zu\n", mesh->index_count, mesh->index_size, mesh->indices.size());
+
     auto buffers = std::make_shared<MeshBuffers>();
 
     // Create and bind VAO
@@ -129,31 +133,38 @@ std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffe
     // Create and bind VBO
     glGenBuffers(1, &buffers->vbo);
     glBindBuffer(GL_ARRAY_BUFFER, buffers->vbo);
-    glBufferData(GL_ARRAY_BUFFER, mesh->vertices.size(), mesh->vertices.data(), GL_STATIC_DRAW);
+    
+    // Calculate total vertex data size
+    size_t vertexDataSize = static_cast<size_t>(mesh->vertex_count) * static_cast<size_t>(mesh->vertex_size);
+    glBufferData(GL_ARRAY_BUFFER, vertexDataSize, mesh->vertices.data(), GL_STATIC_DRAW);
 
     // Create and bind IBO
     glGenBuffers(1, &buffers->ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers->ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->indices.size(), mesh->indices.data(), GL_STATIC_DRAW);
+    
+    // Calculate total index data size
+    size_t indexDataSize = static_cast<size_t>(mesh->index_count) * static_cast<size_t>(mesh->index_size);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexDataSize, mesh->indices.data(), GL_STATIC_DRAW);
 
-    // Store index count
+    // Store index count and type
     buffers->indexCount = mesh->index_count;
+    buffers->indexType = mesh->index_size == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT;
 
     // Set up vertex attributes based on vertex format
     size_t offset = 0;
     const int stride = mesh->vertex_size;
 
-    // Position attribute
+    // Position attribute (3 floats)
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)offset);
     offset += sizeof(float) * 3;
 
-    // Normal attribute
+    // Normal attribute (3 floats)
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)offset);
     offset += sizeof(float) * 3;
 
-    // UV (assuming float[2])
+    // UV attribute (2 floats)
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)offset);
 
@@ -162,6 +173,17 @@ std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffe
 
     return buffers;
 };
+
+void GeometryRenderer::RenderMesh(const MeshBuffers* meshBuffers) {
+    if (!meshBuffers || !meshBuffers->vao) return;
+
+    glBindVertexArray(meshBuffers->vao);
+    glDrawElements(GL_TRIANGLES,
+                  static_cast<GLsizei>(meshBuffers->indexCount),
+                  meshBuffers->indexType,
+                  0);
+    glBindVertexArray(0);
+}
 
 GLuint GeometryRenderer::CompileShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
@@ -176,14 +198,4 @@ GLuint GeometryRenderer::CompileShader(GLenum type, const char* source) {
         return 0;
     }
     return shader;
-}
-void GeometryRenderer::RenderMesh(const MeshBuffers* meshBuffers) {
-    if (!meshBuffers || !meshBuffers->vao) return;
-
-    glBindVertexArray(meshBuffers->vao);
-    glDrawElements(GL_TRIANGLES,
-                   static_cast<GLsizei>(meshBuffers->indexCount),
-                   GL_UNSIGNED_INT,
-                   0);
-    glBindVertexArray(0);
 }

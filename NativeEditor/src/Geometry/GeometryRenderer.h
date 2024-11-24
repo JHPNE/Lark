@@ -10,7 +10,8 @@ class GeometryRenderer {
       GLuint vao = 0;
       GLuint vbo = 0;
       GLuint ibo = 0;
-      size_t indexCount = 0;
+      GLsizei indexCount = 0;
+      GLenum indexType = GL_UNSIGNED_INT;
 
       ~MeshBuffers() {
         if (vao) glDeleteVertexArrays(1, &vao);
@@ -99,4 +100,3 @@ class GeometryRenderer {
         }
     )";
 };
-

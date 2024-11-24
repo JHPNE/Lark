@@ -28,7 +28,15 @@ void GeometryViewerView::Draw() {
             glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
 
             if (m_geometryBuffers) {
+                // Save OpenGL state
+                GLint last_viewport[4]; glGetIntegerv(GL_VIEWPORT, last_viewport);
+                GLint last_framebuffer; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_framebuffer);
+                
                 GeometryRenderer::RenderGeometryAtLOD(m_geometryBuffers.get(), view, projection, m_cameraDistance);
+                
+                // Restore OpenGL state
+                glBindFramebuffer(GL_FRAMEBUFFER, last_framebuffer);
+                glViewport(last_viewport[0], last_viewport[1], (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
             }
 
             if (m_colorTexture) {
@@ -43,6 +51,7 @@ void GeometryViewerView::Draw() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
 }
 
 void GeometryViewerView::DrawControls() {
@@ -120,12 +129,14 @@ void GeometryViewerView::SetUpViewport() {
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
     glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
 
-    // Clear buffers
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    // Clear buffers with a darker background for better visibility
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Enable depth testing
+    // Enable depth testing and face culling
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 }
 
 void GeometryViewerView::EnsureFramebuffer(float width, float height) {
