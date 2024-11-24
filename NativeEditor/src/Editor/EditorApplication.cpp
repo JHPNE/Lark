@@ -260,10 +260,10 @@ namespace editor {
 				}
 
 				if (ImGui::Button("Create Plane")) {
-					float size[3] = {1.0f, 1.0f, 1.0f};
-					uint32_t segments[3] = {1, 1, 1};
+					float size[3] = {5.0f, 5.0f, 5.0f};
+					uint32_t segments[3] = {32, 16, 1};
 					m_geometry = drosim::editor::Geometry::CreatePrimitive(
-						content_tools::PrimitiveMeshType::Plane,
+						content_tools::PrimitiveMeshType::uv_sphere,
 						size,
 						segments
 					);

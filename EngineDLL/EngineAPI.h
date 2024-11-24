@@ -46,12 +46,14 @@ struct game_entity_descriptor {
 namespace content_tools {
     // Match the engine's primitive types but in our own namespace
     enum class PrimitiveMeshType {
-        Plane,
-        Cube,
-        UvSphere,
-        IcoSphere,
-        Cylinder,
-        Capsule
+        plane,
+        cube,
+        uv_sphere,
+        ico_sphere,
+        cylinder,
+        capsule,
+
+        count
     };
 
     struct GeometryImportSettings {
