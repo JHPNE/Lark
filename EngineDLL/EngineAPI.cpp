@@ -196,44 +196,36 @@ extern "C" {
     }
 
     ENGINE_API bool CreatePrimitiveMesh(content_tools::SceneData* data,
-                                      const content_tools::PrimitiveInitInfo* info) {
-        if (!data || !info) return false;
+                                  const content_tools::PrimitiveInitInfo* info) {
+        if (!data || !info) {
+            printf("[CreatePrimitiveMesh] Error: Invalid parameters\n");
+            return false;
+        }
 
-        // Convert content tools types to engine types
-        drosim::tools::scene_data engine_data{};
-        drosim::tools::primitive_init_info engine_info{};
+        auto engine_data = drosim::tools::scene_data{};
+        auto engine_info = drosim::tools::primitive_init_info{};
 
-        // Convert primitive info
-        engine_info.mesh_type = static_cast<drosim::tools::primitive_mesh_type>(
-            static_cast<uint32_t>(info->type));
-
+        // Convert info to engine format
+        engine_info.mesh_type = static_cast<drosim::tools::primitive_mesh_type>(info->type);
         memcpy(engine_info.segments, info->segments, sizeof(info->segments));
-
-        // Handle size conversion properly since engine uses glm::vec3
-        engine_info.size.x = info->size[0];
-        engine_info.size.y = info->size[1];
-        engine_info.size.z = info->size[2];
-
+        engine_info.size = info->size;
         engine_info.lod = info->lod;
 
-        // Convert scene data settings
-        engine_data.settings.smoothing_angle = data->import_settings.smoothing_angle;
-        engine_data.settings.calculate_normals = data->import_settings.calculate_normals;
-        engine_data.settings.calculate_tangents = data->import_settings.calculate_tangents;
-        engine_data.settings.reverse_handedness = data->import_settings.reverse_handedness;
-        engine_data.settings.import_embeded_textures = data->import_settings.import_embeded_textures;
-        engine_data.settings.import_animations = data->import_settings.import_animations;
+        engine_data.settings = data->import_settings;
 
-        // Create primitive mesh using engine's function
+        // Let the engine create the mesh
+        printf("[CreatePrimitiveMesh] Calling engine CreatePrimitiveMesh\n");
         drosim::tools::CreatePrimitiveMesh(&engine_data, &engine_info);
 
-        // Copy results back to content tools structure
+        // Just pass through the engine's buffer
         if (engine_data.buffer && engine_data.buffer_size > 0) {
+            printf("[CreatePrimitiveMesh] Engine created buffer of size: %u\n", engine_data.buffer_size);
             data->buffer = engine_data.buffer;
             data->buffer_size = engine_data.buffer_size;
             return true;
         }
 
+        printf("[CreatePrimitiveMesh] Failed to create buffer\n");
         return false;
     }
 }

@@ -66,13 +66,13 @@ namespace content_tools {
     struct SceneData {
         uint8_t* buffer = nullptr;
         uint32_t buffer_size = 0;
-        GeometryImportSettings import_settings;
+        drosim::tools::geometry_import_settings import_settings;
     };
 
     struct PrimitiveInitInfo {
         PrimitiveMeshType type;
         uint32_t segments[3] = {1, 1, 1};
-        float size[3] = {1.0f, 1.0f, 1.0f};
+        drosim::math::v3 size{1, 1, 1};
         uint32_t lod = 0;
     };
 }

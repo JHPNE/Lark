@@ -1,58 +1,131 @@
 #include "GeometryViewerView.h"
 
-void GeometryViewerView::SetUpViewport() {
-    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-    
-    // Create or resize framebuffer if needed
-    EnsureFramebuffer(viewportSize.x, viewportSize.y);
-    
-    // Bind framebuffer and set viewport
-    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-    glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
-    
-    // Clear buffers
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
-    // Enable depth testing
-    glEnable(GL_DEPTH_TEST);
-}
-
 void GeometryViewerView::Draw() {
     if (!m_initialized) return;
 
-    ImGui::Begin("Geometry Viewer");
-    
-    // Get the size of the viewport
-    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-    
-    // Set up viewport and framebuffer
-    SetUpViewport();
-    
-    // Calculate view and projection matrices
-    glm::mat4 view = glm::lookAt(
-        glm::vec3(0.0f, 0.0f, m_cameraDistance),
-        glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f)
-    );
-    
-    float aspectRatio = viewportSize.x / viewportSize.y;
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
-    
-    // Render geometry
-    if (m_geometryBuffers) {
-        GeometryRenderer::RenderGeometryAtLOD(m_geometryBuffers.get(), view, projection, m_cameraDistance);
+    ImGui::PushID("GeometryViewerMain");
+    if (ImGui::Begin("Geometry Viewer##Main")) {
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+
+        if (viewportSize.x > 0 && viewportSize.y > 0) {
+            SetUpViewport();
+
+            // Create rotation matrix
+            glm::mat4 rotation = glm::mat4(1.0f);
+            rotation = glm::rotate(rotation, glm::radians(m_rotation[0]), glm::vec3(1.0f, 0.0f, 0.0f));
+            rotation = glm::rotate(rotation, glm::radians(m_rotation[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+            rotation = glm::rotate(rotation, glm::radians(m_rotation[2]), glm::vec3(0.0f, 0.0f, 1.0f));
+
+            // Create view matrix with position and rotation
+            glm::mat4 view = glm::lookAt(
+                glm::vec3(m_position[0], m_position[1], m_position[2] - m_cameraDistance),
+                glm::vec3(m_position[0], m_position[1], m_position[2]),
+                glm::vec3(0.0f, 1.0f, 0.0f)
+            );
+            view = view * rotation;
+
+            float aspectRatio = viewportSize.x / viewportSize.y;
+            glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
+
+            if (m_geometryBuffers) {
+                GeometryRenderer::RenderGeometryAtLOD(m_geometryBuffers.get(), view, projection, m_cameraDistance);
+            }
+
+            if (m_colorTexture) {
+                ImGui::Image(reinterpret_cast<ImTextureID>((void*)(uintptr_t)m_colorTexture), viewportSize);
+            }
+        }
     }
-    
-     // Display the rendered texture in ImGui with correct casting
-    ImGui::Image(reinterpret_cast<ImTextureID>((void*)(uintptr_t)m_colorTexture), viewportSize);
-    
-    DrawControls();
     ImGui::End();
-    
-    // Reset OpenGL state
+    ImGui::PopID();
+
+    DrawControls();
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
+}
+
+void GeometryViewerView::DrawControls() {
+    ImGui::PushID("GeometryViewerControls");
+    if (ImGui::Begin("Geometry Controls##ViewerControls")) {
+        if (m_geometryBuffers) {
+            // Camera controls group
+            if (ImGui::CollapsingHeader("Camera Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
+                // Position controls
+                ImGui::Text("Position:");
+                ImGui::PushID("Position");
+                ImGui::DragFloat("X", &m_position[0], 0.1f);
+                ImGui::DragFloat("Y", &m_position[1], 0.1f);
+                ImGui::DragFloat("Z", &m_position[2], 0.1f);
+                if (ImGui::Button("Reset Position")) {
+                    m_position[0] = m_position[1] = m_position[2] = 0.0f;
+                }
+                ImGui::PopID();
+
+                ImGui::Separator();
+
+                // Rotation controls
+                ImGui::Text("Rotation:");
+                ImGui::PushID("Rotation");
+                ImGui::DragFloat("Pitch", &m_rotation[0], 1.0f, -180.0f, 180.0f);
+                ImGui::DragFloat("Yaw", &m_rotation[1], 1.0f, -180.0f, 180.0f);
+                ImGui::DragFloat("Roll", &m_rotation[2], 1.0f, -180.0f, 180.0f);
+                if (ImGui::Button("Reset Rotation")) {
+                    m_rotation[0] = m_rotation[1] = m_rotation[2] = 0.0f;
+                }
+                ImGui::PopID();
+
+                ImGui::Separator();
+
+                // Camera distance
+                ImGui::DragFloat("Camera Distance", &m_cameraDistance, 0.1f, 0.1f, 100.0f);
+                if (ImGui::Button("Reset Camera")) {
+                    m_cameraDistance = 10.0f;
+                }
+            }
+
+            // LOD information
+            if (ImGui::CollapsingHeader("LOD Information")) {
+                ImGui::PushID("LODControls");
+                for (size_t i = 0; i < m_geometryBuffers->lodLevels.size(); ++i) {
+                    const auto& lod = m_geometryBuffers->lodLevels[i];
+                    if (ImGui::TreeNode((void*)(intptr_t)i, "%s", lod->name.c_str())) {
+                        ImGui::Text("Threshold: %.2f", lod->threshold);
+                        ImGui::Text("Meshes Count: %zu", lod->meshBuffers.size());
+                        ImGui::TreePop();
+                    }
+                }
+                ImGui::PopID();
+            }
+        }
+        else {
+            ImGui::TextDisabled("No geometry loaded");
+        }
+    }
+    ImGui::End();
+    ImGui::PopID();
+}
+
+void GeometryViewerView::SetUpViewport() {
+    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+
+    if (viewportSize.x <= 0 || viewportSize.y <= 0) {
+        return;  // Skip if invalid size
+    }
+
+    // Create or resize framebuffer if needed
+    EnsureFramebuffer(viewportSize.x, viewportSize.y);
+
+    // Bind framebuffer and set viewport
+    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+    glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
+
+    // Clear buffers
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Enable depth testing
+    glEnable(GL_DEPTH_TEST);
 }
 
 void GeometryViewerView::EnsureFramebuffer(float width, float height) {

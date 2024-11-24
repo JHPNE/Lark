@@ -40,150 +40,140 @@ public:
         }
         return nullptr;
     }
-
-    void FromRawData(const u8* data, size_t size) {
-        if (!data || !size) return;
-
-        // Clear existing data first
-        lod_groups.clear();
-
-        try {
-            size_t at{0};
-            while (at + sizeof(u32) <= size) {
-                // Read LOD group
-                auto lod_group = std::make_shared<LODGroup>();
-
-                // Read LOD name length
-                u32 name_length{0};
-                memcpy(&name_length, &data[at], sizeof(u32));
-                at += sizeof(u32);
-
-                // Validate name length
-                if (name_length > size - at) {
-                    break;  // Invalid data
-                }
-
-                // Read LOD name
-                if (name_length) {
-                    lod_group->name.resize(name_length);
-                    memcpy(lod_group->name.data(), &data[at], name_length);
-                    at += name_length;
-                }
-
-                // Check if we have enough data for mesh count
-                if (at + sizeof(u32) > size) break;
-
-                // Read number of meshes
-                u32 mesh_count{0};
-                memcpy(&mesh_count, &data[at], sizeof(u32));
-                at += sizeof(u32);
-
-                // Validate mesh count
-                if (mesh_count > 1000000) {  // Reasonable upper limit
-                    break;  // Likely corrupt data
-                }
-
-                // Reserve space for meshes
-                lod_group->lods.reserve(mesh_count);
-
-                // Read meshes
-                for (u32 mesh_idx = 0; mesh_idx < mesh_count && at < size; ++mesh_idx) {
-                    auto mesh_lod = std::make_shared<MeshLOD>();
-                    auto mesh = std::make_shared<Mesh>();
-
-                    // Check if we have enough data for mesh name length
-                    if (at + sizeof(u32) > size) break;
-
-                    // Read mesh name length
-                    u32 mesh_name_length{0};
-                    memcpy(&mesh_name_length, &data[at], sizeof(u32));
-                    at += sizeof(u32);
-
-                    // Validate mesh name length
-                    if (mesh_name_length > size - at) break;
-
-                    // Read mesh name
-                    if (mesh_name_length) {
-                        mesh_lod->name.resize(mesh_name_length);
-                        memcpy(mesh_lod->name.data(), &data[at], mesh_name_length);
-                        at += mesh_name_length;
-                    }
-
-                    // Check remaining required data size
-                    const size_t required_size = sizeof(u32) * 5 + sizeof(f32);  // LOD ID + vertex/index info + threshold
-                    if (at + required_size > size) break;
-
-                    // Read LOD ID
-                    u32 lod_id;
-                    memcpy(&lod_id, &data[at], sizeof(u32));
-                    at += sizeof(u32);
-
-                    // Read vertex data
-                    memcpy(&mesh->vertex_size, &data[at], sizeof(u32));
-                    at += sizeof(u32);
-                    memcpy(&mesh->vertex_count, &data[at], sizeof(u32));
-                    at += sizeof(u32);
-
-                    // Read index data
-                    memcpy(&mesh->index_size, &data[at], sizeof(u32));
-                    at += sizeof(u32);
-                    memcpy(&mesh->index_count, &data[at], sizeof(u32));
-                    at += sizeof(u32);
-
-                    // Read LOD threshold
-                    memcpy(&mesh_lod->lod_threshold, &data[at], sizeof(f32));
-                    at += sizeof(f32);
-
-                    // Validate vertex and index counts
-                    if (mesh->vertex_count > 1000000 || mesh->index_count > 5000000) {
-                        break;  // Likely corrupt data
-                    }
-
-                    // Calculate and validate buffer sizes
-                    const size_t vertex_buffer_size = mesh->vertex_size * mesh->vertex_count;
-                    const size_t index_buffer_size = mesh->index_size * mesh->index_count;
-
-                    if (vertex_buffer_size > size - at || index_buffer_size > size - at - vertex_buffer_size) {
-                        break;  // Buffer sizes would exceed remaining data
-                    }
-
-                    // Read vertex buffer
-                    if (vertex_buffer_size) {
-                        mesh->vertices.resize(vertex_buffer_size);
-                        memcpy(mesh->vertices.data(), &data[at], vertex_buffer_size);
-                        at += vertex_buffer_size;
-                    }
-
-                    // Read index buffer
-                    if (index_buffer_size) {
-                        mesh->indices.resize(index_buffer_size);
-                        memcpy(mesh->indices.data(), &data[at], index_buffer_size);
-                        at += index_buffer_size;
-                    }
-
-                    mesh_lod->meshes.push_back(mesh);
-                    lod_group->lods.push_back(mesh_lod);
-                }
-
-                lod_groups.push_back(lod_group);
-            }
-        } catch (const std::exception& e) {
-            // Clear partially loaded data in case of error
-            lod_groups.clear();
-            // Could log error here if needed
-        }
+void FromRawData(const u8* data, size_t size) {
+    if (!data || !size) {
+        printf("[Geometry::FromRawData] Error: Invalid input - null data or zero size\n");
+        return;
     }
 
+    lod_groups.clear();
+
+    try {
+        size_t at{0};
+        printf("[Geometry::FromRawData] Starting to process data of size: %zu\n", size);
+
+        // Read LOD name length
+        u32 lod_name_length{0};
+        memcpy(&lod_name_length, &data[at], sizeof(u32));
+        at += sizeof(u32);
+        printf("[Geometry::FromRawData] LOD name length: %u\n", lod_name_length);
+
+        // Skip LOD name
+        at += lod_name_length;
+
+        // Read number of LOD groups
+        u32 lod_count{0};
+        memcpy(&lod_count, &data[at], sizeof(u32));
+        at += sizeof(u32);
+        printf("[Geometry::FromRawData] LOD count: %u\n", lod_count);
+
+        for(u32 lod_idx = 0; lod_idx < lod_count; ++lod_idx) {
+            auto lod_group = std::make_shared<LODGroup>();
+
+            // Read LOD group name length
+            u32 group_name_length{0};
+            memcpy(&group_name_length, &data[at], sizeof(u32));
+            at += sizeof(u32);
+
+            // Read LOD group name
+            if (group_name_length) {
+                lod_group->name.resize(group_name_length);
+                memcpy(lod_group->name.data(), &data[at], group_name_length);
+                at += group_name_length;
+            }
+
+            // Read number of meshes in this LOD group
+            u32 mesh_count{0};
+            memcpy(&mesh_count, &data[at], sizeof(u32));
+            at += sizeof(u32);
+            printf("[Geometry::FromRawData] Mesh count in LOD %u: %u\n", lod_idx, mesh_count);
+
+            // Process each mesh
+            for(u32 mesh_idx = 0; mesh_idx < mesh_count; ++mesh_idx) {
+                auto mesh_lod = std::make_shared<MeshLOD>();
+                auto mesh = std::make_shared<Mesh>();
+
+                // Read mesh name length
+                u32 mesh_name_length{0};
+                memcpy(&mesh_name_length, &data[at], sizeof(u32));
+                at += sizeof(u32);
+
+                // Read mesh name
+                if (mesh_name_length) {
+                    mesh_lod->name.resize(mesh_name_length);
+                    memcpy(mesh_lod->name.data(), &data[at], mesh_name_length);
+                    at += mesh_name_length;
+                }
+                printf("[Geometry::FromRawData] Processing mesh: %s\n", mesh_lod->name.c_str());
+
+                // Read mesh LOD ID
+                u32 lod_id{0};
+                memcpy(&lod_id, &data[at], sizeof(u32));
+                at += sizeof(u32);
+
+                // Read vertex data info
+                memcpy(&mesh->vertex_size, &data[at], sizeof(u32));
+                at += sizeof(u32);
+                memcpy(&mesh->vertex_count, &data[at], sizeof(u32));
+                at += sizeof(u32);
+
+                // Read index data info
+                memcpy(&mesh->index_size, &data[at], sizeof(u32));
+                at += sizeof(u32);
+                memcpy(&mesh->index_count, &data[at], sizeof(u32));
+                at += sizeof(u32);
+
+                printf("[Geometry::FromRawData] Mesh data info:\n");
+                printf("  Vertex - Size: %u, Count: %u\n", mesh->vertex_size, mesh->vertex_count);
+                printf("  Index  - Size: %u, Count: %u\n", mesh->index_size, mesh->index_count);
+
+                // Calculate buffer sizes
+                const size_t vertex_data_size = mesh->vertex_size * mesh->vertex_count;
+                const size_t index_data_size = mesh->index_size * mesh->index_count;
+
+                // Read vertex data
+                if (vertex_data_size) {
+                    mesh->vertices.resize(vertex_data_size);
+                    memcpy(mesh->vertices.data(), &data[at], vertex_data_size);
+                    at += vertex_data_size;
+                    printf("[Geometry::FromRawData] Read vertex data: %zu bytes\n", vertex_data_size);
+                }
+
+                // Read index data
+                if (index_data_size) {
+                    mesh->indices.resize(index_data_size);
+                    memcpy(mesh->indices.data(), &data[at], index_data_size);
+                    at += index_data_size;
+                    printf("[Geometry::FromRawData] Read index data: %zu bytes\n", index_data_size);
+                }
+
+                mesh_lod->meshes.push_back(mesh);
+                lod_group->lods.push_back(mesh_lod);
+            }
+
+            lod_groups.push_back(lod_group);
+        }
+
+    } catch (const std::exception& e) {
+        printf("[Geometry::FromRawData] Exception caught: %s\n", e.what());
+        lod_groups.clear();
+    }
+}
+
     static std::unique_ptr<Geometry> CreatePrimitive(
-        content_tools::PrimitiveMeshType type,
-        const f32* size = nullptr,
-        const u32* segments = nullptr,
-        u32 lod = 0
-    ) {
+    content_tools::PrimitiveMeshType type,
+    const f32* size = nullptr,
+    const u32* segments = nullptr,
+    u32 lod = 0
+        ) {
         content_tools::PrimitiveInitInfo init_info{};
         init_info.type = type;
 
-        if (size) memcpy(init_info.size, size, sizeof(init_info.size));
+        // Fix the size assignment
+        if (size) {
+            init_info.size = drosim::math::v3(size[0], size[1], size[2]);
+        }
+
         if (segments) memcpy(init_info.segments, segments, sizeof(init_info.segments));
         init_info.lod = lod;
 
