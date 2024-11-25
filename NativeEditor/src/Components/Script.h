@@ -2,7 +2,9 @@
 #include "Component.h"
 #include <string>
 
-class Script : public Component {
+#include "EngineAPI.h"
+
+class Script : public Component, public ISerializable {
 public:
     Script(GameEntity* owner)
         : Component(owner) {}
@@ -21,6 +23,17 @@ public:
     const std::string& GetScriptName() const { return m_scriptName; }
     void SetScriptName(const std::string& name) { m_scriptName = name; }
 
+    // Serialization interface
+    void Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const override {
+        auto scriptNameElement = context.document.NewElement("ScriptName");
+        scriptNameElement->SetAttribute("Name", m_scriptName.c_str());
+        element->LinkEndChild(scriptNameElement);
+    }
+    bool Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) override {
+        if (auto scriptNameElement = element->FirstChildElement("ScriptName")) {
+            m_scriptName = scriptNameElement->Attribute("Name");
+        }
+    }
 private:
     std::string m_scriptName;
 };

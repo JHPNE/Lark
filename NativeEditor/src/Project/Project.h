@@ -42,6 +42,7 @@ public:
 
     // Script helper
     bool CreateNewScript(const char* scriptName);
+    bool LoadScripts(fs::path projectFile);
 
     bool Save() {
         try {
@@ -87,5 +88,6 @@ private:
     fs::path m_path;
     std::vector<std::shared_ptr<Scene>> m_scenes;
 	std::shared_ptr<Scene> m_activeScene;
+    std::vector<std::string> m_loaded_scripts;
     bool m_isModified = false;
 };

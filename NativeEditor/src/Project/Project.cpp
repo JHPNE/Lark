@@ -88,6 +88,7 @@ std::shared_ptr<Project> Project::Create(const std::string& name,
 
 std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
     try {
+
         tinyxml2::XMLDocument doc;
         if (doc.LoadFile(projectFile.string().c_str()) != tinyxml2::XML_SUCCESS) {
             Logger::Get().Log(MessageType::Error, "Failed to load project file: " + projectFile.string());
@@ -102,6 +103,7 @@ std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
 
         SerializationContext context(doc);
         auto project = std::shared_ptr<Project>(new Project("", ""));
+        project->LoadScripts(projectFile);
 
         if (!project->Deserialize(root, context)) {
             Logger::Get().Log(MessageType::Error, "Failed to deserialize project: " + projectFile.string());
@@ -110,6 +112,7 @@ std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
 
         project->m_isModified = false;
         Logger::Get().Log(MessageType::Info, "Successfully loaded project: " + project->GetName());
+
         return project;
     }
     catch (const std::exception& e) {
@@ -261,6 +264,12 @@ void Project::Serialize(tinyxml2::XMLElement* element, SerializationContext& con
                 entityElement->LinkEndChild(transformElement);
             }
 
+            if (auto script = entity->GetComponent<Script>()) {
+                auto scriptElement = context.document.NewElement("Script");
+                script->Serialize(scriptElement, context);
+                entityElement->LinkEndChild(scriptElement);
+            }
+
             sceneElement->LinkEndChild(entityElement);
         }
 
@@ -341,6 +350,17 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
                         transform->Deserialize(transformElement, context);
                     }
                 }
+
+                if (auto scriptElement = entityElement->FirstChildElement("Script")) {
+                    auto scriptName = scriptElement->FirstChildElement("ScriptName")->Attribute("Name");
+                    auto it = std::find(m_loaded_scripts.begin(), m_loaded_scripts.end(), scriptName);
+                    if (it != m_loaded_scripts.end()) {
+                        ScriptInitializer scriptInit;
+                        scriptInit.scriptName = scriptName;
+                        scene->AddComponentToEntity<Script>(entity->GetID(), &scriptInit);
+                    }
+
+                }
             }
         }
 
@@ -381,6 +401,24 @@ std::shared_ptr<Scene> Project::GetSceneById(uint32_t id) const {
     }
 
     return nullptr;
+}
+
+bool Project::LoadScripts(fs::path projectFile) {
+    auto scriptDir = projectFile.parent_path() / "SimCode";
+    if (!fs::exists(scriptDir)) return false;
+
+    fs::path scriptPath(scriptDir);
+    for (auto& files : fs::directory_iterator(scriptPath)) {
+        auto file = files.path();
+        if (file.extension() == ".py") {
+            std::string scriptName = file.filename().replace_extension("").string();
+
+            m_loaded_scripts.emplace_back(scriptName);
+            RegisterScript(scriptName.c_str());
+        }
+    }
+
+    return true;
 }
 
 bool Project::CreateNewScript(const char *scriptName) {

@@ -82,7 +82,7 @@ public:
         // Set scale to 1
         desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
 
-        uint32_t entityId = CreateGameEntity(&desc); //TODO: Use EngineAPI for that
+        uint32_t entityId = CreateGameEntity(&desc);
         auto entity = std::shared_ptr<GameEntity>(
             new GameEntity(name, entityId, shared_from_this())
         );
