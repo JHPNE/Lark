@@ -85,15 +85,9 @@ void GeometryRenderer::RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
     glUniformMatrix4fv(glGetUniformLocation(m_basicShader, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(m_basicShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-    // Set lighting uniforms
-    glm::vec3 lightPos(5.0f, 5.0f, 5.0f);
-    glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
-    glm::vec3 objectColor(0.5f, 0.5f, 1.0f);
-
-    glUniform3fv(glGetUniformLocation(m_basicShader, "lightPos"), 1, glm::value_ptr(lightPos));
-    glUniform3fv(glGetUniformLocation(m_basicShader, "lightColor"), 1, glm::value_ptr(lightColor));
-    glUniform3fv(glGetUniformLocation(m_basicShader, "objectColor"), 1, glm::value_ptr(objectColor));
-
+    // Set object color (using a flat color without lighting)
+    glm::vec3 faceColor(0.9f, 0.9f, 1.0f);  // Very light blue for faces
+    glUniform3fv(glGetUniformLocation(m_basicShader, "objectColor"), 1, glm::value_ptr(faceColor));
 
     const LODLevelBuffers* selectedLOD = nullptr;
 
@@ -178,10 +172,32 @@ void GeometryRenderer::RenderMesh(const MeshBuffers* meshBuffers) {
     if (!meshBuffers || !meshBuffers->vao) return;
 
     glBindVertexArray(meshBuffers->vao);
+    
+    // Draw filled geometry first
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glUniform3f(glGetUniformLocation(m_basicShader, "objectColor"), 0.8f, 0.8f, 0.9f);  // Light blue-gray for faces
     glDrawElements(GL_TRIANGLES,
                   static_cast<GLsizei>(meshBuffers->indexCount),
                   meshBuffers->indexType,
                   0);
+
+    // Draw edges
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glLineWidth(1.0f);
+    glUniform3f(glGetUniformLocation(m_basicShader, "objectColor"), 0.2f, 0.2f, 0.3f);  // Dark blue-gray for edges
+    
+    // Enable polygon offset to prevent z-fighting
+    glEnable(GL_POLYGON_OFFSET_LINE);
+    glPolygonOffset(-1.0f, -1.0f);
+    
+    glDrawElements(GL_TRIANGLES,
+                  static_cast<GLsizei>(meshBuffers->indexCount),
+                  meshBuffers->indexType,
+                  0);
+    
+    // Reset states
+    glDisable(GL_POLYGON_OFFSET_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glBindVertexArray(0);
 }
 
