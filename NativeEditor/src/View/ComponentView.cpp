@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include "Components/Script.h"
 
+
 void ComponentView::Draw() {
     if (!project) return;
 
@@ -109,22 +110,25 @@ void ComponentView::Draw() {
                 ImGui::EndPopup();
             }
         }
-        else {
-            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No entity selected");
-        }
-
-        // Multiselection
-        if (selectedEntities.size() > 1) {
+        else if (selectedEntities.size() > 1) {
             ImGui::Text("Selected Entities: %d", selectedEntities.size());
             std::vector<Vec3> positions;
             std::vector<Vec3> rotations;
             std::vector<Vec3> scales;
+
+            std::vector<std::string> scriptsNames;
+
             for (auto& entity : selectedEntities) {
                 ImGui::Text("%s", entity->GetName().c_str());
                 positions.push_back(entity->GetComponent<Transform>()->GetPosition());
                 rotations.push_back(entity->GetComponent<Transform>()->GetRotation());
                 scales.push_back(entity->GetComponent<Transform>()->GetScale());
+
+                if (entity->GetComponent<Script>()) {
+                    scriptsNames.push_back(entity->GetComponent<Script>()->GetScriptName());
+                }
             }
+
             ImGui::Separator();
 
             Vec3 middlePosition = Vec3::getAverage(positions);
@@ -142,6 +146,42 @@ void ComponentView::Draw() {
 
                 scale[0] = middleScale.x; scale[1] = middleScale.y; scale[2] = middleScale.z;
                 ImGui::DragFloat3("##Scale", scale, 0.1f);
+            }
+
+            if (ImGui::CollapsingHeader("MultiScript", ImGuiTreeNodeFlags_DefaultOpen)) {
+                std::string scriptCommonName = "";
+                for (auto& scriptName : scriptsNames) {
+                    bool isCommon = true;
+                    for (auto& entity : selectedEntities) {
+                        auto* script = entity->GetComponent<Script>();
+
+                        if (!script || script->GetScriptName() != scriptName) {
+                            isCommon = false;
+                            break;
+                        }
+                    }
+                    if (isCommon) {
+                        scriptCommonName = scriptName;
+                    }
+                }
+
+                if (scriptCommonName != "") {
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+
+                    // Create a box showing the script name
+                    ImGui::BeginChild("ScriptBox", ImVec2(ImGui::GetContentRegionAvail().x, 30), true);
+                    ImGui::Text("Script: %s", scriptCommonName.c_str());
+                    ImGui::EndChild();
+
+                    ImGui::PopStyleColor();
+                    ImGui::PopStyleVar();
+
+                    // Remove script button
+                    if (ImGui::Button("Remove Script", ImVec2(120, 0))) {
+                        //activeScene->RemoveComponentFromEntity<Script>(selectedEntity->GetID());
+                    }
+                }
             }
 
             for (auto& entity : selectedEntities) {
@@ -169,6 +209,8 @@ void ComponentView::Draw() {
                     }
                 }
             }
+        } else {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No entity selected");
         }
     }
     else {
