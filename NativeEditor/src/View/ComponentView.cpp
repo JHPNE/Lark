@@ -116,12 +116,59 @@ void ComponentView::Draw() {
         // Multiselection
         if (selectedEntities.size() > 1) {
             ImGui::Text("Selected Entities: %d", selectedEntities.size());
+            std::vector<Vec3> positions;
+            std::vector<Vec3> rotations;
+            std::vector<Vec3> scales;
             for (auto& entity : selectedEntities) {
                 ImGui::Text("%s", entity->GetName().c_str());
+                positions.push_back(entity->GetComponent<Transform>()->GetPosition());
+                rotations.push_back(entity->GetComponent<Transform>()->GetRotation());
+                scales.push_back(entity->GetComponent<Transform>()->GetScale());
             }
             ImGui::Separator();
 
-            // MultiTransform Component
+            Vec3 middlePosition = Vec3::getAverage(positions);
+            Vec3 middleRotation = Vec3::getAverage(rotations);
+            Vec3 middleScale = Vec3::getAverage(scales);
+            float pos[3]{};
+            float rot[3]{};
+            float scale[3]{};
+            if (ImGui::CollapsingHeader("MultiTransform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                pos[0] = middlePosition.x; pos[1] = middlePosition.y; pos[2] = middlePosition.z;
+                ImGui::DragFloat3("##Position", pos, 0.1f);
+
+                rot[0] = middleRotation.x; rot[1] = middleRotation.y; rot[2] = middleRotation.z;
+                ImGui::DragFloat3("##Rotation", rot, 0.1f);
+
+                scale[0] = middleScale.x; scale[1] = middleScale.y; scale[2] = middleScale.z;
+                ImGui::DragFloat3("##Scale", scale, 0.1f);
+            }
+
+            for (auto& entity : selectedEntities) {
+                if (auto transform = entity->GetComponent<Transform>()) {
+                    Vec3 newPosition(pos[0], pos[1], pos[2]);
+                    Vec3 newRotation(rot[0], rot[1], rot[2]);
+                    Vec3 newScale(scale[0], scale[1], scale[2]);
+
+                    // Only update position if there's a change
+                    if (!Vec3::IsEqual(newPosition, middlePosition)) {
+                        Vec3 differencePosition = middlePosition - newPosition;
+                        transform->SetPosition(transform->GetPosition() + differencePosition);
+                    }
+
+                    // Only update rotation if there's a change
+                    if (!Vec3::IsEqual(newRotation, middleRotation)) {
+                        Vec3 differenceRotation = middleRotation - newRotation;
+                        transform->SetRotation(transform->GetRotation() + differenceRotation);
+                    }
+
+                    // Only update scale if there's a change
+                    if (!Vec3::IsEqual(newScale, middleScale)) {
+                        Vec3 differenceScale = middleScale - newScale;
+                        transform->SetScale(transform->GetScale() + differenceScale);
+                    }
+                }
+            }
         }
     }
     else {

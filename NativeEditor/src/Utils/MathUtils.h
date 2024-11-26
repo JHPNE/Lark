@@ -75,10 +75,22 @@ namespace MathUtils {
         static Vec3 Zero() { return Vec3(0.0f, 0.0f, 0.0f); }
         static Vec3 One() { return Vec3(1.0f, 1.0f, 1.0f); }
 
+        static bool IsEqual(Vec3& a, Vec3& b) {
+            return MathUtils::IsEqual(a.x, b.x) && MathUtils::IsEqual(a.y, b.y) && MathUtils::IsEqual(a.z, b.z);
+        }
+
         static float* toFloat(Vec3& v) {
             static float result[3];
             result[0] = v.x; result[1] = v.y; result[2] = v.z;
             return result;
+        }
+
+        static Vec3 getAverage(std::vector<Vec3>& vecs) {
+            Vec3 sum;
+            for (auto vec : vecs) {
+                sum += vec;
+            }
+            return sum / static_cast<float>(vecs.size());
         }
     };
 }
