@@ -13,7 +13,6 @@
 #include "../View/ComponentView.h"
 #include "../View/GeometryViewerView.h"
 #include "../Utils/System/GlobalUndoRedo.h"
-#include "../Utils/Visual/VectorBox.h"
 #include "core/Loop.h"
 
 namespace editor {

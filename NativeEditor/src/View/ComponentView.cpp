@@ -1,8 +1,6 @@
 #include "ComponentView.h"
 #include "../Project/Project.h"  
 #include <imgui.h>
-#include "../src/Utils/Utils.h"
-#include "../src/Utils/Visual/VectorBox.h"
 #include "Components/Script.h"
 
 void ComponentView::Draw() {
@@ -20,15 +18,16 @@ void ComponentView::Draw() {
 
     if (activeScene) {
         // Find selected entity
-        std::shared_ptr<GameEntity> selectedEntity = nullptr;
+        std::vector<std::shared_ptr<GameEntity>> selectedEntities;
+
         for (const auto& entity : activeScene->GetEntities()) {
             if (entity->IsSelected()) {
-                selectedEntity = entity;
-                break;
+                selectedEntities.push_back(entity);
             }
         }
 
-        if (selectedEntity) {
+        if (selectedEntities.size() == 1) {
+            const std::shared_ptr<GameEntity>& selectedEntity = selectedEntities[0];
             // Entity info header
             ImGui::Text("Selected Entity: %s", selectedEntity->GetName().c_str());
             ImGui::Separator();
@@ -39,8 +38,7 @@ void ComponentView::Draw() {
                     // Position
                     Vec3 position = transform->GetPosition();
                     float pos[3] = { position.x, position.y, position.z };
-                    ImGui::Text("Position");
-                    if(VectorBox::Draw("##Position", pos, 3)) {
+                    if (ImGui::DragFloat3("##Position", pos, 0.1f)) {
                         transform->SetPosition({ pos[0], pos[1], pos[2] });
                     }
 
@@ -48,7 +46,7 @@ void ComponentView::Draw() {
                     Vec3 rotation = transform->GetRotation();
                     float rot[3] = { rotation.x, rotation.y, rotation.z };
                     ImGui::Text("Rotation");
-                    if(VectorBox::Draw("##Rotation", rot, 3)) {
+                    if (ImGui::DragFloat3("##Rotation", rot, 0.1f)) {
                         transform->SetRotation({ rot[0], rot[1], rot[2] });
                     }
 
@@ -56,7 +54,7 @@ void ComponentView::Draw() {
                     Vec3 scale = transform->GetScale();
                     float scl[3] = { scale.x, scale.y, scale.z };
                     ImGui::Text("Scale");
-                    if(VectorBox::Draw("##Scale", scl, 3)) {
+                    if (ImGui::DragFloat3("##Scale", scl, 0.1f)) {
                         transform->SetScale({ scl[0], scl[1], scl[2] });
                     }
                 }
@@ -84,8 +82,6 @@ void ComponentView::Draw() {
                     }
                 }
             }
-
-            ImGui::Separator();
 
             // Add Component Button (always at bottom)
             if (ImGui::Button("Add Component", ImVec2(120, 0))) {
@@ -115,6 +111,17 @@ void ComponentView::Draw() {
         }
         else {
             ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No entity selected");
+        }
+
+        // Multiselection
+        if (selectedEntities.size() > 1) {
+            ImGui::Text("Selected Entities: %d", selectedEntities.size());
+            for (auto& entity : selectedEntities) {
+                ImGui::Text("%s", entity->GetName().c_str());
+            }
+            ImGui::Separator();
+
+            // MultiTransform Component
         }
     }
     else {

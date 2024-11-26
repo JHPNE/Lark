@@ -16,21 +16,6 @@ void SceneView::Draw() {
     window_flags |= ImGuiWindowFlags_NoCollapse;
 
     if (ImGui::Begin("Scene Manager", &m_show, window_flags)) {
-        // Check if window is focused
-        bool isWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-        bool isAnyPopupOpen = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
-
-        /*
-        // Clear selection if window loses focus and no popup is open
-        if (!isWindowFocused && !isAnyPopupOpen) {
-            if (auto activeScene = project->GetActiveScene()) {
-                for (const auto& entity : activeScene->GetEntities()) {
-                    entity->SetSelected(false);
-                }
-            }
-        }
-        */
-
         // Add Scene Button at top
         if (ImGui::Button("+ Add Scene")) {
             project->AddScene("New Scene");
@@ -101,6 +86,7 @@ void SceneView::Draw() {
                         if (entitySelected && !isShiftHeld) {
                             // If already selected and not shift-clicking, deselect everything
                             for (const auto& e : scene->GetEntities()) {
+                                if (e.get()->GetID() == entity.get()->GetID()) continue;
                                 e->SetSelected(false);
                             }
                         } else {
