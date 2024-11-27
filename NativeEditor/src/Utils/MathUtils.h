@@ -16,6 +16,7 @@ namespace MathUtils {
         return IsEqual(a.x, b.x) && IsEqual(a.y, b.y) && IsEqual(a.z, b.z);
     }
 
+    // TODO Replace with glm::vec
     struct Vec3 {
         float x, y, z;
 

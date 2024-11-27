@@ -215,7 +215,7 @@ extern "C" {
 
         // Let the engine create the mesh
         printf("[CreatePrimitiveMesh] Calling engine CreatePrimitiveMesh\n");
-        drosim::tools::CreatePrimitiveMesh(&engine_data, &engine_info);
+        drosim::api::create_primitive_mesh(&engine_data, &engine_info);
 
         // Just pass through the engine's buffer
         if (engine_data.buffer && engine_data.buffer_size > 0) {
@@ -227,5 +227,9 @@ extern "C" {
 
         printf("[CreatePrimitiveMesh] Failed to create buffer\n");
         return false;
+    }
+
+    ENGINE_API bool LoadObj(const std::string& file_name) {
+        drosim::api::load_geometry(file_name);
     }
 }

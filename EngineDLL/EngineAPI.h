@@ -105,6 +105,8 @@ extern "C" {
 
     ENGINE_API bool CreatePrimitiveMesh(content_tools::SceneData* data,
                                   const content_tools::PrimitiveInitInfo* info);
+
+    ENGINE_API bool LoadObj(const std::string& file_name);
 #ifdef __cplusplus
 }
 #endif
