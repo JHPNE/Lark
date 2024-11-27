@@ -1,11 +1,13 @@
 #pragma once
 #include "Geometry.h"
+#include <string.h>
+#include "MeshPrimitives.h"
 
 namespace drosim::tools {
 
-    void loadObj(const std::string&);
+    bool loadObj(const char* path, drosim::tools::scene_data* data);
 
-    void parseObj(const std::string&);
+    bool parseObj(FILE file);
 
-    void prepareGeometry();
+    void prepareGeometry(drosim::tools::scene scene, drosim::tools::scene_data scene_data);
 }

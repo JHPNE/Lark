@@ -270,6 +270,10 @@ namespace editor {
 					GeometryViewerView::Get().SetGeometry(m_geometry.get());
 				}
 
+			    if (ImGui::Button("Load Obj")) {
+			        m_showGeometryCreation = true;
+			    }
+
 
 			}
 
@@ -322,6 +326,42 @@ namespace editor {
 					ImGui::EndPopup();
 				}
 			}
+
+		    // Geometry Creation Popup
+		    if (m_showGeometryCreation) {
+		        ImGui::OpenPopup("Load Geometry");
+
+		        // Center the popup
+		        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+		        ImVec2 center = viewport->GetCenter();
+		        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+		        if (ImGui::BeginPopupModal("Load Geometry", &m_showGeometryCreation, ImGuiWindowFlags_AlwaysAutoResize)) {
+		            ImGui::Text("Enter Geometry Location:");
+		            ImGui::InputText("##GeometryName", m_geometryNameBuffer, sizeof(m_geometryNameBuffer));
+
+		            ImGui::Separator();
+
+		            if (ImGui::Button("Create", ImVec2(120, 0))) {
+		                m_geometry = drosim::editor::Geometry::LoadGeometry(m_geometryNameBuffer);
+		                m_showGeometryCreation = false;
+		                ImGui::CloseCurrentPopup();
+		                GeometryViewerView::Get().SetGeometry(m_geometry.get());
+
+		                // Reset buffer for next time
+		                strcpy(m_geometryNameBuffer, "");
+		            }
+		            ImGui::SameLine();
+		            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+		                m_showGeometryCreation = false;
+		                ImGui::CloseCurrentPopup();
+		                // Reset buffer for next time
+		                strcpy(m_geometryNameBuffer, "");
+		            }
+
+		            ImGui::EndPopup();
+		        }
+		    }
 		}
 	}
 

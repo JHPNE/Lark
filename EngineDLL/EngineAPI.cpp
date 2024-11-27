@@ -229,7 +229,17 @@ extern "C" {
         return false;
     }
 
-    ENGINE_API bool LoadObj(const std::string& file_name) {
-        drosim::api::load_geometry(file_name);
+    ENGINE_API bool LoadObj(const char* path, content_tools::SceneData* data) {
+        auto engine_data = drosim::tools::scene_data{};
+        engine_data.settings = data->import_settings;
+        drosim::api::load_geometry(path, &engine_data);
+
+        if (engine_data.buffer && engine_data.buffer_size > 0) {
+            data->buffer = engine_data.buffer;
+            data->buffer_size = engine_data.buffer_size;
+            return true;
+        }
+
+        return false;
     }
 }
