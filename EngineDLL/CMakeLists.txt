@@ -20,7 +20,7 @@ add_library(${PROJECT_NAME} SHARED
 # Include directories
 target_include_directories(${PROJECT_NAME}
         PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}  # Make the EngineDLL root directory public
+        ${CMAKE_CURRENT_SOURCE_DIR}
         PRIVATE
         ${CMAKE_SOURCE_DIR}/DroneSim
         ${CMAKE_SOURCE_DIR}/DroneSim/Common
@@ -30,6 +30,16 @@ target_include_directories(${PROJECT_NAME}
         ${Python_INCLUDE_DIRS}
         ${pybind11_INCLUDE_DIRS}
 )
+
+# OpenMP configuration
+if(OpenMP_CXX_FOUND)
+    if(MINGW)
+        target_compile_options(${PROJECT_NAME} PUBLIC ${OpenMP_FLAGS})
+        target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenMP_LIBS})
+    else()
+        target_link_libraries(${PROJECT_NAME} PUBLIC OpenMP::OpenMP_CXX)
+    endif()
+endif()
 
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE

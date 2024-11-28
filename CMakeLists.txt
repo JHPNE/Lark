@@ -4,7 +4,15 @@ cmake_minimum_required(VERSION 3.16.0 FATAL_ERROR)
 project(Drosim VERSION 1.0.0 LANGUAGES CXX)
 
 find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
-
+# Find OpenMP
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    if(MINGW)
+        # MinGW needs special handling for OpenMP
+        set(OpenMP_FLAGS "-fopenmp")
+        set(OpenMP_LIBS "-lgomp -lpthread")
+    endif()
+endif()
 # Specify C++ standard globally
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

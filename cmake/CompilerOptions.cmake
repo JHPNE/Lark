@@ -11,6 +11,7 @@ if(MSVC)
             /wd4251         # Disable warning about dll-interface
             $<$<CONFIG:Release>:/O2>
             $<$<CONFIG:Debug>:/Od>
+            /openmp         # Enable OpenMP for MSVC
     )
 
     add_definitions(
@@ -24,6 +25,7 @@ else()
             -Wall
             -Wextra
             -Wpedantic
+            -fopenmp        # Enable OpenMP for GCC/Clang
             $<$<CONFIG:Release>:-O3>
             $<$<CONFIG:Debug>:-O0>
     )
@@ -35,10 +37,12 @@ endif()
 
 if(MINGW)
     add_compile_options(-fPIC)
+    if(OpenMP_CXX_FOUND)
+        add_compile_options(${OpenMP_FLAGS})
+    endif()
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
-
 # Set default visibility for shared libraries
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
