@@ -1,5 +1,6 @@
 #include "Geometry.h"
 #include <execution>
+#include <map>
 
 namespace drosim::tools {
     namespace {
@@ -114,61 +115,49 @@ namespace drosim::tools {
             if (!num_vertices || !num_indices) return;
 
             util::vector<vertex> new_vertices;
-            new_vertices.reserve(num_vertices * 2); // Estimate for split vertices
+            new_vertices.reserve(num_indices); // Reserve space for worst case
             util::vector<u32> new_indices(num_indices);
 
-            // Create lookup table for vertex-UV pairs
-            struct VertexUVPair {
-                u32 vertex_index;
+            // Map to track unique vertex-UV combinations
+            struct vertex_key {
+                math::v3 position;
+                math::v3 normal;
                 math::v2 uv;
-                u32 new_index;
+
+                bool operator<(const vertex_key& other) const {
+                    if (position.x != other.position.x) return position.x < other.position.x;
+                    if (position.y != other.position.y) return position.y < other.position.y;
+                    if (position.z != other.position.z) return position.z < other.position.z;
+                    if (normal.x != other.normal.x) return normal.x < other.normal.x;
+                    if (normal.y != other.normal.y) return normal.y < other.normal.y;
+                    if (normal.z != other.normal.z) return normal.z < other.normal.z;
+                    if (uv.x != other.uv.x) return uv.x < other.uv.x;
+                    return uv.y < other.uv.y;
+                }
             };
-            std::vector<VertexUVPair> vertex_uv_pairs;
-            vertex_uv_pairs.reserve(num_indices);
 
-            // Collect vertex-UV pairs
+            std::map<vertex_key, u32> vertex_map;
+
+            // Process each index
             for (u32 i = 0; i < num_indices; ++i) {
-                vertex_uv_pairs.push_back({
-                    m.indices[i],
-                    m.uv_sets[0][i],
-                    u32_invalid_id
-                });
-            }
+                const vertex& v = m.vertices[m.indices[i]];
+                vertex_key key{v.position, v.normal, m.uv_sets[0][i]};
 
-            // Sort pairs for faster lookup
-            std::sort(std::execution::par_unseq, vertex_uv_pairs.begin(), vertex_uv_pairs.end(),
-                [](const VertexUVPair& a, const VertexUVPair& b) {
-                    if (a.vertex_index != b.vertex_index) return a.vertex_index < b.vertex_index;
-                    if (a.uv.x != b.uv.x) return a.uv.x < b.uv.x;
-                    return a.uv.y < b.uv.y;
-                });
-
-            // Process unique vertex-UV combinations
-            for (size_t i = 0; i < vertex_uv_pairs.size(); ++i) {
-                if (vertex_uv_pairs[i].new_index != u32_invalid_id) continue;
-
-                vertex v = m.vertices[vertex_uv_pairs[i].vertex_index];
-                v.uv = vertex_uv_pairs[i].uv;
-                vertex_uv_pairs[i].new_index = (u32)new_vertices.size();
-                new_vertices.push_back(v);
-
-                // Find matching pairs
-                for (size_t j = i + 1; j < vertex_uv_pairs.size(); ++j) {
-                    if (vertex_uv_pairs[j].vertex_index != vertex_uv_pairs[i].vertex_index) break;
-
-                    if (glm::epsilonEqual(vertex_uv_pairs[j].uv.x, vertex_uv_pairs[i].uv.x, math::epsilon) &&
-                        glm::epsilonEqual(vertex_uv_pairs[j].uv.y, vertex_uv_pairs[i].uv.y, math::epsilon)) {
-                        vertex_uv_pairs[j].new_index = vertex_uv_pairs[i].new_index;
-                    }
+                auto it = vertex_map.find(key);
+                if (it == vertex_map.end()) {
+                    // New unique vertex-UV combination
+                    vertex new_v = v;
+                    new_v.uv = m.uv_sets[0][i];
+                    new_indices[i] = (u32)new_vertices.size();
+                    vertex_map[key] = new_indices[i];
+                    new_vertices.push_back(new_v);
+                } else {
+                    // Reuse existing vertex
+                    new_indices[i] = it->second;
                 }
             }
 
-            // Update indices
-            #pragma omp parallel for
-            for (s32 i = 0; i < (s32)num_indices; ++i) {
-                new_indices[i] = vertex_uv_pairs[i].new_index;
-            }
-
+            // Update mesh with new data
             m.vertices = std::move(new_vertices);
             m.indices = std::move(new_indices);
         }
