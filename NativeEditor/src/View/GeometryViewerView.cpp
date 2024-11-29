@@ -1,4 +1,5 @@
 #include "GeometryViewerView.h"
+#include "../Utils/ImGuizmoManager.h"
 
 void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Geometry* geometry) {
     if (!geometry) return;
@@ -40,6 +41,28 @@ void GeometryViewerView::Draw() {
             float aspectRatio = viewportSize.x / viewportSize.y;
             glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
 
+            // Set up ImGuizmo
+            ImGuizmo::SetOrthographic(false);
+            ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+            
+            // Get the viewport position in screen space
+            ImVec2 windowPos = ImGui::GetWindowPos();
+            ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+            float posX = windowPos.x + contentMin.x;
+            float posY = windowPos.y + contentMin.y;
+            
+            ImGuizmo::SetRect(posX, posY, viewportSize.x, viewportSize.y);
+
+            // Handle viewport clicking for selection
+            if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGuizmo::IsOver()) {
+                // Implement ray casting here if you want to select by clicking on the geometry
+                // For now, we'll just select the first geometry
+                if (!m_geometries.empty()) {
+                    auto it = m_geometries.begin();
+                    m_selectedGeometry = it->second.get();
+                }
+            }
+
             // Save OpenGL state
             GLint last_viewport[4]; glGetIntegerv(GL_VIEWPORT, last_viewport);
             GLint last_framebuffer; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_framebuffer);
@@ -55,6 +78,44 @@ void GeometryViewerView::Draw() {
                 model = glm::rotate(model, glm::radians(geom->rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
                 model = glm::rotate(model, glm::radians(geom->rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
                 model = glm::scale(model, geom->scale);
+
+                // If this is the selected geometry, show ImGuizmo
+                if (m_selectedGeometry == geom.get()) {
+                    // Convert matrices for ImGuizmo
+                    float modelMatrix[16], viewMatrix[16], projMatrix[16];
+                    memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
+                    memcpy(viewMatrix, glm::value_ptr(view), sizeof(float) * 16);
+                    memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
+
+                    // Draw the gizmo
+                    ImGuizmo::Manipulate(
+                        viewMatrix,
+                        projMatrix,
+                        (ImGuizmo::OPERATION)m_guizmoOperation,
+                        ImGuizmo::MODE::LOCAL,
+                        modelMatrix
+                    );
+
+                    // If the matrix was modified, update the geometry transform
+                    if (ImGuizmo::IsUsing()) {
+                        m_isUsingGuizmo = true;
+                        glm::mat4 newModel = glm::make_mat4(modelMatrix);
+                        
+                        // Extract position, rotation, and scale from the matrix
+                        glm::vec3 skew;
+                        glm::vec4 perspective;
+                        glm::quat rotation;
+                        glm::decompose(newModel, geom->scale, rotation, geom->position, skew, perspective);
+                        
+                        // Convert quaternion to euler angles (in radians)
+                        glm::vec3 rotationRadians = glm::eulerAngles(rotation);
+                        
+                        // Convert rotation to degrees
+                        geom->rotation = glm::degrees(rotationRadians);
+                    } else {
+                        m_isUsingGuizmo = false;
+                    }
+                }
 
                 // Calculate final view matrix including model transform
                 glm::mat4 finalView = view * model;
@@ -101,10 +162,31 @@ void GeometryViewerView::DrawControls() {
             }
         }
 
+        // Guizmo Operation Controls
+        if (ImGui::CollapsingHeader("Gizmo Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
+            const char* operations[] = { "Translate", "Rotate", "Scale" };
+            int currentOp = static_cast<int>(m_guizmoOperation) - 1; // -1 because ImGuizmo operations start at 1
+            if (ImGui::Combo("Operation", &currentOp, operations, IM_ARRAYSIZE(operations))) {
+                m_guizmoOperation = static_cast<ImGuizmo::OPERATION>(currentOp + 1);
+            }
+        }
+
         // Geometry list and controls
         if (ImGui::CollapsingHeader("Geometries", ImGuiTreeNodeFlags_DefaultOpen)) {
             for (auto& [name, geom] : m_geometries) {
-                if (ImGui::TreeNode(name.c_str())) {
+                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
+                if (m_selectedGeometry == geom.get()) {
+                    flags |= ImGuiTreeNodeFlags_Selected;
+                }
+
+                bool nodeOpen = ImGui::TreeNodeEx(name.c_str(), flags);
+                
+                // Handle selection
+                if (ImGui::IsItemClicked()) {
+                    m_selectedGeometry = (m_selectedGeometry == geom.get()) ? nullptr : geom.get();
+                }
+
+                if (nodeOpen) {
                     ImGui::Checkbox("Visible", &geom->visible);
 
                     ImGui::Text("Position:");

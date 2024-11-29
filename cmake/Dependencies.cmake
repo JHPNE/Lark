@@ -52,8 +52,15 @@ FetchContent_Declare(
         GIT_TAG 0.9.9.8
 )
 
-# Make all dependencies available
-FetchContent_MakeAvailable(glfw imgui tinyxml2 glm)
+FetchContent_Declare(
+        imguizmo
+        GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
+        GIT_TAG master  # You might want to pin to a specific commit/tag for stability
+)
+
+# Make dependencies available
+FetchContent_MakeAvailable(glfw imgui tinyxml2 glm imguizmo)
+
 
 if(TARGET glad)
     set_target_properties(glad PROPERTIES
@@ -79,11 +86,13 @@ add_library(imgui STATIC
         "${imgui_SOURCE_DIR}/imgui_widgets.cpp"
         "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
         "${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp"
+        "${imguizmo_SOURCE_DIR}/ImGuizmo.cpp"  # Add ImGuizmo source
 )
 
 target_include_directories(imgui PUBLIC
         "${imgui_SOURCE_DIR}"
         "${imgui_SOURCE_DIR}/backends"
+        "${imguizmo_SOURCE_DIR}"  # Add ImGuizmo include directory
 )
 
 target_include_directories(imgui PRIVATE

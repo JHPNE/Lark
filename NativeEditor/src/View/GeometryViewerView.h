@@ -1,10 +1,15 @@
 #pragma once
-#include "glad/glad.h"
-#include <imgui.h>
 #include "../Geometry/Geometry.h"
 #include "../Geometry/GeometryRenderer.h"
-#include <unordered_map>
+#include "glad/glad.h"
+#include <imgui.h>
+
+#include <ImGuizmo.h>
+#include <glm/glm.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <string>
+#include <unordered_map>
 
 struct ViewportGeometry {
     std::string name;
@@ -55,4 +60,8 @@ private:
     std::unordered_map<std::string, std::unique_ptr<ViewportGeometry>> m_geometries;
     std::unique_ptr<GeometryRenderer::LODGroupBuffers> m_geometryBuffers;
     std::shared_ptr<drosim::editor::Geometry> m_currentGeometry;
+    ViewportGeometry* m_selectedGeometry{nullptr};  // Track selected geometry
+    ImGuizmo::OPERATION m_guizmoOperation{ImGuizmo::OPERATION::TRANSLATE}; // Guizmo operation
+    bool m_isUsingGuizmo{false}; // Is guizmo being used?
+    float m_guizmoMatrix[4][4]{0.0f}; // Guizmo matrix
 };
