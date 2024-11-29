@@ -54,8 +54,8 @@ private:
 
     // Basic camera controls
     float m_cameraDistance = 10.0f;
-    float m_cameraPosition[3] = {0.0f, 0.0f, -5.0f};
-    float m_cameraRotation[2] = {0.0f, 0.0f}; // pitch, yaw
+    float m_cameraPosition[3] = {0.0f, 0.0f, 0.0f};
+    float m_cameraRotation[3] = {0.0f, 0.0f, 0.0f}; // pitch, yaw, roll
 
     std::unordered_map<std::string, std::unique_ptr<ViewportGeometry>> m_geometries;
     std::unique_ptr<GeometryRenderer::LODGroupBuffers> m_geometryBuffers;

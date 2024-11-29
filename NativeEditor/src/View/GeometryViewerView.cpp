@@ -27,6 +27,9 @@ void GeometryViewerView::RemoveGeometry(const std::string& name) {
 void GeometryViewerView::Draw() {
     if (!m_initialized) return;
 
+    // Initialize ImGuizmo for this frame
+    ImGuizmo::BeginFrame();
+
     ImGui::PushID("GeometryViewerMain");
     if (ImGui::Begin("Geometry Viewer##Main", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
@@ -35,18 +38,28 @@ void GeometryViewerView::Draw() {
             SetUpViewport();
 
             // Create view matrix with camera position and rotation
-            glm::mat4 view = glm::lookAt(
-                glm::vec3(m_cameraPosition[0], m_cameraPosition[1], m_cameraPosition[2] - m_cameraDistance),
-                glm::vec3(m_cameraPosition[0], m_cameraPosition[1], m_cameraPosition[2]),
-                glm::vec3(0.0f, 1.0f, 0.0f)
-            );
-
-            // Apply camera rotation
-            view = glm::rotate(view, glm::radians(m_cameraRotation[0]), glm::vec3(1.0f, 0.0f, 0.0f));
-            view = glm::rotate(view, glm::radians(m_cameraRotation[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::mat4 view = glm::mat4(1.0f);
+            
+            // Calculate camera position and target in world space
+            glm::vec3 cameraPos = glm::vec3(m_cameraPosition[0], m_cameraPosition[1], m_cameraPosition[2]);
+            glm::vec3 forward = glm::vec3(0.0f, 0.0f, -1.0f);
+            glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+            
+            // Apply camera rotations in the correct order
+            glm::mat4 rotation = glm::mat4(1.0f);
+            rotation = glm::rotate(rotation, glm::radians(m_cameraRotation[0]), glm::vec3(1.0f, 0.0f, 0.0f)); // Pitch
+            rotation = glm::rotate(rotation, glm::radians(m_cameraRotation[1]), glm::vec3(0.0f, 1.0f, 0.0f)); // Yaw
+            rotation = glm::rotate(rotation, glm::radians(m_cameraRotation[2]), glm::vec3(0.0f, 0.0f, 1.0f)); // Roll
+            
+            forward = glm::vec3(rotation * glm::vec4(forward, 0.0f));
+            up = glm::vec3(rotation * glm::vec4(up, 0.0f));
+            
+            // Create the view matrix
+            glm::vec3 actualCameraPos = cameraPos - (forward * m_cameraDistance);
+            view = glm::lookAt(actualCameraPos, cameraPos, up);
 
             float aspectRatio = viewportSize.x / viewportSize.y;
-            glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
+            glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 1000.0f);
 
             // Save OpenGL state
             GLint last_viewport[4]; glGetIntegerv(GL_VIEWPORT, last_viewport);
@@ -111,6 +124,7 @@ void GeometryViewerView::Draw() {
                 ImGuizmo::SetDrawlist();
                 ImGuizmo::SetRect(canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y);
                 ImGuizmo::SetOrthographic(false);
+                ImGuizmo::Enable(true);
 
                 // Draw Guizmo for selected geometry
                 if (m_selectedGeometry) {
@@ -124,11 +138,17 @@ void GeometryViewerView::Draw() {
 
                     // Convert matrices for ImGuizmo
                     float modelMatrix[16], viewMatrix[16], projMatrix[16];
+                    
+                    // Ensure matrices are in column-major order for ImGuizmo
+                    glm::mat4 imguizmoView = view;
+                    glm::mat4 imguizmoProj = projection;
+                    
                     memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
-                    memcpy(viewMatrix, glm::value_ptr(view), sizeof(float) * 16);
-                    memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
+                    memcpy(viewMatrix, glm::value_ptr(imguizmoView), sizeof(float) * 16);
+                    memcpy(projMatrix, glm::value_ptr(imguizmoProj), sizeof(float) * 16);
 
-                    // Draw the gizmo
+                    // Draw the gizmo with snap values
+                    float snapValues[3] = { 0.1f, 15.0f, 0.1f }; // Translation, Rotation, Scale
                     bool manipulated = ImGuizmo::Manipulate(
                         viewMatrix,
                         projMatrix,
@@ -136,9 +156,8 @@ void GeometryViewerView::Draw() {
                         ImGuizmo::MODE::LOCAL,
                         modelMatrix,
                         nullptr,
-                        nullptr,
-                        nullptr,
-                        nullptr
+                        m_guizmoOperation == ImGuizmo::OPERATION::ROTATE ? &snapValues[1] : 
+                        m_guizmoOperation == ImGuizmo::OPERATION::SCALE ? &snapValues[2] : &snapValues[0]
                     );
 
                     // If the matrix was modified, update the geometry transform
@@ -159,7 +178,7 @@ void GeometryViewerView::Draw() {
                             m_selectedGeometry->rotation = glm::degrees(rotationRadians);
                             
                             // Ensure scale doesn't go negative
-                            m_selectedGeometry->scale = glm::abs(m_selectedGeometry->scale);
+                            m_selectedGeometry->scale = glm::max(m_selectedGeometry->scale, glm::vec3(0.001f)); // Prevent zero or negative scale
                         }
                     } else {
                         m_isUsingGuizmo = false;
@@ -184,7 +203,7 @@ void GeometryViewerView::DrawControls() {
         // Camera controls group
         if (ImGui::CollapsingHeader("Camera Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::DragFloat3("Camera Position", m_cameraPosition, 0.1f);
-            ImGui::DragFloat2("Camera Rotation", m_cameraRotation, 1.0f);
+            ImGui::DragFloat3("Camera Rotation", m_cameraRotation, 1.0f);
             ImGui::DragFloat("Camera Distance", &m_cameraDistance, 0.1f, 0.1f, 100.0f);
 
             if (ImGui::Button("Reset Camera")) {
@@ -337,7 +356,7 @@ void GeometryViewerView::EnsureFramebuffer(float width, float height) {
 
 void GeometryViewerView::ResetCamera() {
     m_cameraPosition[0] = m_cameraPosition[1] = m_cameraPosition[2] = 0.0f;
-    m_cameraRotation[0] = m_cameraRotation[1] = 0.0f;
+    m_cameraRotation[0] = m_cameraRotation[1] = m_cameraRotation[2] = 0.0f;
     m_cameraDistance = 10.0f;
 }
 
