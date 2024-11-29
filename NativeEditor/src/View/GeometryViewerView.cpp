@@ -52,6 +52,10 @@ void GeometryViewerView::Draw() {
             GLint last_viewport[4]; glGetIntegerv(GL_VIEWPORT, last_viewport);
             GLint last_framebuffer; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_framebuffer);
 
+            // Bind our framebuffer and set viewport
+            glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+            glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
+
             // Render all visible geometries
             for (const auto& [name, geom] : m_geometries) {
                 if (!geom->visible) continue;
@@ -80,27 +84,33 @@ void GeometryViewerView::Draw() {
             glBindFramebuffer(GL_FRAMEBUFFER, last_framebuffer);
             glViewport(last_viewport[0], last_viewport[1], (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
 
+            // Get the screen-space position of the viewport
+            ImVec2 windowPos = ImGui::GetWindowPos();
+            ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+            ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+            ImVec2 canvasPos = ImVec2(windowPos.x + contentMin.x, windowPos.y + contentMin.y);
+            ImVec2 canvasSize = ImVec2(contentMax.x - contentMin.x, contentMax.y - contentMin.y);
+
             if (m_colorTexture) {
-                ImGui::Image(reinterpret_cast<ImTextureID>((void*)(uintptr_t)m_colorTexture), viewportSize);
+                // Draw the rendered image
+                ImGui::GetWindowDrawList()->AddImage(
+                    reinterpret_cast<ImTextureID>((void*)(uintptr_t)m_colorTexture),
+                    canvasPos,
+                    ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y)
+                );
 
                 // Handle viewport clicking for selection
-                if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0) && !ImGuizmo::IsOver()) {
-                    // For now, we'll just select the first geometry
+                if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGuizmo::IsOver()) {
                     if (!m_geometries.empty()) {
                         auto it = m_geometries.begin();
                         m_selectedGeometry = it->second.get();
                     }
                 }
 
-                // Set up ImGuizmo after the image is drawn
+                // Set up ImGuizmo
+                ImGuizmo::SetDrawlist();
+                ImGuizmo::SetRect(canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y);
                 ImGuizmo::SetOrthographic(false);
-                ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
-                ImGuizmo::SetRect(
-                    ImGui::GetWindowPos().x,
-                    ImGui::GetWindowPos().y,
-                    ImGui::GetWindowWidth(),
-                    ImGui::GetWindowHeight()
-                );
 
                 // Draw Guizmo for selected geometry
                 if (m_selectedGeometry) {
@@ -114,36 +124,19 @@ void GeometryViewerView::Draw() {
 
                     // Convert matrices for ImGuizmo
                     float modelMatrix[16], viewMatrix[16], projMatrix[16];
-                    glm::mat4 viewCopy = view;  // Make a copy as Manipulate might modify it
-                    glm::mat4 projCopy = projection;
-
-                    // Convert matrices to column-major float arrays for ImGuizmo
                     memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
-                    memcpy(viewMatrix, glm::value_ptr(viewCopy), sizeof(float) * 16);
-                    memcpy(projMatrix, glm::value_ptr(projCopy), sizeof(float) * 16);
-
-                    // Enable operation based on current mode
-                    ImGuizmo::OPERATION currentOperation;
-                    switch (m_guizmoOperation) {
-                        case ImGuizmo::OPERATION::ROTATE:
-                            currentOperation = ImGuizmo::OPERATION::ROTATE;
-                            break;
-                        case ImGuizmo::OPERATION::SCALE:
-                            currentOperation = ImGuizmo::OPERATION::SCALE;
-                            break;
-                        case ImGuizmo::OPERATION::TRANSLATE:
-                        default:
-                            currentOperation = ImGuizmo::OPERATION::TRANSLATE;
-                            break;
-                    }
+                    memcpy(viewMatrix, glm::value_ptr(view), sizeof(float) * 16);
+                    memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
 
                     // Draw the gizmo
                     bool manipulated = ImGuizmo::Manipulate(
                         viewMatrix,
                         projMatrix,
-                        currentOperation,
+                        (ImGuizmo::OPERATION)m_guizmoOperation,
                         ImGuizmo::MODE::LOCAL,
                         modelMatrix,
+                        nullptr,
+                        nullptr,
                         nullptr,
                         nullptr
                     );
@@ -151,8 +144,6 @@ void GeometryViewerView::Draw() {
                     // If the matrix was modified, update the geometry transform
                     if (manipulated) {
                         m_isUsingGuizmo = true;
-                        
-                        // Convert the modified matrix back to glm
                         glm::mat4 newModel = glm::make_mat4(modelMatrix);
                         
                         // Extract position, rotation, and scale
@@ -160,7 +151,6 @@ void GeometryViewerView::Draw() {
                         glm::vec4 perspective;
                         glm::quat rotation;
                         
-                        // Decompose the new model matrix
                         if (glm::decompose(newModel, m_selectedGeometry->scale, rotation, m_selectedGeometry->position, skew, perspective)) {
                             // Convert quaternion to euler angles (in radians)
                             glm::vec3 rotationRadians = glm::eulerAngles(rotation);
