@@ -2,6 +2,62 @@
 # Third-party dependencies configuration
 include(FetchContent)
 
+# OpenMP/LLVM Installation Check
+function(ensure_openmp)
+    if(APPLE)
+        if(NOT DEFINED CMAKE_C_COMPILER OR NOT DEFINED CMAKE_CXX_COMPILER)
+            find_program(HOMEBREW_EXECUTABLE brew)
+            if(HOMEBREW_EXECUTABLE)
+                execute_process(
+                        COMMAND ${HOMEBREW_EXECUTABLE} --prefix llvm
+                        OUTPUT_VARIABLE LLVM_PREFIX
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                        RESULT_VARIABLE LLVM_FOUND
+                )
+
+                if(NOT LLVM_FOUND EQUAL 0)
+                    execute_process(
+                            COMMAND ${HOMEBREW_EXECUTABLE} install llvm libomp
+                            RESULT_VARIABLE LLVM_INSTALL_RESULT
+                    )
+
+                    if(NOT LLVM_INSTALL_RESULT EQUAL 0)
+                        message(FATAL_ERROR "Failed to install LLVM/OpenMP")
+                    endif()
+
+                    execute_process(
+                            COMMAND ${HOMEBREW_EXECUTABLE} --prefix llvm
+                            OUTPUT_VARIABLE LLVM_PREFIX
+                            OUTPUT_STRIP_TRAILING_WHITESPACE
+                    )
+                endif()
+
+                # Force CMake to use the Homebrew LLVM
+                set(CMAKE_C_COMPILER "${LLVM_PREFIX}/bin/clang" CACHE STRING "C compiler" FORCE)
+                set(CMAKE_CXX_COMPILER "${LLVM_PREFIX}/bin/clang++" CACHE STRING "C++ compiler" FORCE)
+
+                # Set additional flags
+                set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp" CACHE STRING "C flags" FORCE)
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp" CACHE STRING "C++ flags" FORCE)
+
+                # Set linker flags for OpenMP
+                set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${LLVM_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib" CACHE STRING "Executable linker flags" FORCE)
+                set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -L${LLVM_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib" CACHE STRING "Shared library linker flags" FORCE)
+
+                message(STATUS "Using Homebrew LLVM for OpenMP support")
+                message(STATUS "LLVM installation: ${LLVM_PREFIX}")
+                message(STATUS "C Compiler: ${CMAKE_C_COMPILER}")
+                message(STATUS "CXX Compiler: ${CMAKE_CXX_COMPILER}")
+            else()
+                message(FATAL_ERROR "Homebrew not found. Cannot install LLVM/OpenMP")
+            endif()
+        endif()
+    endif()
+endfunction()
+
+# Call the function to ensure OpenMP is available
+ensure_openmp()
+
 # pybind
 FetchContent_Declare(
         pybind11
@@ -9,6 +65,42 @@ FetchContent_Declare(
         GIT_TAG v2.11.1
 )
 FetchContent_MakeAvailable(pybind11)
+
+# OpenMP Configuration
+if(APPLE)
+    find_program(HOMEBREW_EXECUTABLE brew)
+    if(HOMEBREW_EXECUTABLE)
+        execute_process(
+                COMMAND ${HOMEBREW_EXECUTABLE} --prefix llvm
+                OUTPUT_VARIABLE LLVM_PREFIX
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                RESULT_VARIABLE LLVM_FOUND
+        )
+
+        if(LLVM_FOUND EQUAL 0)
+            # Set the compiler to Homebrew's LLVM before project() is called
+            set(CMAKE_C_COMPILER "${LLVM_PREFIX}/bin/clang")
+            set(CMAKE_CXX_COMPILER "${LLVM_PREFIX}/bin/clang++")
+
+            # Add OpenMP flags
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+
+            # Add OpenMP library path
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${LLVM_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib")
+
+            message(STATUS "Using Homebrew LLVM for OpenMP support")
+            message(STATUS "LLVM installation: ${LLVM_PREFIX}")
+            message(STATUS "C Compiler: ${CMAKE_C_COMPILER}")
+            message(STATUS "CXX Compiler: ${CMAKE_CXX_COMPILER}")
+        else()
+            message(FATAL_ERROR "LLVM not found. Please install it using: brew install llvm")
+        endif()
+    else()
+        message(FATAL_ERROR "Homebrew not found. Cannot configure LLVM/OpenMP.")
+    endif()
+endif()
+
 
 # GLAD
 FetchContent_Declare(
