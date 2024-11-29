@@ -114,35 +114,63 @@ void GeometryViewerView::Draw() {
 
                     // Convert matrices for ImGuizmo
                     float modelMatrix[16], viewMatrix[16], projMatrix[16];
+                    glm::mat4 viewCopy = view;  // Make a copy as Manipulate might modify it
+                    glm::mat4 projCopy = projection;
+
+                    // Convert matrices to column-major float arrays for ImGuizmo
                     memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
-                    memcpy(viewMatrix, glm::value_ptr(view), sizeof(float) * 16);
-                    memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
+                    memcpy(viewMatrix, glm::value_ptr(viewCopy), sizeof(float) * 16);
+                    memcpy(projMatrix, glm::value_ptr(projCopy), sizeof(float) * 16);
+
+                    // Enable operation based on current mode
+                    ImGuizmo::OPERATION currentOperation;
+                    switch (m_guizmoOperation) {
+                        case ImGuizmo::OPERATION::ROTATE:
+                            currentOperation = ImGuizmo::OPERATION::ROTATE;
+                            break;
+                        case ImGuizmo::OPERATION::SCALE:
+                            currentOperation = ImGuizmo::OPERATION::SCALE;
+                            break;
+                        case ImGuizmo::OPERATION::TRANSLATE:
+                        default:
+                            currentOperation = ImGuizmo::OPERATION::TRANSLATE;
+                            break;
+                    }
 
                     // Draw the gizmo
                     bool manipulated = ImGuizmo::Manipulate(
                         viewMatrix,
                         projMatrix,
-                        (ImGuizmo::OPERATION)m_guizmoOperation,
+                        currentOperation,
                         ImGuizmo::MODE::LOCAL,
-                        modelMatrix
+                        modelMatrix,
+                        nullptr,
+                        nullptr
                     );
 
                     // If the matrix was modified, update the geometry transform
                     if (manipulated) {
                         m_isUsingGuizmo = true;
+                        
+                        // Convert the modified matrix back to glm
                         glm::mat4 newModel = glm::make_mat4(modelMatrix);
                         
-                        // Extract position, rotation, and scale from the matrix
+                        // Extract position, rotation, and scale
                         glm::vec3 skew;
                         glm::vec4 perspective;
                         glm::quat rotation;
-                        glm::decompose(newModel, m_selectedGeometry->scale, rotation, m_selectedGeometry->position, skew, perspective);
                         
-                        // Convert quaternion to euler angles (in radians)
-                        glm::vec3 rotationRadians = glm::eulerAngles(rotation);
-                        
-                        // Convert rotation to degrees
-                        m_selectedGeometry->rotation = glm::degrees(rotationRadians);
+                        // Decompose the new model matrix
+                        if (glm::decompose(newModel, m_selectedGeometry->scale, rotation, m_selectedGeometry->position, skew, perspective)) {
+                            // Convert quaternion to euler angles (in radians)
+                            glm::vec3 rotationRadians = glm::eulerAngles(rotation);
+                            
+                            // Convert rotation to degrees
+                            m_selectedGeometry->rotation = glm::degrees(rotationRadians);
+                            
+                            // Ensure scale doesn't go negative
+                            m_selectedGeometry->scale = glm::abs(m_selectedGeometry->scale);
+                        }
                     } else {
                         m_isUsingGuizmo = false;
                     }
@@ -177,9 +205,36 @@ void GeometryViewerView::DrawControls() {
         // Guizmo Operation Controls
         if (ImGui::CollapsingHeader("Gizmo Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
             const char* operations[] = { "Translate", "Rotate", "Scale" };
-            int currentOp = static_cast<int>(m_guizmoOperation) - 1; // -1 because ImGuizmo operations start at 1
+            int currentOp = 0;
+            
+            // Convert current operation to index
+            switch (m_guizmoOperation) {
+                case ImGuizmo::OPERATION::ROTATE:
+                    currentOp = 1;
+                    break;
+                case ImGuizmo::OPERATION::SCALE:
+                    currentOp = 2;
+                    break;
+                case ImGuizmo::OPERATION::TRANSLATE:
+                default:
+                    currentOp = 0;
+                    break;
+            }
+
             if (ImGui::Combo("Operation", &currentOp, operations, IM_ARRAYSIZE(operations))) {
-                m_guizmoOperation = static_cast<ImGuizmo::OPERATION>(currentOp + 1);
+                // Convert index back to operation
+                switch (currentOp) {
+                    case 1:
+                        m_guizmoOperation = ImGuizmo::OPERATION::ROTATE;
+                        break;
+                    case 2:
+                        m_guizmoOperation = ImGuizmo::OPERATION::SCALE;
+                        break;
+                    case 0:
+                    default:
+                        m_guizmoOperation = ImGuizmo::OPERATION::TRANSLATE;
+                        break;
+                }
             }
         }
 
@@ -201,16 +256,20 @@ void GeometryViewerView::DrawControls() {
                 if (nodeOpen) {
                     ImGui::Checkbox("Visible", &geom->visible);
 
-                    ImGui::Text("Position:");
-                    ImGui::DragFloat3(("Position##" + name).c_str(), &geom->position.x, 0.1f);
+                    if (ImGui::DragFloat3("Position", &geom->position.x, 0.1f)) {
+                        // Position was modified through UI
+                    }
 
-                    ImGui::Text("Rotation:");
-                    ImGui::DragFloat3(("Rotation##" + name).c_str(), &geom->rotation.x, 1.0f);
+                    if (ImGui::DragFloat3("Rotation", &geom->rotation.x, 1.0f)) {
+                        // Rotation was modified through UI
+                    }
 
-                    ImGui::Text("Scale:");
-                    ImGui::DragFloat3(("Scale##" + name).c_str(), &geom->scale.x, 0.1f);
+                    if (ImGui::DragFloat3("Scale", &geom->scale.x, 0.1f)) {
+                        // Scale was modified through UI
+                        geom->scale = glm::max(geom->scale, glm::vec3(0.001f)); // Prevent zero or negative scale
+                    }
 
-                    if (ImGui::Button(("Reset Transform##" + name).c_str())) {
+                    if (ImGui::Button("Reset Transform")) {
                         ResetGeometryTransform(geom.get());
                     }
 
