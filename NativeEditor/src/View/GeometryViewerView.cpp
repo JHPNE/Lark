@@ -133,42 +133,43 @@ void GeometryViewerView::Draw() {
                 if (m_selectedGeometry) {
                     // Create model matrix for selected geometry
                     glm::mat4 model = glm::mat4(1.0f);
-
-                    glm::quat rotationQuat = glm::quat(glm::radians(m_selectedGeometry->rotation));
                     model = glm::translate(model, m_selectedGeometry->position);
-                    model = model * glm::mat4_cast(rotationQuat);
+                    
+                    // Apply rotations in the correct order
+                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+                    
                     model = glm::scale(model, m_selectedGeometry->scale);
 
                     // Convert matrices for ImGuizmo
                     float modelMatrix[16], viewMatrix[16], projMatrix[16];
                     
-                    // Ensure matrices are in column-major order for ImGuizmo
+                    // Create the same view matrix as used for rendering
                     glm::mat4 imguizmoView = view;
-                    glm::mat4 imguizmoProj = projection;
+                    
+                    // Flip the Y-axis for ImGuizmo coordinate system
+                    glm::mat4 flipY = glm::mat4(1.0f);
+                    flipY[1][1] = -1.0f;
+                    
+                    // Apply the Y-axis flip to the view matrix
+                    imguizmoView = flipY * imguizmoView;
                     
                     memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
                     memcpy(viewMatrix, glm::value_ptr(imguizmoView), sizeof(float) * 16);
-                    memcpy(projMatrix, glm::value_ptr(imguizmoProj), sizeof(float) * 16);
+                    memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
 
                     // Draw the gizmo with snap values
-                    float snapValues[3] = { 0.1f, 0.1f, 0.1f }; // Translation, Rotation, Scale
-                    
-                    // Create a corrected view matrix for ImGuizmo
-                    glm::mat4 correctedView = imguizmoView;
-                    // Invert Y-axis transformation in the view matrix
-                    correctedView[1][1] *= -1;
-                    memcpy(viewMatrix, glm::value_ptr(correctedView), sizeof(float) * 16);
+                    float snapValues[3] = { 0.1f, 1.0f, 0.1f }; // Translation (0.1), Rotation (1 degree), Scale (0.1)
                     
                     bool manipulated = ImGuizmo::Manipulate(
                         viewMatrix,
                         projMatrix,
                         (ImGuizmo::OPERATION)m_guizmoOperation,
-                        ImGuizmo::MODE::LOCAL,  // Changed to LOCAL mode for more intuitive manipulation
+                        ImGuizmo::MODE::LOCAL,
                         modelMatrix,
                         nullptr,
-                        snapValues,
-                        nullptr,
-                        nullptr
+                        snapValues
                     );
 
                     // If the matrix was modified, update the geometry transform
@@ -176,21 +177,22 @@ void GeometryViewerView::Draw() {
                         m_isUsingGuizmo = true;
                         glm::mat4 newModel = glm::make_mat4(modelMatrix);
 
-
                         // Extract position, rotation, and scale
                         glm::vec3 skew;
                         glm::vec4 perspective;
+                        glm::vec3 translation;
                         glm::quat rotation;
+                        glm::vec3 scale;
                         
-                        if (glm::decompose(newModel, m_selectedGeometry->scale, rotation, m_selectedGeometry->position, skew, perspective)) {
-                            // Convert quaternion to euler angles (in radians)
-                            glm::vec3 rotationRadians = glm::eulerAngles(rotation);
+                        if (glm::decompose(newModel, scale, rotation, translation, skew, perspective)) {
+                            m_selectedGeometry->position = translation;
                             
-                            // Convert rotation to degrees
+                            // Convert quaternion to euler angles (in degrees)
+                            glm::vec3 rotationRadians = glm::eulerAngles(rotation);
                             m_selectedGeometry->rotation = glm::degrees(rotationRadians);
-
+                            
                             // Ensure scale doesn't go negative
-                            m_selectedGeometry->scale = glm::max(m_selectedGeometry->scale, glm::vec3(0.001f)); // Prevent zero or negative scale
+                            m_selectedGeometry->scale = glm::max(scale, glm::vec3(0.001f));
                         }
                     } else {
                         m_isUsingGuizmo = false;
