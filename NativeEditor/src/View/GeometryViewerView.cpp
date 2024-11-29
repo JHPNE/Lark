@@ -1,6 +1,8 @@
 #include "GeometryViewerView.h"
 #include "../Utils/ImGuizmoManager.h"
 
+#include <iostream>
+
 void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Geometry* geometry) {
     if (!geometry) return;
 
@@ -59,6 +61,7 @@ void GeometryViewerView::Draw() {
             view = glm::lookAt(actualCameraPos, cameraPos, up);
 
             float aspectRatio = viewportSize.x / viewportSize.y;
+            //TODO move those to Settings
             glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 1000.0f);
 
             // Save OpenGL state
@@ -130,10 +133,10 @@ void GeometryViewerView::Draw() {
                 if (m_selectedGeometry) {
                     // Create model matrix for selected geometry
                     glm::mat4 model = glm::mat4(1.0f);
+
+                    glm::quat rotationQuat = glm::quat(glm::radians(m_selectedGeometry->rotation));
                     model = glm::translate(model, m_selectedGeometry->position);
-                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+                    model = model * glm::mat4_cast(rotationQuat);
                     model = glm::scale(model, m_selectedGeometry->scale);
 
                     // Convert matrices for ImGuizmo
@@ -148,23 +151,32 @@ void GeometryViewerView::Draw() {
                     memcpy(projMatrix, glm::value_ptr(imguizmoProj), sizeof(float) * 16);
 
                     // Draw the gizmo with snap values
-                    float snapValues[3] = { 0.1f, 15.0f, 0.1f }; // Translation, Rotation, Scale
+                    float snapValues[3] = { 0.1f, 0.1f, 0.1f }; // Translation, Rotation, Scale
+                    
+                    // Create a corrected view matrix for ImGuizmo
+                    glm::mat4 correctedView = imguizmoView;
+                    // Invert Y-axis transformation in the view matrix
+                    correctedView[1][1] *= -1;
+                    memcpy(viewMatrix, glm::value_ptr(correctedView), sizeof(float) * 16);
+                    
                     bool manipulated = ImGuizmo::Manipulate(
                         viewMatrix,
                         projMatrix,
                         (ImGuizmo::OPERATION)m_guizmoOperation,
-                        ImGuizmo::MODE::LOCAL,
+                        ImGuizmo::MODE::LOCAL,  // Changed to LOCAL mode for more intuitive manipulation
                         modelMatrix,
                         nullptr,
-                        m_guizmoOperation == ImGuizmo::OPERATION::ROTATE ? &snapValues[1] : 
-                        m_guizmoOperation == ImGuizmo::OPERATION::SCALE ? &snapValues[2] : &snapValues[0]
+                        snapValues,
+                        nullptr,
+                        nullptr
                     );
 
                     // If the matrix was modified, update the geometry transform
                     if (manipulated) {
                         m_isUsingGuizmo = true;
                         glm::mat4 newModel = glm::make_mat4(modelMatrix);
-                        
+
+
                         // Extract position, rotation, and scale
                         glm::vec3 skew;
                         glm::vec4 perspective;
@@ -176,7 +188,7 @@ void GeometryViewerView::Draw() {
                             
                             // Convert rotation to degrees
                             m_selectedGeometry->rotation = glm::degrees(rotationRadians);
-                            
+
                             // Ensure scale doesn't go negative
                             m_selectedGeometry->scale = glm::max(m_selectedGeometry->scale, glm::vec3(0.001f)); // Prevent zero or negative scale
                         }
