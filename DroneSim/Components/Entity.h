@@ -16,6 +16,7 @@ namespace drosim {
     #define INIT_INFO(component) namespace component { struct init_info; }
     INIT_INFO(transform);
     INIT_INFO(script);
+    INIT_INFO(geometry);
     #undef INIT_INFO
 
     namespace game_entity {
@@ -29,6 +30,7 @@ namespace drosim {
         struct entity_info {
             transform::init_info* transform{ nullptr };  ///< Transform component initialization info
             script::init_info* script{ nullptr };       ///< Script component initialization info
+            geometry::init_info* geometry{ nullptr };   ///< Geometry component initialization info
         };
 
         /**

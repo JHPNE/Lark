@@ -1,13 +1,14 @@
 #include "Entity.h"
 #include "Transform.h"
 #include "Script.h"
-#include "GeoComp.h"
+#include "Geometry.h"
 
 namespace drosim::game_entity {
 	// private alternative to static
 	namespace {
 		util::vector<transform::component> transforms;
 		util::vector<script::component> scripts;
+		util::vector<geometry::component> geometries;
 
 		std::vector<id::generation_type> generations;
 		util::deque<entity_id> free_ids;
@@ -35,6 +36,7 @@ namespace drosim::game_entity {
 			// emplace isntead of resize for memory allocations
 			transforms.emplace_back();
 			scripts.emplace_back();
+			geometries.emplace_back();
 		}
 
 		const entity new_entity{ id };
@@ -50,6 +52,12 @@ namespace drosim::game_entity {
 			assert(!scripts[index].is_valid());
 			scripts[index] = script::create(*info.script, new_entity);
 			assert(scripts[index].is_valid());
+		}
+
+		// Create Geometry Component
+		if (info.geometry) {
+			assert(!geometries[index].is_valid());
+			geometries[index] = geometry::create(*info.geometry, new_entity);
 		}
 
 		if (new_entity.is_valid()) {
@@ -68,6 +76,10 @@ namespace drosim::game_entity {
 			auto script_copy = scripts[index]; // Make a copy before invalidating
 			scripts[index] = {}; // Invalidate first
 			script::remove(script_copy); // Then remove using the copy
+		}
+
+		if (geometries[index].is_valid()) {
+			geometry::remove(geometry::geometry_id{ id::id_type(id) });
 		}
 
 		transform::remove(transforms[index]);
@@ -105,5 +117,9 @@ namespace drosim::game_entity {
 		assert(is_alive(_id));
 		return scripts[id::index(_id)];
 	}
-}
 
+	geometry::component entity::geometry() const {
+		assert(is_alive(_id));
+		return geometries[id::index(_id)];
+	}
+}
