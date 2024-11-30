@@ -4,6 +4,7 @@
 #include "../Components/ComponentCommon.h"
 #include "TransformComponent.h"
 #include "ScriptComponent.h"
+#include "GeometryComponent.h"
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <pybind11/embed.h>
@@ -22,9 +23,30 @@ namespace drosim {
 
 			transform::component transform() const;
 			script::component script() const;
+			geometry::component geometry() const;
 		private:
 			entity_id _id;
 		};
+	}
+
+	namespace geometry {
+		class entity_geometry : public game_entity::entity {
+		public:
+			virtual ~entity_geometry() = default;
+		private:
+
+		};
+
+		namespace detail {
+			using geometry_ptr = std::unique_ptr<geometry::entity_geometry>;
+			using geometry_creator = geometry_ptr(*)(game_entity::entity entity);
+
+			template<class geometry_class>
+			geometry_ptr create_geometry(game_entity::entity entity) {
+				assert(entity.is_valid());
+				return std::make_unique<geometry_class>(entity);
+			}
+		}
 	}
 
 	namespace script {

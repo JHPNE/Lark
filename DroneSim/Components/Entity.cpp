@@ -1,6 +1,7 @@
 #include "Entity.h"
 #include "Transform.h"
 #include "Script.h"
+#include "GeoComp.h"
 
 namespace drosim::game_entity {
 	// private alternative to static
