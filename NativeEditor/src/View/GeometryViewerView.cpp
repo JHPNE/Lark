@@ -11,13 +11,12 @@ void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Ge
         m_geometries[name] = std::make_unique<ViewportGeometry>();
         m_geometries[name]->name = name;
         m_geometries[name]->buffers = std::move(buffers);
-        m_geometries[name]->position = glm::vec3(0.0f);
-        m_geometries[name]->rotation = glm::vec3(0.0f);
-        m_geometries[name]->scale = glm::vec3(1.0f);
         m_geometries[name]->visible = true;
-        m_initialized = true;
 
-        // Automatically select the newly added geometry
+        // Create an engine entity for this geometry
+        CreateEntityForGeometry(m_geometries[name].get());
+
+        m_initialized = true;
         m_selectedGeometry = m_geometries[name].get();
     }
 }
@@ -61,7 +60,6 @@ void GeometryViewerView::Draw() {
             view = glm::lookAt(actualCameraPos, cameraPos, up);
 
             float aspectRatio = viewportSize.x / viewportSize.y;
-            //TODO move those to Settings
             glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 1000.0f);
 
             // Save OpenGL state
@@ -76,13 +74,8 @@ void GeometryViewerView::Draw() {
             for (const auto& [name, geom] : m_geometries) {
                 if (!geom->visible) continue;
 
-                // Create model matrix for this geometry
-                glm::mat4 model = glm::mat4(1.0f);
-                model = glm::translate(model, geom->position);
-                model = glm::rotate(model, glm::radians(geom->rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-                model = glm::rotate(model, glm::radians(geom->rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-                model = glm::rotate(model, glm::radians(geom->rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-                model = glm::scale(model, geom->scale);
+                // Get the transform matrix from the engine
+                glm::mat4 model = GetEntityTransformMatrix(geom->entity_id);
 
                 // Calculate final view matrix including model transform
                 glm::mat4 finalView = view * model;
@@ -131,19 +124,11 @@ void GeometryViewerView::Draw() {
 
                 // Draw Guizmo for selected geometry
                 if (m_selectedGeometry) {
-                    // Create model matrix for selected geometry
-                    glm::mat4 model = glm::mat4(1.0f);
-                    model = glm::translate(model, m_selectedGeometry->position);
-
-                    // Apply rotations in the correct order
-                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-                    model = glm::rotate(model, glm::radians(m_selectedGeometry->rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-
-                    model = glm::scale(model, m_selectedGeometry->scale);
+                    glm::mat4 model = GetEntityTransformMatrix(m_selectedGeometry->entity_id);
 
                     // Convert matrices for ImGuizmo
                     float modelMatrix[16], viewMatrix[16], projMatrix[16];
+                    memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
 
                     // Create the same view matrix as used for rendering
                     glm::mat4 imguizmoView = view;
@@ -155,14 +140,13 @@ void GeometryViewerView::Draw() {
                     // Apply the Y-axis flip to the view matrix
                     imguizmoView = flipY * imguizmoView;
 
-                    memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
                     memcpy(viewMatrix, glm::value_ptr(imguizmoView), sizeof(float) * 16);
                     memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
 
                     // Draw the gizmo with snap values
                     float snapValues[3] = { 0.1f, 1.0f, 0.1f }; // Translation (0.1), Rotation (1 degree), Scale (0.1)
 
-                    bool manipulated = ImGuizmo::Manipulate(
+                    if (ImGuizmo::Manipulate(
                         viewMatrix,
                         projMatrix,
                         (ImGuizmo::OPERATION)m_guizmoOperation,
@@ -170,30 +154,9 @@ void GeometryViewerView::Draw() {
                         modelMatrix,
                         nullptr,
                         snapValues
-                    );
-
-                    // If the matrix was modified, update the geometry transform
-                    if (manipulated) {
+                    )) {
                         m_isUsingGuizmo = true;
-                        glm::mat4 newModel = glm::make_mat4(modelMatrix);
-
-                        // Extract position, rotation, and scale
-                        glm::vec3 skew;
-                        glm::vec4 perspective;
-                        glm::vec3 translation;
-                        glm::quat rotation;
-                        glm::vec3 scale;
-
-                        if (glm::decompose(newModel, scale, rotation, translation, skew, perspective)) {
-                            m_selectedGeometry->position = translation;
-
-                            // Convert quaternion to euler angles (in degrees)
-                            glm::vec3 rotationRadians = glm::eulerAngles(rotation);
-                            m_selectedGeometry->rotation = glm::degrees(rotationRadians);
-
-                            // Ensure scale doesn't go negative
-                            m_selectedGeometry->scale = glm::max(scale, glm::vec3(0.001f));
-                        }
+                        UpdateTransformFromGuizmo(m_selectedGeometry, modelMatrix);
                     } else {
                         m_isUsingGuizmo = false;
                     }
@@ -279,21 +242,27 @@ void GeometryViewerView::DrawControls() {
                 if (nodeOpen) {
                     ImGui::Checkbox("Visible", &geom->visible);
 
-                    if (ImGui::DragFloat3("Position", &geom->position.x, 0.1f)) {
-                        // Position was modified through UI
-                    }
+                    transform_component current_transform{};
+                    if (GetEntityTransform(geom->entity_id, &current_transform)) {
+                        if (ImGui::DragFloat3("Position", current_transform.position, 0.1f)) {
+                            SetEntityTransform(geom->entity_id, current_transform);
+                        }
 
-                    if (ImGui::DragFloat3("Rotation", &geom->rotation.x, 1.0f)) {
-                        // Rotation was modified through UI
-                    }
+                        if (ImGui::DragFloat3("Rotation", current_transform.rotation, 1.0f)) {
+                            SetEntityTransform(geom->entity_id, current_transform);
+                        }
 
-                    if (ImGui::DragFloat3("Scale", &geom->scale.x, 0.1f)) {
-                        // Scale was modified through UI
-                        geom->scale = glm::max(geom->scale, glm::vec3(0.001f)); // Prevent zero or negative scale
-                    }
+                        if (ImGui::DragFloat3("Scale", current_transform.scale, 0.1f)) {
+                            // Ensure minimum scale
+                            current_transform.scale[0] = std::max(0.001f, current_transform.scale[0]);
+                            current_transform.scale[1] = std::max(0.001f, current_transform.scale[1]);
+                            current_transform.scale[2] = std::max(0.001f, current_transform.scale[2]);
+                            SetEntityTransform(geom->entity_id, current_transform);
+                        }
 
-                    if (ImGui::Button("Reset Transform")) {
-                        ResetGeometryTransform(geom.get());
+                        if (ImGui::Button("Reset Transform")) {
+                            ResetEntityTransform(geom->entity_id);
+                        }
                     }
 
                     ImGui::TreePop();
@@ -376,7 +345,4 @@ void GeometryViewerView::ResetCamera() {
 
 void GeometryViewerView::ResetGeometryTransform(ViewportGeometry* geom) {
     if (!geom) return;
-    geom->position = glm::vec3(0.0f);
-    geom->rotation = glm::vec3(0.0f);
-    geom->scale = glm::vec3(1.0f);
 }
