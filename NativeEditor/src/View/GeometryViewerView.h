@@ -14,7 +14,9 @@
 struct ViewportGeometry {
     std::string name;
     std::unique_ptr<GeometryRenderer::LODGroupBuffers> buffers;
-    uint32_t entity_id;
+    glm::vec3 position{0.0f};
+    glm::vec3 rotation{0.0f};
+    glm::vec3 scale{1.0f};
     bool visible{true};
 };
 class GeometryViewerView {
@@ -39,8 +41,6 @@ public:
 
     void Draw();
     void EnsureFramebuffer(float width, float height);
-    void RenderScene(const glm::mat4& view, const glm::mat4& projection);
-    void HandleGuizmo(const glm::mat4& view, const glm::mat4& projection);
 
 private:
     bool m_initialized = false;
@@ -50,6 +50,7 @@ private:
     GLuint m_depthTexture = 0;
 
     void ResetCamera();
+    void ResetGeometryTransform(ViewportGeometry* geom);
 
     // Basic camera controls
     float m_cameraDistance = 10.0f;
