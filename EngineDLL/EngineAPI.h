@@ -103,10 +103,17 @@ extern "C" {
     ENGINE_API f32 GameLoop_GetDeltaTime();
     ENGINE_API u32 GameLoop_GetFPS();
 
+    // GEOMETRY API CALLS
     ENGINE_API bool CreatePrimitiveMesh(content_tools::SceneData* data,
                                   const content_tools::PrimitiveInitInfo* info);
 
     ENGINE_API bool LoadObj(const char* path, content_tools::SceneData* data);
+
+    // Transform API CALLS
+    ENGINE_API bool SetEntityTransform(drosim::id::id_type entity_id, const transform_component& transform);
+    ENGINE_API bool GetEntityTransform(drosim::id::id_type entity_id, transform_component* out_transform);
+    ENGINE_API bool ResetEntityTransform(drosim::id::id_type entity_id);
+    ENGINE_API glm::mat4 GetEntityTransformMatrix(drosim::id::id_type entity_id);
 #ifdef __cplusplus
 }
 #endif
