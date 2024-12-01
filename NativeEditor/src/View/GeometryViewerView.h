@@ -1,6 +1,7 @@
 #pragma once
 #include "../Geometry/Geometry.h"
 #include "../Geometry/GeometryRenderer.h"
+#include "Utils/Utils.h"
 #include "glad/glad.h"
 #include <imgui.h>
 
@@ -14,7 +15,7 @@
 struct ViewportGeometry {
     std::string name;
     std::unique_ptr<GeometryRenderer::LODGroupBuffers> buffers;
-    uint32_t entity_id;
+    uint32_t entity_id{static_cast<uint32_t>(Utils::INVALIDID)};
     bool visible{true};
 };
 class GeometryViewerView {
@@ -24,8 +25,9 @@ public:
         return instance;
     }
 
-    void SetUpViewport();
+    ~GeometryViewerView();
 
+    void SetUpViewport();
     void AddGeometry(const std::string& name, drosim::editor::Geometry* geometry);
     void RemoveGeometry(const std::string& name);
     void HandleInput();
@@ -74,20 +76,9 @@ private:
         }
     }
 
-    void CreateEntityForGeometry(ViewportGeometry* geometry) {
-        // Create default transform data
-        transform_component transform{};
-        transform.position[0] = transform.position[1] = transform.position[2] = 0.0f;
-        transform.rotation[0] = transform.rotation[1] = transform.rotation[2] = 0.0f;
-        transform.scale[0] = transform.scale[1] = transform.scale[2] = 1.0f;
+    void CreateEntityForGeometry(ViewportGeometry* geometry);
+    bool GetGeometryTransform(ViewportGeometry* geom, transform_component& transform);
 
-        // Create entity descriptor
-        game_entity_descriptor desc{};
-        desc.transform = transform;
-
-        // Create the entity
-        geometry->entity_id = CreateGameEntity(&desc);
-    }
 
     bool m_initialized = false;
     // OpenGL rendering resources

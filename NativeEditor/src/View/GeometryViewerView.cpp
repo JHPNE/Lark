@@ -3,6 +3,55 @@
 
 #include <iostream>
 
+void GeometryViewerView::CreateEntityForGeometry(ViewportGeometry* geometry) {
+    // Create default transform data
+    transform_component transform{};
+    // Initialize all arrays to prevent undefined behavior
+    memset(&transform, 0, sizeof(transform_component));
+    transform.scale[0] = transform.scale[1] = transform.scale[2] = 1.0f;
+
+    // Create entity descriptor with transform
+    game_entity_descriptor desc{};
+    desc.transform = transform;
+    // We don't need script component for now, it's already zero-initialized
+
+    // Create the entity
+    geometry->entity_id = CreateGameEntity(&desc);
+}
+
+void GeometryViewerView::RemoveGeometry(const std::string& name) {
+    auto it = m_geometries.find(name);
+    if (it != m_geometries.end()) {
+        // Remove the entity from the engine first
+        if (it->second && !Utils::IsInvalidID(it->second->entity_id)) {
+            RemoveGameEntity(it->second->entity_id);
+        }
+        // Then remove from our map
+        m_geometries.erase(it);
+    }
+}
+
+GeometryViewerView::~GeometryViewerView() {
+    // Clean up all entities
+    for (auto& [name, geom] : m_geometries) {
+        if (geom && !Utils::IsInvalidID(geom->entity_id)) {
+            RemoveGameEntity(geom->entity_id);
+        }
+    }
+    m_geometries.clear();
+}
+
+void GeometryViewerView::ResetGeometryTransform(ViewportGeometry* geom) {
+    if (!geom || Utils::IsInvalidID(geom->entity_id)) return;
+    ResetEntityTransform(geom->entity_id);
+}
+
+// Update the transform getter to include validation
+bool GeometryViewerView::GetGeometryTransform(ViewportGeometry* geom, transform_component& transform) {
+    if (!geom || Utils::IsInvalidID(geom->entity_id)) return false;
+    return GetEntityTransform(geom->entity_id, &transform);
+}
+
 void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Geometry* geometry) {
     if (!geometry) return;
 
@@ -19,10 +68,6 @@ void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Ge
         m_initialized = true;
         m_selectedGeometry = m_geometries[name].get();
     }
-}
-
-void GeometryViewerView::RemoveGeometry(const std::string& name) {
-    m_geometries.erase(name);
 }
 
 void GeometryViewerView::Draw() {
@@ -243,25 +288,26 @@ void GeometryViewerView::DrawControls() {
                     ImGui::Checkbox("Visible", &geom->visible);
 
                     transform_component current_transform{};
-                    if (GetEntityTransform(geom->entity_id, &current_transform)) {
-                        if (ImGui::DragFloat3("Position", current_transform.position, 0.1f)) {
-                            SetEntityTransform(geom->entity_id, current_transform);
-                        }
+                    if (GetGeometryTransform(geom.get(), current_transform)) {
+                        bool changed = false;
 
-                        if (ImGui::DragFloat3("Rotation", current_transform.rotation, 1.0f)) {
-                            SetEntityTransform(geom->entity_id, current_transform);
-                        }
+                        changed |= ImGui::DragFloat3("Position", current_transform.position, 0.1f);
+                        changed |= ImGui::DragFloat3("Rotation", current_transform.rotation, 1.0f);
 
                         if (ImGui::DragFloat3("Scale", current_transform.scale, 0.1f)) {
                             // Ensure minimum scale
                             current_transform.scale[0] = std::max(0.001f, current_transform.scale[0]);
                             current_transform.scale[1] = std::max(0.001f, current_transform.scale[1]);
                             current_transform.scale[2] = std::max(0.001f, current_transform.scale[2]);
+                            changed = true;
+                        }
+
+                        if (changed) {
                             SetEntityTransform(geom->entity_id, current_transform);
                         }
 
                         if (ImGui::Button("Reset Transform")) {
-                            ResetEntityTransform(geom->entity_id);
+                            ResetGeometryTransform(geom.get());
                         }
                     }
 
@@ -341,8 +387,4 @@ void GeometryViewerView::ResetCamera() {
     m_cameraPosition[0] = m_cameraPosition[1] = m_cameraPosition[2] = 0.0f;
     m_cameraRotation[0] = m_cameraRotation[1] = m_cameraRotation[2] = 0.0f;
     m_cameraDistance = 10.0f;
-}
-
-void GeometryViewerView::ResetGeometryTransform(ViewportGeometry* geom) {
-    if (!geom) return;
 }

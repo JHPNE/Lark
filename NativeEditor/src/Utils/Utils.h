@@ -37,7 +37,7 @@ public:
 		desc.transform.scale[1] = scale.y;
 		desc.transform.scale[2] = scale.z;
 	};
-
-private:
 	static const int INVALIDID = -1;
+private:
+
 };
