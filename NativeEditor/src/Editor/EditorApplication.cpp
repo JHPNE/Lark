@@ -12,6 +12,7 @@
 #include "../View/SceneView.h"
 #include "../View/ComponentView.h"
 #include "../View/GeometryViewerView.h"
+#include "../View/ViewportView.h"
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "core/Loop.h"
 
@@ -144,6 +145,9 @@ namespace editor {
 		// Scene and Component Windows
 		auto loadedProject = ProjectBrowserView::Get().GetLoadedProject();
 		if (loadedProject) {
+			auto& viewport = drosim::editor::ViewportView::Get();
+			viewport.Initialize();  // Will only initialize once
+			viewport.Draw();
 
 			// Scene Window
 			SceneView::Get().SetActiveProject(loadedProject);
@@ -153,9 +157,7 @@ namespace editor {
 			ComponentView::Get().SetActiveProject(loadedProject);
 			ComponentView::Get().Draw();
 
-
 			GeometryViewerView::Get().Draw();
-
 		}
 	}
 
