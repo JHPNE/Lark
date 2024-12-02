@@ -11,6 +11,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <string>
 #include <unordered_map>
+class Project;
 
 struct ViewportGeometry {
     std::string name;
@@ -18,7 +19,9 @@ struct ViewportGeometry {
     uint32_t entity_id{static_cast<uint32_t>(Utils::INVALIDID)};
     bool visible{true};
 };
+
 class GeometryViewerView {
+
 public:
     static GeometryViewerView& Get() {
         static GeometryViewerView instance;
@@ -41,6 +44,8 @@ public:
 
     void Draw();
     void EnsureFramebuffer(float width, float height);
+
+    void SetActiveProject(std::shared_ptr<Project> activeProject) { project = activeProject; }
 
 private:
     void UpdateTransformFromGuizmo(ViewportGeometry* geometry, const float* matrix) {
@@ -101,4 +106,6 @@ private:
     ImGuizmo::OPERATION m_guizmoOperation{ImGuizmo::OPERATION::TRANSLATE}; // Guizmo operation
     bool m_isUsingGuizmo{false}; // Is guizmo being used?
     float m_guizmoMatrix[4][4]{0.0f}; // Guizmo matrix
+
+    std::shared_ptr<Project> project;
 };

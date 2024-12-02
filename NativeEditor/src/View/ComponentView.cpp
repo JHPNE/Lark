@@ -41,6 +41,18 @@ void ComponentView::Draw() {
                     float pos[3] = { position.x, position.y, position.z };
                     if (ImGui::DragFloat3("##Position", pos, 0.1f)) {
                         transform->SetPosition({ pos[0], pos[1], pos[2] });
+                        transform_component test{};
+                        test.position[0] = transform->GetPosition().x;
+                        test.position[1] = transform->GetPosition().y;
+                        test.position[2] = transform->GetPosition().z;
+                        test.rotation[0] = transform->GetRotation().x;
+                        test.rotation[1] = transform->GetRotation().y;
+                        test.rotation[2] = transform->GetRotation().z;
+                        test.scale[0] = transform->GetScale().x;
+                        test.scale[1] = transform->GetScale().y;
+                        test.scale[2] = transform->GetScale().z;
+
+                        SetEntityTransform(selectedEntity->GetID(), test);
                     }
 
                     // Rotation
@@ -49,6 +61,18 @@ void ComponentView::Draw() {
                     ImGui::Text("Rotation");
                     if (ImGui::DragFloat3("##Rotation", rot, 0.1f)) {
                         transform->SetRotation({ rot[0], rot[1], rot[2] });
+                        transform_component test{};
+                        test.position[0] = transform->GetPosition().x;
+                        test.position[1] = transform->GetPosition().y;
+                        test.position[2] = transform->GetPosition().z;
+                        test.rotation[0] = transform->GetRotation().x;
+                        test.rotation[1] = transform->GetRotation().y;
+                        test.rotation[2] = transform->GetRotation().z;
+                        test.scale[0] = transform->GetScale().x;
+                        test.scale[1] = transform->GetScale().y;
+                        test.scale[2] = transform->GetScale().z;
+
+                        SetEntityTransform(selectedEntity->GetID(), test);
                     }
 
                     // Scale
@@ -57,6 +81,18 @@ void ComponentView::Draw() {
                     ImGui::Text("Scale");
                     if (ImGui::DragFloat3("##Scale", scl, 0.1f)) {
                         transform->SetScale({ scl[0], scl[1], scl[2] });
+                        transform_component test{};
+                        test.position[0] = transform->GetPosition().x;
+                        test.position[1] = transform->GetPosition().y;
+                        test.position[2] = transform->GetPosition().z;
+                        test.rotation[0] = transform->GetRotation().x;
+                        test.rotation[1] = transform->GetRotation().y;
+                        test.rotation[2] = transform->GetRotation().z;
+                        test.scale[0] = transform->GetScale().x;
+                        test.scale[1] = transform->GetScale().y;
+                        test.scale[2] = transform->GetScale().z;
+
+                        SetEntityTransform(selectedEntity->GetID(), test);
                     }
                 }
             }

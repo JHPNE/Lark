@@ -1,9 +1,8 @@
 #pragma once
 #include <Utils/System/Serialization.h>
-
+#include "../Utils/MathUtils.h" // Assuming you have a math utility header
 #include "Component.h"
 #include "tinyxml2.h"
-#include "../Utils/MathUtils.h" // Assuming you have a math utility header
 
 using namespace MathUtils;
 
@@ -33,7 +32,9 @@ public:
     const Vec3& GetScale() const { return m_scale; }
     void SetScale(const Vec3& scale) { m_scale = scale; }
     void SetScale(float x, float y, float z) { m_scale = Vec3(x, y, z); }
-    void SetScale(float uniform) { m_scale = Vec3(uniform, uniform, uniform); }
+    void SetScale(float uniform) {
+        m_scale = Vec3(uniform, uniform, uniform);
+    }
 
     // Utility functions
     void Reset() {

@@ -1,22 +1,12 @@
 #include "GeometryViewerView.h"
+#include "../Project/Project.h"
 #include "../Utils/ImGuizmoManager.h"
 
-#include <iostream>
-
 void GeometryViewerView::CreateEntityForGeometry(ViewportGeometry* geometry) {
-    // Create default transform data
-    transform_component transform{};
-    // Initialize all arrays to prevent undefined behavior
-    memset(&transform, 0, sizeof(transform_component));
-    transform.scale[0] = transform.scale[1] = transform.scale[2] = 1.0f;
+    std::shared_ptr<Scene> activeScene = project->GetActiveScene();
 
-    // Create entity descriptor with transform
-    game_entity_descriptor desc{};
-    desc.transform = transform;
-    // We don't need script component for now, it's already zero-initialized
-
-    // Create the entity
-    geometry->entity_id = CreateGameEntity(&desc);
+    auto entity = activeScene->CreateEntityInternal(geometry->name);
+    geometry->entity_id = entity->GetID();
 }
 
 void GeometryViewerView::RemoveGeometry(const std::string& name) {
@@ -71,7 +61,7 @@ void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Ge
 }
 
 void GeometryViewerView::Draw() {
-    if (!m_initialized) return;
+    if (!m_initialized || !project) return;
 
     // Initialize ImGuizmo for this frame
     ImGuizmo::BeginFrame();
@@ -220,6 +210,7 @@ void GeometryViewerView::Draw() {
 }
 
 void GeometryViewerView::DrawControls() {
+    std::shared_ptr<Scene> activeScene = project->GetActiveScene();
     ImGui::PushID("GeometryViewerControls");
     if (ImGui::Begin("Geometry Controls##ViewerControls")) {
         // Camera controls group
@@ -303,7 +294,7 @@ void GeometryViewerView::DrawControls() {
                         }
 
                         if (changed) {
-                            SetEntityTransform(geom->entity_id, current_transform);
+                            SetEntityTransform(m_selectedGeometry->entity_id, current_transform);
                         }
 
                         if (ImGui::Button("Reset Transform")) {
