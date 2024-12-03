@@ -148,6 +148,11 @@ extern "C" {
     ENGINE_API bool RegisterScript(const char* script_name) {
         if (!script_name) return false;
 
+        size_t tag = drosim::script::detail::string_hash()(script_name);
+        if (drosim::script::detail::script_exists(tag)) {
+            return false;  // Script already registered
+        }
+
         auto creator = [](drosim::game_entity::entity entity) -> drosim::script::detail::script_ptr {
             return std::make_unique<PythonScriptWrapper>(entity);
         };

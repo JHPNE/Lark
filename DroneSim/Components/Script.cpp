@@ -71,6 +71,14 @@ namespace drosim::script {
 			}
 		}
 
+		script_registry& get_script_registry() {
+			return drosim::script::registry();
+		}
+
+		bool script_exists(size_t tag) {
+			return drosim::script::registry().find(tag) != registry().end();
+		}
+
 	} // namespace detail
 
 	void shutdown() {

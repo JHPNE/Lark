@@ -112,6 +112,7 @@ namespace drosim {
 			}
 
 			u8 add_script_name(const char* name);
+			bool script_exists(size_t tag);
 #define REGISTER_SCRIPT(TYPE) \
                     namespace { \
                         const u8 _reg##TYPE { \
