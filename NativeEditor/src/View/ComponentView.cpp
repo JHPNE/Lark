@@ -36,62 +36,47 @@ void ComponentView::Draw() {
             // Transform Component
             if (auto transform = selectedEntity->GetComponent<Transform>()) {
                 if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    // Position
+
                     Vec3 position = transform->GetPosition();
-                    float pos[3] = { position.x, position.y, position.z };
+                    Vec3 rotation = transform->GetRotation();
+                    Vec3 scale = transform->GetScale();
+
+                    transform_component test{};
+
+                    float pos[3];
+                    float rot[3];
+                    float scl[3];
+
+                    if (GetEntityTransform(selectedEntity->GetID(), &test)) {
+                        memcpy(pos, Transform::loadFromEngine(&test), 3 * sizeof(float));
+                        memcpy(rot, Transform::loadFromEngine(&test) + 3, 3 * sizeof(float));
+                        memcpy(scl, Transform::loadFromEngine(&test) + 6, 3 * sizeof(float));
+                    } else {
+                        memcpy(pos, Vec3::toFloat(position), 3 * sizeof(float));
+                        memcpy(rot, Vec3::toFloat(rotation), 3 * sizeof(float));
+                        memcpy(scl, Vec3::toFloat(scale), 3 * sizeof(float));
+                    }
+
+                    // Position
                     if (ImGui::DragFloat3("##Position", pos, 0.1f)) {
                         transform->SetPosition({ pos[0], pos[1], pos[2] });
-                        transform_component test{};
-                        test.position[0] = transform->GetPosition().x;
-                        test.position[1] = transform->GetPosition().y;
-                        test.position[2] = transform->GetPosition().z;
-                        test.rotation[0] = transform->GetRotation().x;
-                        test.rotation[1] = transform->GetRotation().y;
-                        test.rotation[2] = transform->GetRotation().z;
-                        test.scale[0] = transform->GetScale().x;
-                        test.scale[1] = transform->GetScale().y;
-                        test.scale[2] = transform->GetScale().z;
-
+                        transform->packForEngine(&test);
                         SetEntityTransform(selectedEntity->GetID(), test);
                     }
 
                     // Rotation
-                    Vec3 rotation = transform->GetRotation();
-                    float rot[3] = { rotation.x, rotation.y, rotation.z };
                     ImGui::Text("Rotation");
                     if (ImGui::DragFloat3("##Rotation", rot, 0.1f)) {
                         transform->SetRotation({ rot[0], rot[1], rot[2] });
-                        transform_component test{};
-                        test.position[0] = transform->GetPosition().x;
-                        test.position[1] = transform->GetPosition().y;
-                        test.position[2] = transform->GetPosition().z;
-                        test.rotation[0] = transform->GetRotation().x;
-                        test.rotation[1] = transform->GetRotation().y;
-                        test.rotation[2] = transform->GetRotation().z;
-                        test.scale[0] = transform->GetScale().x;
-                        test.scale[1] = transform->GetScale().y;
-                        test.scale[2] = transform->GetScale().z;
-
+                        transform->packForEngine(&test);
                         SetEntityTransform(selectedEntity->GetID(), test);
                     }
 
                     // Scale
-                    Vec3 scale = transform->GetScale();
-                    float scl[3] = { scale.x, scale.y, scale.z };
                     ImGui::Text("Scale");
                     if (ImGui::DragFloat3("##Scale", scl, 0.1f)) {
                         transform->SetScale({ scl[0], scl[1], scl[2] });
-                        transform_component test{};
-                        test.position[0] = transform->GetPosition().x;
-                        test.position[1] = transform->GetPosition().y;
-                        test.position[2] = transform->GetPosition().z;
-                        test.rotation[0] = transform->GetRotation().x;
-                        test.rotation[1] = transform->GetRotation().y;
-                        test.rotation[2] = transform->GetRotation().z;
-                        test.scale[0] = transform->GetScale().x;
-                        test.scale[1] = transform->GetScale().y;
-                        test.scale[2] = transform->GetScale().z;
-
+                        transform->packForEngine(&test);
                         SetEntityTransform(selectedEntity->GetID(), test);
                     }
                 }

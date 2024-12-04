@@ -74,9 +74,7 @@ public:
 
     std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name) {
         game_entity_descriptor desc{};
-        desc.transform.position[0] = 1.0f;
-        desc.transform.position[1] = 2.0f;
-        desc.transform.position[2] = 3.0f;
+        desc.transform.position[0] = desc.transform.position[1] = desc.transform.position[2] = 0.f;
         // Zero out rotation
         std::memset(desc.transform.rotation, 0, sizeof(float) * 3);
         // Set scale to 1

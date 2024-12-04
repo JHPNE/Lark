@@ -1,8 +1,9 @@
 #pragma once
-#include <Utils/System/Serialization.h>
 #include "../Utils/MathUtils.h" // Assuming you have a math utility header
 #include "Component.h"
+#include "EngineAPI.h"
 #include "tinyxml2.h"
+#include <Utils/System/Serialization.h>
 
 using namespace MathUtils;
 
@@ -41,6 +42,36 @@ public:
         m_position = Vec3(0.0f, 0.0f, 0.0f);
         m_rotation = Vec3(0.0f, 0.0f, 0.0f);
         m_scale = Vec3(1.0f, 1.0f, 1.0f);
+    }
+
+    void packForEngine(transform_component *transform_component) {
+      transform_component->position[0] = this->GetPosition().x;
+      transform_component->position[1] = this->GetPosition().y;
+      transform_component->position[2] = this->GetPosition().z;
+
+      transform_component->rotation[0] = this->GetRotation().x;
+      transform_component->rotation[1] = this->GetRotation().y;
+      transform_component->rotation[2] = this->GetRotation().z;
+
+      transform_component->scale[0] = this->GetScale().x;
+      transform_component->scale[1] = this->GetScale().y;
+      transform_component->scale[2] = this->GetScale().z;
+    }
+
+    static float* loadFromEngine(transform_component *transform_component) {
+        static float value[9];
+        value[0] = transform_component->position[0];
+        value[1] = transform_component->position[1];
+        value[2] = transform_component->position[2];
+
+        value[3] = transform_component->rotation[0];
+        value[4] = transform_component->rotation[1];
+        value[5] = transform_component->rotation[2];
+
+        value[6] = transform_component->scale[0];
+        value[7] = transform_component->scale[1];
+        value[8] = transform_component->scale[2];
+        return value;
     }
 
     // Serialization interface
