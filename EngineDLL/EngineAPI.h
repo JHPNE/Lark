@@ -17,16 +17,14 @@
     #pragma warning Unknown platform - default to no export/import
 #endif
 
-
+#include "Core/GameLoop.h"
+#include "EngineAPI.h"
+#include <CommonHeaders.h>
+#include <DroneSimAPI/GeometryAPI.h>
+#include <Entity.h>
 #include <Id.h>
 #include <Script.h>
-#include <CommonHeaders.h>
-#include "EngineAPI.h"
-#include <Entity.h>
 #include <Transform.h>
-#include <Script.h>
-#include "Core/GameLoop.h"
-#include <DroneSimAPI/GeometryAPI.h>
 
 struct transform_component {
     float position[3];
@@ -38,9 +36,14 @@ struct script_component {
     drosim::script::detail::script_creator script_creator;  // Use the actual type instead of void*
 };
 
+struct geometry_component {
+  const char *file_name;
+};
+
 struct game_entity_descriptor {
     transform_component transform;
     script_component script;
+    geometry_component geometry;
 };
 
 namespace content_tools {

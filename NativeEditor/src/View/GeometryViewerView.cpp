@@ -4,8 +4,9 @@
 
 void GeometryViewerView::CreateEntityForGeometry(ViewportGeometry* geometry) {
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
-
-    auto entity = activeScene->CreateEntityInternal(geometry->name);
+    geometry_component geo{};
+    geo.file_name = geometry->name.c_str();
+    auto entity = activeScene->CreateEntityInternal(geometry->name, &geo);
     geometry->entity_id = entity->GetID();
 }
 
@@ -50,7 +51,6 @@ void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Ge
         m_geometries[name] = std::make_unique<ViewportGeometry>();
         m_geometries[name]->name = name;
         m_geometries[name]->buffers = std::move(buffers);
-        m_geometries[name]->visible = true;
 
         // Create an engine entity for this geometry
         CreateEntityForGeometry(m_geometries[name].get());
@@ -62,7 +62,7 @@ void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Ge
 
 void GeometryViewerView::Draw() {
     if (!m_initialized || !project) return;
-
+    std::shared_ptr<Scene> activeScene = project->GetActiveScene();
     // Initialize ImGuizmo for this frame
     ImGuizmo::BeginFrame();
 
@@ -107,7 +107,12 @@ void GeometryViewerView::Draw() {
 
             // Render all visible geometries
             for (const auto& [name, geom] : m_geometries) {
-                if (!geom->visible) continue;
+                std::shared_ptr<Scene> activeScene = project->GetActiveScene();
+                auto entity = activeScene->GetEntity(geom->entity_id);
+                if (auto* geometry = entity->GetComponent<Geometry>()) {
+                    if (!geometry->IsVisible()) continue;
+                }
+
 
                 // Get the transform matrix from the engine
                 glm::mat4 model = GetEntityTransformMatrix(geom->entity_id);
@@ -144,12 +149,14 @@ void GeometryViewerView::Draw() {
                 );
 
                 // Handle viewport clicking for selection
+
                 if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGuizmo::IsOver()) {
                     if (!m_geometries.empty()) {
                         auto it = m_geometries.begin();
                         m_selectedGeometry = it->second.get();
                     }
                 }
+
 
                 // Set up ImGuizmo
                 ImGuizmo::SetDrawlist();
@@ -159,41 +166,50 @@ void GeometryViewerView::Draw() {
 
                 // Draw Guizmo for selected geometry
                 if (m_selectedGeometry) {
-                    glm::mat4 model = GetEntityTransformMatrix(m_selectedGeometry->entity_id);
+                    auto entity = activeScene->GetEntity(m_selectedGeometry->entity_id);
+                    if (entity && entity->IsSelected()) {
+                        // Check if the entity is active
+                        if (auto* geometry = entity->GetComponent<Geometry>()) {
+                            if (geometry->IsVisible()) {
+                                // Check if the geometry is visible
+                                glm::mat4 model = GetEntityTransformMatrix(m_selectedGeometry->entity_id);
 
-                    // Convert matrices for ImGuizmo
-                    float modelMatrix[16], viewMatrix[16], projMatrix[16];
-                    memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
+                                // Convert matrices for ImGuizmo
+                                float modelMatrix[16], viewMatrix[16], projMatrix[16];
+                                memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
 
-                    // Create the same view matrix as used for rendering
-                    glm::mat4 imguizmoView = view;
+                                // Create the same view matrix as used for rendering
+                                glm::mat4 imguizmoView = view;
 
-                    // Flip the Y-axis for ImGuizmo coordinate system
-                    glm::mat4 flipY = glm::mat4(1.0f);
-                    flipY[1][1] = -1.0f;
+                                // Flip the Y-axis for ImGuizmo coordinate system
+                                glm::mat4 flipY = glm::mat4(1.0f);
+                                flipY[1][1] = -1.0f;
 
-                    // Apply the Y-axis flip to the view matrix
-                    imguizmoView = flipY * imguizmoView;
+                                // Apply the Y-axis flip to the view matrix
+                                imguizmoView = flipY * imguizmoView;
 
-                    memcpy(viewMatrix, glm::value_ptr(imguizmoView), sizeof(float) * 16);
-                    memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
+                                memcpy(viewMatrix, glm::value_ptr(imguizmoView), sizeof(float) * 16);
+                                memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
 
-                    // Draw the gizmo with snap values
-                    float snapValues[3] = { 0.1f, 1.0f, 0.1f }; // Translation (0.1), Rotation (1 degree), Scale (0.1)
+                                // Draw the gizmo with snap values
+                                float snapValues[3] = { 0.1f, 1.0f, 0.1f }; // Translation (0.1), Rotation (1 degree), Scale (0.1)
 
-                    if (ImGuizmo::Manipulate(
-                        viewMatrix,
-                        projMatrix,
-                        (ImGuizmo::OPERATION)m_guizmoOperation,
-                        ImGuizmo::MODE::LOCAL,
-                        modelMatrix,
-                        nullptr,
-                        snapValues
-                    )) {
-                        m_isUsingGuizmo = true;
-                        UpdateTransformFromGuizmo(m_selectedGeometry, modelMatrix);
-                    } else {
-                        m_isUsingGuizmo = false;
+                                if (ImGuizmo::Manipulate(
+                                    viewMatrix,
+                                    projMatrix,
+                                    (ImGuizmo::OPERATION)m_guizmoOperation,
+                                    ImGuizmo::MODE::LOCAL,
+                                    modelMatrix,
+                                    nullptr,
+                                    snapValues
+                                )) {
+                                    m_isUsingGuizmo = true;
+                                    UpdateTransformFromGuizmo(m_selectedGeometry, modelMatrix);
+                                } else {
+                                    m_isUsingGuizmo = false;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -256,53 +272,6 @@ void GeometryViewerView::DrawControls() {
                     default:
                         m_guizmoOperation = ImGuizmo::OPERATION::TRANSLATE;
                         break;
-                }
-            }
-        }
-
-        // Geometry list and controls
-        if (ImGui::CollapsingHeader("Geometries", ImGuiTreeNodeFlags_DefaultOpen)) {
-            for (auto& [name, geom] : m_geometries) {
-                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
-                if (m_selectedGeometry == geom.get()) {
-                    flags |= ImGuiTreeNodeFlags_Selected;
-                }
-
-                bool nodeOpen = ImGui::TreeNodeEx(name.c_str(), flags);
-
-                // Handle selection
-                if (ImGui::IsItemClicked()) {
-                    m_selectedGeometry = (m_selectedGeometry == geom.get()) ? nullptr : geom.get();
-                }
-
-                if (nodeOpen) {
-                    ImGui::Checkbox("Visible", &geom->visible);
-
-                    transform_component current_transform{};
-                    if (GetGeometryTransform(geom.get(), current_transform)) {
-                        bool changed = false;
-
-                        changed |= ImGui::DragFloat3("Position", current_transform.position, 0.1f);
-                        changed |= ImGui::DragFloat3("Rotation", current_transform.rotation, 1.0f);
-
-                        if (ImGui::DragFloat3("Scale", current_transform.scale, 0.1f)) {
-                            // Ensure minimum scale
-                            current_transform.scale[0] = std::max(0.001f, current_transform.scale[0]);
-                            current_transform.scale[1] = std::max(0.001f, current_transform.scale[1]);
-                            current_transform.scale[2] = std::max(0.001f, current_transform.scale[2]);
-                            changed = true;
-                        }
-
-                        if (changed) {
-                            SetEntityTransform(m_selectedGeometry->entity_id, current_transform);
-                        }
-
-                        if (ImGui::Button("Reset Transform")) {
-                            ResetGeometryTransform(geom.get());
-                        }
-                    }
-
-                    ImGui::TreePop();
                 }
             }
         }

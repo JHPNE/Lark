@@ -1,8 +1,9 @@
 #include "ComponentView.h"
-#include "../Project/Project.h"  
-#include <imgui.h>
-#include "Components/Script.h"
+#include "../Project/Project.h"
+#include "Components/Geometry.h"
 
+#include "Components/Script.h"
+#include <imgui.h>
 
 void ComponentView::Draw() {
     if (!project) return;
@@ -102,6 +103,29 @@ void ComponentView::Draw() {
                         //selectedEntity->RemoveComponent<Script>();
                         activeScene->RemoveComponentFromEntity<Script>(selectedEntity->GetID());
                     }
+                }
+            }
+
+            // Geometry Component(s)
+            if (auto* geometry = selectedEntity->GetComponent<Geometry>()) {
+                if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    // Style the script name box
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+
+                    // Create a box showing the script name
+                    ImGui::BeginChild("GeometryBox", ImVec2(ImGui::GetContentRegionAvail().x, 30), true);
+                    ImGui::Text("Geometry: %s", geometry->GetGeometryName().c_str());
+
+                    ImGui::EndChild();
+
+                    bool isVisible = geometry->IsVisible();
+                    if (ImGui::Checkbox("Visible", &isVisible)) {
+                        geometry->SetVisible(isVisible);
+                    }
+
+                    ImGui::PopStyleColor();
+                    ImGui::PopStyleVar();
                 }
             }
 

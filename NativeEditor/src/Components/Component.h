@@ -9,6 +9,7 @@ class GameEntity;
 class Component;
 class Transform;
 class Script;
+class Geometry;
 class Scene;
 
 using namespace MathUtils;
@@ -31,11 +32,16 @@ struct ScriptInitializer : ComponentInitializer {
 	// Add any other script-specific initialization data
 };
 
+struct GeometryInitializer : ComponentInitializer {
+	char* geometryName;
+};
+
 
 enum class ComponentType {
 	None = 0,
 	Transform,
 	Script,
+	Geometry,
 	// Add other component types here
 };
 

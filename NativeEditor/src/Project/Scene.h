@@ -1,14 +1,15 @@
 #pragma once
-#include <string>
-#include <memory>
-#include <vector>
-#include "GameEntity.h"
 #include "../Utils/Etc/Logger.h"
 #include "../Utils/MathUtils.h"
 #include "../Utils/System/GlobalUndoRedo.h"
+#include "Components/Geometry.h"
 #include "EngineAPI.h"
-#include "Utils/Utils.h"
+#include "GameEntity.h"
 #include "Utils/System/Serialization.h"
+#include "Utils/Utils.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 using namespace MathUtils;
 
@@ -72,7 +73,7 @@ public:
         return entity;
     }
 
-    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name) {
+    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name, geometry_component* geom = nullptr) {
         game_entity_descriptor desc{};
         desc.transform.position[0] = desc.transform.position[1] = desc.transform.position[2] = 0.f;
         // Zero out rotation
@@ -80,10 +81,26 @@ public:
         // Set scale to 1
         desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
 
+
+        if (geom != nullptr) {
+            desc.geometry.file_name = geom->file_name;
+        }
+
         uint32_t entityId = CreateGameEntity(&desc);
         auto entity = std::shared_ptr<GameEntity>(
             new GameEntity(name, entityId, shared_from_this())
         );
+
+        if (geom != nullptr) {
+            // Create and initialize the new component
+            auto* geometry = new Geometry(entity.get());
+            GeometryInitializer geometryInit;
+            geometry->SetGeometryName(geom->file_name);
+
+            // Store component in entity
+            entity->m_components[geometry->GetType()] = std::unique_ptr<Component>(geometry);
+
+        }
 
 		entity->SetActive(m_isActive);
         m_entities.push_back(entity);
@@ -213,6 +230,11 @@ public:
         // Fill script data
         if (auto* script = entity->GetComponent<Script>()) {
             desc.script.script_creator = GetScriptCreator(script->GetScriptName().c_str());
+        }
+
+        // Fill geometry data
+        if (auto* geometry = entity->GetComponent<Geometry>()) {
+            desc.geometry.file_name = geometry->GetGeometryName().c_str();
         }
 
         // Remove old engine entity and create new one
