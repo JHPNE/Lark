@@ -154,6 +154,7 @@ namespace editor {
 
 			GeometryViewerView::Get().SetActiveProject(loadedProject);
 			GeometryViewerView::Get().Draw();
+			GeometryViewerView::Get().LoadExistingGeometry();
 		}
 	}
 
@@ -265,7 +266,7 @@ namespace editor {
 						segments
 					);
 
-					GeometryViewerView::Get().AddGeometry("prim", "uv_sphere", GeometryType::PrimitiveType, m_geometry.get());
+					//GeometryViewerView::Get().AddGeometry("prim", "uv_sphere", GeometryType::PrimitiveType, m_geometry.get());
 				}
 
 			    if (ImGui::Button("Load Obj")) {
@@ -344,7 +345,7 @@ namespace editor {
 		                m_geometry = drosim::editor::Geometry::LoadGeometry(m_geometryNameBuffer);
 		                m_showGeometryCreation = false;
 		                ImGui::CloseCurrentPopup();
-		                GeometryViewerView::Get().AddGeometry("asd", m_geometryNameBuffer, GeometryType::ObjImport, m_geometry.get());
+		                //GeometryViewerView::Get().AddGeometry("asd", m_geometryNameBuffer, GeometryType::ObjImport, m_geometry.get());
 
 		                // Reset buffer for next time
 		                strcpy(m_geometryNameBuffer, "");

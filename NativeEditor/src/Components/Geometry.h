@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include "EngineAPI.h"
+#include "Geometry/Geometry.h"
 #include "Utils/System/Serialization.h"
 #include <string>
 
@@ -26,6 +27,20 @@ public:
   void SetVisible(bool visible) { this->visible = visible; };
   void SetGeometrySource(const std::string &source) { m_geometrySource = source; };
   void SetGeometryType(GeometryType type) { m_geometryType = type; };
+  GeometryType GetGeometryType() const { return m_geometryType; };
+
+  std::unique_ptr<drosim::editor::Geometry> loadGeometry() {
+    float size[3] = {5.0f, 5.0f, 5.0f};
+    uint32_t segments[3] = {32, 16, 1};
+
+    return m_geometryType == ObjImport
+                ? drosim::editor::Geometry::LoadGeometry(m_geometrySource.c_str())
+                : drosim::editor::Geometry::CreatePrimitive(
+                        content_tools::PrimitiveMeshType::uv_sphere,
+                        size,
+                        segments
+                    );
+  }
 
 
   // Serialization interface

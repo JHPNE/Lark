@@ -1,6 +1,8 @@
 #include "ComponentView.h"
+
 #include "../Project/Project.h"
 #include "Components/Geometry.h"
+#include "GeometryViewerView.h"
 
 #include "Components/Script.h"
 #include <imgui.h>

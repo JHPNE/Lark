@@ -349,29 +349,35 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
             }
 
             std::shared_ptr<GameEntity> entity = nullptr;
+
             if (auto geometryElement = entityElement->FirstChildElement("Geometry")) {
-                auto geometryName = geometryElement->FirstChildElement("GeometryName")->Attribute("GeometryName");
-                auto geometrySourceElement = geometryElement->FirstChildElement("GeometrySource")->Attribute("GeometrySourceElement");
-                auto geometryType = geometryElement->FirstChildElement("GeometrySource")->Attribute("GeometryType");
+                auto nameElement = geometryElement->FirstChildElement("GeometryName");
+                auto sourceElement = geometryElement->FirstChildElement("GeometrySource");
 
-                float size[3] = {5.0f, 5.0f, 5.0f};
-                uint32_t segments[3] = {32, 16, 1};
+                if (!nameElement || !sourceElement) {
+                    Logger::Get().Log(MessageType::Warning, "Missing geometry elements for entity: " + entityName);
+                    continue;
+                }
 
-                auto m_geometry = geometryType == "O"
-                ? drosim::editor::Geometry::LoadGeometry(geometrySourceElement)
-                : drosim::editor::Geometry::CreatePrimitive(
-                        content_tools::PrimitiveMeshType::uv_sphere,
-                        size,
-                        segments
-                    );
+                auto geometryName = nameElement->Attribute("GeometryName");
+                auto geometrySourceElement = sourceElement->Attribute("GeometrySourceElement");
+                auto geometryType = sourceElement->Attribute("GeometryType");
 
-                auto geomType = geometryType == "0"
+                if (!geometryName || !geometrySourceElement || !geometryType) {
+                    Logger::Get().Log(MessageType::Warning, "Missing geometry attributes for entity: " + entityName);
+                    continue;
+                }
+
+                auto geomType = geometryType == "O"
                 ? GeometryType::ObjImport
                 : GeometryType::PrimitiveType;
 
-                uint32_t entityID = GeometryViewerView::Get().AddGeometry(geometryName, geometrySourceElement,  geomType, m_geometry.get());
-                entity = scene->GetEntity(entityID);
+                geometry_component geom{};
+                geom.type = geomType;
+                geom.file_name = geometrySourceElement;
+                geom.name = geometryName;
 
+                entity = scene->CreateEntityInternal(entityName, &geom);
             } else {
                 entity = scene->CreateEntityInternal(entityName);
             }

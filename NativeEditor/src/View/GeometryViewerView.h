@@ -15,8 +15,6 @@ class Project;
 
 struct ViewportGeometry {
     std::string name;
-    std::string file;
-    GeometryType type;
     std::unique_ptr<GeometryRenderer::LODGroupBuffers> buffers;
     uint32_t entity_id{static_cast<uint32_t>(Utils::INVALIDID)};
     bool visible{true};
@@ -33,7 +31,7 @@ public:
     ~GeometryViewerView();
 
     void SetUpViewport();
-    uint32_t AddGeometry(const std::string& name, const std::string& file, GeometryType type, drosim::editor::Geometry* geometry);
+    void AddGeometry(const std::string& name, uint32_t id, drosim::editor::Geometry* geometry);
     void RemoveGeometry(const std::string& name);
     void HandleInput();
     void SetGeometry(drosim::editor::Geometry* geometry) {
@@ -46,8 +44,8 @@ public:
 
     void Draw();
     void EnsureFramebuffer(float width, float height);
-
-    void SetActiveProject(std::shared_ptr<Project> activeProject) { project = activeProject; }
+    void SetActiveProject(std::shared_ptr<Project> activeProject);
+    void LoadExistingGeometry();
 
 private:
     void UpdateTransformFromGuizmo(ViewportGeometry* geometry, const float* matrix) {
@@ -87,6 +85,7 @@ private:
     bool GetGeometryTransform(ViewportGeometry* geom, transform_component& transform);
 
 
+    bool m_loaded = false;
     bool m_initialized = false;
     // OpenGL rendering resources
     GLuint m_framebuffer = 0;

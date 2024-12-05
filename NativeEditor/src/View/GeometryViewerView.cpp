@@ -2,15 +2,21 @@
 #include "../Project/Project.h"
 #include "../Utils/ImGuizmoManager.h"
 
-uint32_t GeometryViewerView::CreateEntityForGeometry(ViewportGeometry* geometry) {
+void GeometryViewerView::SetActiveProject(std::shared_ptr<Project> activeProject) {
+    project = activeProject;
+    m_initialized = true;
+}
+
+void GeometryViewerView::LoadExistingGeometry() {
+    if (m_loaded) return;
+
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
-    geometry_component geo{};
-    geo.name = geometry->name.c_str();
-    geo.file_name = geometry->file.c_str();
-    geo.type = geometry->type;
-    auto entity = activeScene->CreateEntityInternal(geometry->name, &geo);
-    geometry->entity_id = entity->GetID();
-    return entity->GetID();
+    for (auto entity : activeScene->GetEntities()) {
+        if (auto geometry = entity->GetComponent<Geometry>()) {
+            AddGeometry(geometry->GetGeometryName(), entity->GetID(), geometry->loadGeometry().get());
+        }
+    }
+    m_loaded = true;
 }
 
 void GeometryViewerView::RemoveGeometry(const std::string& name) {
@@ -46,25 +52,18 @@ bool GeometryViewerView::GetGeometryTransform(ViewportGeometry* geom, transform_
     return GetEntityTransform(geom->entity_id, &transform);
 }
 
-uint32_t GeometryViewerView::AddGeometry(const std::string& name, const std::string& file, GeometryType type, drosim::editor::Geometry* geometry) {
-    if (!geometry) return Utils::INVALIDID;
+//TODO remove unecessary args
+void GeometryViewerView::AddGeometry(const std::string& name, uint32_t id, drosim::editor::Geometry* geometry) {
+    if (!geometry) return;
 
-    uint32_t entity_id = Utils::INVALIDID;
     auto buffers = GeometryRenderer::CreateBuffersFromGeometry(geometry);
     if (buffers) {
         m_geometries[name] = std::make_unique<ViewportGeometry>();
         m_geometries[name]->name = name;
         m_geometries[name]->buffers = std::move(buffers);
-        m_geometries[name]->file = file;
-        m_geometries[name]->type = type;
-
-        // Create an engine entity for this geometry
-        entity_id = CreateEntityForGeometry(m_geometries[name].get());
-
-        m_initialized = true;
+        m_geometries[name]->entity_id = id;
         m_selectedGeometry = m_geometries[name].get();
     }
-    return entity_id;
 }
 
 void GeometryViewerView::Draw() {
