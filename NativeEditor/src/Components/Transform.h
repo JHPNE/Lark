@@ -2,7 +2,9 @@
 #include "../Utils/MathUtils.h" // Assuming you have a math utility header
 #include "Component.h"
 #include "EngineAPI.h"
+#include "Project/GameEntity.h"
 #include "tinyxml2.h"
+
 #include <Utils/System/Serialization.h>
 
 using namespace MathUtils;

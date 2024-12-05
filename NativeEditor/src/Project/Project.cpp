@@ -391,6 +391,10 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
                 if (auto transformElement = entityElement->FirstChildElement("Transform")) {
                     if (auto transform = entity->GetComponent<Transform>()) {
                         transform->Deserialize(transformElement, context);
+
+                        transform_component test{};
+                        transform->packForEngine(&test);
+                        SetEntityTransform(entity->GetID(), test);
                     }
                 }
 
