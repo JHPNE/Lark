@@ -15,6 +15,8 @@ class Project;
 
 struct ViewportGeometry {
     std::string name;
+    std::string file;
+    GeometryType type;
     std::unique_ptr<GeometryRenderer::LODGroupBuffers> buffers;
     uint32_t entity_id{static_cast<uint32_t>(Utils::INVALIDID)};
     bool visible{true};
@@ -31,7 +33,7 @@ public:
     ~GeometryViewerView();
 
     void SetUpViewport();
-    void AddGeometry(const std::string& name, drosim::editor::Geometry* geometry);
+    uint32_t AddGeometry(const std::string& name, const std::string& file, GeometryType type, drosim::editor::Geometry* geometry);
     void RemoveGeometry(const std::string& name);
     void HandleInput();
     void SetGeometry(drosim::editor::Geometry* geometry) {
@@ -81,7 +83,7 @@ private:
         }
     }
 
-    void CreateEntityForGeometry(ViewportGeometry* geometry);
+    uint32_t CreateEntityForGeometry(ViewportGeometry* geometry);
     bool GetGeometryTransform(ViewportGeometry* geom, transform_component& transform);
 
 

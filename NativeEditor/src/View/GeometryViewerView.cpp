@@ -2,12 +2,15 @@
 #include "../Project/Project.h"
 #include "../Utils/ImGuizmoManager.h"
 
-void GeometryViewerView::CreateEntityForGeometry(ViewportGeometry* geometry) {
+uint32_t GeometryViewerView::CreateEntityForGeometry(ViewportGeometry* geometry) {
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
     geometry_component geo{};
-    geo.file_name = geometry->name.c_str();
+    geo.name = geometry->name.c_str();
+    geo.file_name = geometry->file.c_str();
+    geo.type = geometry->type;
     auto entity = activeScene->CreateEntityInternal(geometry->name, &geo);
     geometry->entity_id = entity->GetID();
+    return entity->GetID();
 }
 
 void GeometryViewerView::RemoveGeometry(const std::string& name) {
@@ -43,21 +46,25 @@ bool GeometryViewerView::GetGeometryTransform(ViewportGeometry* geom, transform_
     return GetEntityTransform(geom->entity_id, &transform);
 }
 
-void GeometryViewerView::AddGeometry(const std::string& name, drosim::editor::Geometry* geometry) {
-    if (!geometry) return;
+uint32_t GeometryViewerView::AddGeometry(const std::string& name, const std::string& file, GeometryType type, drosim::editor::Geometry* geometry) {
+    if (!geometry) return Utils::INVALIDID;
 
+    uint32_t entity_id = Utils::INVALIDID;
     auto buffers = GeometryRenderer::CreateBuffersFromGeometry(geometry);
     if (buffers) {
         m_geometries[name] = std::make_unique<ViewportGeometry>();
         m_geometries[name]->name = name;
         m_geometries[name]->buffers = std::move(buffers);
+        m_geometries[name]->file = file;
+        m_geometries[name]->type = type;
 
         // Create an engine entity for this geometry
-        CreateEntityForGeometry(m_geometries[name].get());
+        entity_id = CreateEntityForGeometry(m_geometries[name].get());
 
         m_initialized = true;
         m_selectedGeometry = m_geometries[name].get();
     }
+    return entity_id;
 }
 
 void GeometryViewerView::Draw() {

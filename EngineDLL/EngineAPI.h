@@ -36,8 +36,15 @@ struct script_component {
     drosim::script::detail::script_creator script_creator;  // Use the actual type instead of void*
 };
 
+enum GeometryType {
+    PrimitiveType,
+    ObjImport,
+  };
+
 struct geometry_component {
-  const char *file_name;
+    const char *name;
+    const char *file_name;
+    GeometryType type;
 };
 
 struct game_entity_descriptor {

@@ -95,7 +95,9 @@ public:
             // Create and initialize the new component
             auto* geometry = new Geometry(entity.get());
             GeometryInitializer geometryInit;
-            geometry->SetGeometryName(geom->file_name);
+            geometry->SetGeometryName(geom->name);
+            geometry->SetGeometrySource(geom->file_name);
+            geometry->SetGeometryType(geom->type);
 
             // Store component in entity
             entity->m_components[geometry->GetType()] = std::unique_ptr<Component>(geometry);

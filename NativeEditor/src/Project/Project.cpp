@@ -1,11 +1,14 @@
 #include "Project.h"
-#include "../Utils/Etc/Logger.h"
 #include "../Utils/Etc/FileSystem.h"
+#include "../Utils/Etc/Logger.h"
 #include "../Utils/System/GlobalUndoRedo.h"
-#include <fstream>
-#include "Scene.h"
-#include "tinyxml2.h"
 #include "EngineAPI.h"
+#include "Geometry/Geometry.h"
+#include "Scene.h"
+#include "View/GeometryViewerView.h"
+#include "tinyxml2.h"
+
+#include <fstream>
 
 namespace {
     std::string ReadFileContent(const fs::path& path) {
@@ -270,6 +273,12 @@ void Project::Serialize(tinyxml2::XMLElement* element, SerializationContext& con
                 entityElement->LinkEndChild(scriptElement);
             }
 
+            if (auto geometry = entity->GetComponent<Geometry>()) {
+                auto geometryElement = context.document.NewElement("Geometry");
+                geometry->Serialize(geometryElement, context);
+                entityElement->LinkEndChild(geometryElement);
+            }
+
             sceneElement->LinkEndChild(entityElement);
         }
 
@@ -339,18 +348,47 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
                 continue;
             }
 
-            auto entity = scene->CreateEntityInternal(entityName);
+            std::shared_ptr<GameEntity> entity = nullptr;
+            if (auto geometryElement = entityElement->FirstChildElement("Geometry")) {
+                auto geometryName = geometryElement->FirstChildElement("GeometryName")->Attribute("GeometryName");
+                auto geometrySourceElement = geometryElement->FirstChildElement("GeometrySource")->Attribute("GeometrySourceElement");
+                auto geometryType = geometryElement->FirstChildElement("GeometrySource")->Attribute("GeometryType");
+
+                float size[3] = {5.0f, 5.0f, 5.0f};
+                uint32_t segments[3] = {32, 16, 1};
+
+                auto m_geometry = geometryType == "O"
+                ? drosim::editor::Geometry::LoadGeometry(geometrySourceElement)
+                : drosim::editor::Geometry::CreatePrimitive(
+                        content_tools::PrimitiveMeshType::uv_sphere,
+                        size,
+                        segments
+                    );
+
+                auto geomType = geometryType == "0"
+                ? GeometryType::ObjImport
+                : GeometryType::PrimitiveType;
+
+                uint32_t entityID = GeometryViewerView::Get().AddGeometry(geometryName, geometrySourceElement,  geomType, m_geometry.get());
+                entity = scene->GetEntity(entityID);
+
+            } else {
+                entity = scene->CreateEntityInternal(entityName);
+            }
+
             if (!entity) {
                 Logger::Get().Log(MessageType::Error,
                     "Failed to create entity: " + entityName);
             }
             else {
+                // Components who are not Bound to Entity Creation besides Transform
                 if (auto transformElement = entityElement->FirstChildElement("Transform")) {
                     if (auto transform = entity->GetComponent<Transform>()) {
                         transform->Deserialize(transformElement, context);
                     }
                 }
 
+                //TODO use Deserializer
                 if (auto scriptElement = entityElement->FirstChildElement("Script")) {
                     auto scriptName = scriptElement->FirstChildElement("ScriptName")->Attribute("Name");
                     auto it = std::find(m_loaded_scripts.begin(), m_loaded_scripts.end(), scriptName);
@@ -359,7 +397,6 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
                         scriptInit.scriptName = scriptName;
                         scene->AddComponentToEntity<Script>(entity->GetID(), &scriptInit);
                     }
-
                 }
             }
         }
