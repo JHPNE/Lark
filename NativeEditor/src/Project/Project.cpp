@@ -368,9 +368,10 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
                     continue;
                 }
 
-                auto geomType = geometryType == "O"
-                ? GeometryType::ObjImport
-                : GeometryType::PrimitiveType;
+                std::string geomTypeStr = geometryType;
+                auto geomType = (geomTypeStr == "O")
+                                ? GeometryType::ObjImport
+                                : GeometryType::PrimitiveType;
 
                 geometry_component geom{};
                 geom.type = geomType;
