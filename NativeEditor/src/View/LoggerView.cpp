@@ -1,5 +1,8 @@
 #pragma once
 #include "LoggerView.h"
+
+#include "Style.h"
+
 #include <imgui.h>
 
 
@@ -14,6 +17,8 @@ namespace LoggerView {
 
 		if (ImGui::Begin("Logger", &m_show, window_flags))
 		{
+			DrawWindowGradientBackground(ImVec4(0.10f,0.10f,0.13f,0.30f), ImVec4(0.10f,0.10f,0.13f,0.80f));
+
 			if (ImGui::Button("Clear")) Logger::Get().Clear();
 			ImGui::SameLine();
 			ImGui::Checkbox("Auto-scroll", &m_autoScroll);

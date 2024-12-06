@@ -3,6 +3,7 @@
 #include "../Project/Project.h"
 #include "Components/Geometry.h"
 #include "GeometryViewerView.h"
+#include "Style.h"
 
 #include "Components/Script.h"
 #include <imgui.h>
@@ -14,6 +15,7 @@ void ComponentView::Draw() {
     window_flags |= ImGuiWindowFlags_NoCollapse;
 
     ImGui::Begin("Component View", nullptr, window_flags);
+    DrawWindowGradientBackground(ImVec4(0.10f,0.10f,0.13f,0.30f), ImVec4(0.10f,0.10f,0.13f,0.80f));
 
     ImGui::Text("Components");
     ImGui::Separator();

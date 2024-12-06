@@ -1,12 +1,14 @@
 #pragma once
 #include "ProjectBrowserView.h"
+
+#include "Style.h"
 #include "Utils/Etc/Logger.h"
 #include "Utils/Utils.h"
 #include "imgui.h"
-#include <filesystem>
 #include <cstdlib>
-#include <iostream>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <tinyxml2.h>
 
@@ -31,6 +33,7 @@ void ProjectBrowserView::Draw() {
 
     ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Project Browser", &m_show, ImGuiWindowFlags_NoCollapse)) {
+        DrawWindowGradientBackground(ImVec4(0.10f,0.10f,0.13f,0.30f), ImVec4(0.10f,0.10f,0.13f,0.80f));
         // Tabs for New/Open project
         if (ImGui::BeginTabBar("ProjectTabs")) {
             if (ImGui::BeginTabItem("New Project")) {

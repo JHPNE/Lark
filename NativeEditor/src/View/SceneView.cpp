@@ -1,8 +1,10 @@
 #include "SceneView.h"
+
 #include "../Project/Project.h"
-#include <imgui.h>
-#include "../src/Utils/etc/Logger.h"
 #include "../src/Utils/Utils.h"
+#include "../src/Utils/etc/Logger.h"
+#include "Style.h"
+#include <imgui.h>
 
 namespace detail {
     uint32_t INVALIDID = -1;
@@ -16,6 +18,7 @@ void SceneView::Draw() {
     window_flags |= ImGuiWindowFlags_NoCollapse;
 
     if (ImGui::Begin("Scene Manager", &m_show, window_flags)) {
+        DrawWindowGradientBackground(ImVec4(0.10f,0.10f,0.13f,0.30f), ImVec4(0.10f,0.10f,0.13f,0.80f));
         // Add Scene Button at top
         if (ImGui::Button("+ Add Scene")) {
             project->AddScene("New Scene");
