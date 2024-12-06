@@ -31,8 +31,8 @@ public:
     ~GeometryViewerView();
 
     void SetUpViewport();
-    void AddGeometry(const std::string& name, uint32_t id, drosim::editor::Geometry* geometry);
-    void RemoveGeometry(const std::string& name);
+    void AddGeometry(uint32_t id, drosim::editor::Geometry* geometry);
+    void RemoveGeometry(uint32_t id);
     void HandleInput();
     void SetGeometry(drosim::editor::Geometry* geometry) {
         m_initialized = true;
@@ -100,7 +100,7 @@ private:
     float m_cameraPosition[3] = {0.0f, 0.0f, 0.0f};
     float m_cameraRotation[3] = {0.0f, 0.0f, 0.0f}; // pitch, yaw, roll
 
-    std::unordered_map<std::string, std::unique_ptr<ViewportGeometry>> m_geometries;
+    std::unordered_map<uint32_t, std::unique_ptr<ViewportGeometry>> m_geometries;
     std::unique_ptr<GeometryRenderer::LODGroupBuffers> m_geometryBuffers;
     std::shared_ptr<drosim::editor::Geometry> m_currentGeometry;
     ViewportGeometry* m_selectedGeometry{nullptr};  // Track selected geometry

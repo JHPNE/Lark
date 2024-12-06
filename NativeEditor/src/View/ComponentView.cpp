@@ -237,22 +237,29 @@ void ComponentView::Draw() {
                     Vec3 newRotation(rot[0], rot[1], rot[2]);
                     Vec3 newScale(scale[0], scale[1], scale[2]);
 
+                    transform_component package{};
                     // Only update position if there's a change
                     if (!Vec3::IsEqual(newPosition, middlePosition)) {
                         Vec3 differencePosition = middlePosition - newPosition;
                         transform->SetPosition(transform->GetPosition() + differencePosition);
+                        transform->packForEngine(&package);
+                        SetEntityTransform(entity->GetID(), package);
                     }
 
                     // Only update rotation if there's a change
                     if (!Vec3::IsEqual(newRotation, middleRotation)) {
                         Vec3 differenceRotation = middleRotation - newRotation;
                         transform->SetRotation(transform->GetRotation() + differenceRotation);
+                        transform->packForEngine(&package);
+                        SetEntityTransform(entity->GetID(), package);
                     }
 
                     // Only update scale if there's a change
                     if (!Vec3::IsEqual(newScale, middleScale)) {
                         Vec3 differenceScale = middleScale - newScale;
                         transform->SetScale(transform->GetScale() + differenceScale);
+                        transform->packForEngine(&package);
+                        SetEntityTransform(entity->GetID(), package);
                     }
                 }
             }

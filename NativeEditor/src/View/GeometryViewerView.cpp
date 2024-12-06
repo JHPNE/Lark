@@ -13,14 +13,14 @@ void GeometryViewerView::LoadExistingGeometry() {
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
     for (auto entity : activeScene->GetEntities()) {
         if (auto geometry = entity->GetComponent<Geometry>()) {
-            AddGeometry(geometry->GetGeometryName(), entity->GetID(), geometry->loadGeometry().get());
+            AddGeometry(entity->GetID(), geometry->loadGeometry().get());
         }
     }
     m_loaded = true;
 }
 
-void GeometryViewerView::RemoveGeometry(const std::string& name) {
-    auto it = m_geometries.find(name);
+void GeometryViewerView::RemoveGeometry(uint32_t id) {
+    auto it = m_geometries.find(id);
     if (it != m_geometries.end()) {
         // Remove the entity from the engine first
         if (it->second && !Utils::IsInvalidID(it->second->entity_id)) {
@@ -53,19 +53,19 @@ bool GeometryViewerView::GetGeometryTransform(ViewportGeometry* geom, transform_
 }
 
 //TODO remove unecessary args
-void GeometryViewerView::AddGeometry(const std::string& name, uint32_t id, drosim::editor::Geometry* geometry) {
+void GeometryViewerView::AddGeometry(uint32_t id, drosim::editor::Geometry* geometry) {
     if (!geometry) return;
 
     auto buffers = GeometryRenderer::CreateBuffersFromGeometry(geometry);
     if (buffers) {
-        m_geometries[name] = std::make_unique<ViewportGeometry>();
-        m_geometries[name]->name = name;
-        m_geometries[name]->buffers = std::move(buffers);
-        m_geometries[name]->entity_id = id;
-        m_selectedGeometry = m_geometries[name].get();
+        m_geometries[id] = std::make_unique<ViewportGeometry>();
+        m_geometries[id]->buffers = std::move(buffers);
+        m_geometries[id]->entity_id = id;
+        m_selectedGeometry = m_geometries[id].get();
     }
 }
 
+// replace ViewGeometry name to id
 void GeometryViewerView::Draw() {
     if (!m_initialized || !project) return;
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
@@ -171,12 +171,12 @@ void GeometryViewerView::Draw() {
                 ImGuizmo::Enable(true);
 
                 // Draw Guizmo for selected geometry
-                if (m_selectedGeometry) {
-                    auto entity = activeScene->GetEntity(m_selectedGeometry->entity_id);
+                for (auto entity : activeScene->GetEntities()) {
                     if (entity && entity->IsSelected()) {
                         // Check if the entity is active
                         if (auto* geometry = entity->GetComponent<Geometry>()) {
                             if (geometry->IsVisible()) {
+                                m_selectedGeometry = m_geometries[entity->GetID()].get();
                                 // Check if the geometry is visible
                                 glm::mat4 model = GetEntityTransformMatrix(m_selectedGeometry->entity_id);
 
@@ -217,7 +217,7 @@ void GeometryViewerView::Draw() {
                             }
                         }
                     }
-                }
+                };
             }
         }
     }
