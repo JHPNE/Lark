@@ -12,6 +12,7 @@
 #include "../View/SceneView.h"
 #include "../View/ComponentView.h"
 #include "../View/GeometryViewerView.h"
+#include "../View/FileDialog.h"
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "core/Loop.h"
 #include "../View/Style.h"
@@ -335,44 +336,27 @@ namespace editor {
 			}
 
 		    // Geometry Creation Popup
+		    static FileDialog file_dialog;
 		    if (m_showGeometryCreation) {
-		        ImGui::OpenPopup("Load Geometry");
+		    	if (file_dialog.Show(&m_showGeometryCreation)) {
+		    		const char* selectedPath = file_dialog.GetSelectedPathAsChar();
+		    		if (selectedPath && strlen(selectedPath) > 0) {
+		    			// Load geometry using the selected path
+		    			m_geometry = drosim::editor::Geometry::LoadGeometry(selectedPath);
 
-		        // Center the popup
-		        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-		        ImVec2 center = viewport->GetCenter();
-		        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+		    			// Create geometry component
+		    			geometry_component test{};
+		    			test.type = ObjImport;
+		    			test.file_name = selectedPath;
+		    			test.name = "LoadedGeometry";
 
-		        if (ImGui::BeginPopupModal("Load Geometry", &m_showGeometryCreation, ImGuiWindowFlags_AlwaysAutoResize)) {
-		            ImGui::Text("Enter Geometry Location:");
-		            ImGui::InputText("##GeometryName", m_geometryNameBuffer, sizeof(m_geometryNameBuffer));
-
-		            ImGui::Separator();
-
-		            if (ImGui::Button("Create", ImVec2(120, 0))) {
-		                m_geometry = drosim::editor::Geometry::LoadGeometry(m_geometryNameBuffer);
-		                m_showGeometryCreation = false;
-		                ImGui::CloseCurrentPopup();
-		            	geometry_component test{};
-		            	test.type = ObjImport;
-		            	test.file_name = m_geometryNameBuffer;
-		            	test.name = "asd";
-		            	uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("asd", &test)->GetID();
-		                GeometryViewerView::Get().AddGeometry(entityId, m_geometry.get());
-
-		                // Reset buffer for next time
-		                strcpy(m_geometryNameBuffer, "");
-		            }
-		            ImGui::SameLine();
-		            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
-		                m_showGeometryCreation = false;
-		                ImGui::CloseCurrentPopup();
-		                // Reset buffer for next time
-		                strcpy(m_geometryNameBuffer, "");
-		            }
-
-		            ImGui::EndPopup();
-		        }
+		    			// Add geometry to the scene
+		    			if (project) {
+		    				uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("LoadedGeometry", &test)->GetID();
+		    				GeometryViewerView::Get().AddGeometry(entityId, m_geometry.get());
+		    			}
+		    		}
+		    	}
 		    }
 		}
 	}

@@ -40,8 +40,8 @@ namespace editor {
 		bool m_showScriptCreation = false;
 		char m_scriptNameBuffer[256] = "NewScript";
 
-	    bool m_showGeometryCreation = false;
-	    char m_geometryNameBuffer[256] = "C:/Users/yeeezy/Documents/monke.obj";
+		bool m_showGeometryCreation = false;
+		char m_geometryNameBuffer[256] = "C:/Users/yeeezy/Documents/monke.obj";
 
 		std::unique_ptr<drosim::editor::Geometry> m_geometry;
 	};
