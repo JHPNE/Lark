@@ -75,12 +75,25 @@ void GeometryViewerView::AddGeometry(uint32_t id, drosim::editor::Geometry* geom
 
 // replace ViewGeometry name to id
 void GeometryViewerView::Draw() {
-    if (!m_initialized || !project || !m_loaded) {
-        printf("[Draw] Skipping draw due to uninitialized or unloaded state.\n");
+    if (!m_initialized || !project) {
+        printf("[Draw] Skipping draw due to uninitialized state.\n");
         return;
     }
 
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
+    if (!activeScene) {
+        printf("[Draw] No active scene.\n");
+        return;
+    }
+
+    // If scene has changed, reload geometries
+    static uint32_t lastSceneId = 0;
+    if (activeScene->GetID() != lastSceneId) {
+        ClearGeometries();
+        LoadExistingGeometry();
+        lastSceneId = activeScene->GetID();
+    }
+
     // Initialize ImGuizmo for this frame
     ImGuizmo::BeginFrame();
 
