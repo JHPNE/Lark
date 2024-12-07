@@ -11,7 +11,17 @@ void GeometryViewerView::LoadExistingGeometry() {
     if (m_loaded) return;
 
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
+    if (!activeScene) {
+        printf("[LoadExistingGeometry] No active scene found.\n");
+        return;
+    }
+
     for (auto entity : activeScene->GetEntities()) {
+        if (!entity) {
+            printf("[LoadExistingGeometry] Found a null entity.\n");
+            continue;
+        }
+
         if (auto geometry = entity->GetComponent<Geometry>()) {
             AddGeometry(entity->GetID(), geometry->loadGeometry().get());
         }
@@ -24,7 +34,10 @@ void GeometryViewerView::RemoveGeometry(uint32_t id) {
     if (it != m_geometries.end()) {
         // Remove the entity from the engine first
         if (it->second && !Utils::IsInvalidID(it->second->entity_id)) {
-            RemoveGameEntity(it->second->entity_id);
+            if (!RemoveGameEntity(it->second->entity_id)) {
+                printf("[RemoveGeometry] Failed to remove entity ID %u\n", it->second->entity_id);
+                return;
+            }
         }
         // Then remove from our map
         m_geometries.erase(it);
@@ -67,7 +80,11 @@ void GeometryViewerView::AddGeometry(uint32_t id, drosim::editor::Geometry* geom
 
 // replace ViewGeometry name to id
 void GeometryViewerView::Draw() {
-    if (!m_initialized || !project) return;
+    if (!m_initialized || !project || !m_loaded) {
+        printf("[Draw] Skipping draw due to uninitialized or unloaded state.\n");
+        return;
+    }
+
     std::shared_ptr<Scene> activeScene = project->GetActiveScene();
     // Initialize ImGuizmo for this frame
     ImGuizmo::BeginFrame();

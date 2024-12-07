@@ -113,8 +113,9 @@ extern "C" {
         return entity.get_id();
     }
 
-    ENGINE_API void RemoveGameEntity(id::id_type id) {
+    ENGINE_API bool RemoveGameEntity(id::id_type id) {
         remove_entity(id);
+        return true;
     }
 
     ENGINE_API script::detail::script_creator GetScriptCreator(const char* name) {

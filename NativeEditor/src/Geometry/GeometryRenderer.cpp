@@ -40,7 +40,10 @@ void GeometryRenderer::Shutdown() {
 }
 
 std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffersFromGeometry(drosim::editor::Geometry* geometry) {
-    if (!geometry) return nullptr;
+    if (!geometry) {
+        printf("[CreateBuffersFromGeometry] Null geometry passed.\n");
+        return nullptr;
+    }
 
     auto groupBuffers = std::make_unique<LODGroupBuffers>();
 
@@ -74,7 +77,11 @@ void GeometryRenderer::RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
                              const glm::mat4& view,
                              const glm::mat4& projection,
                              float distanceToCamera) {
-    if (!groupBuffers) return;
+
+    if (!groupBuffers || groupBuffers->lodLevels.empty()) {
+        printf("[RenderGeometryAtLOD] Invalid or empty LOD group buffers.\n");
+        return;
+    }
 
     // Use shader program
     glUseProgram(m_basicShader);
@@ -101,6 +108,11 @@ void GeometryRenderer::RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
     // if no LOD level selected, use the last one
     if (!selectedLOD && !groupBuffers->lodLevels.empty()) {
         selectedLOD = groupBuffers->lodLevels.back().get();
+    }
+
+    if (!selectedLOD) {
+        printf("[RenderGeometryAtLOD] No LOD level selected, rendering skipped.\n");
+        return;
     }
 
     // Render all meshes in the selected LOD level

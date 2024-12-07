@@ -59,6 +59,11 @@ public:
             return false;
         }
 
+        if (type == ComponentType::Geometry) {
+            Logger::Get().Log(MessageType::Warning, "Cannot remove Transform component");
+            return false;
+        }
+
         auto it = m_components.find(type);
         if (it != m_components.end()) {
             m_components.erase(it);

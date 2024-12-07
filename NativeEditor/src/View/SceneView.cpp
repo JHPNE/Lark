@@ -2,13 +2,8 @@
 
 #include "../Project/Project.h"
 #include "../src/Utils/Utils.h"
-#include "../src/Utils/etc/Logger.h"
 #include "Style.h"
 #include <imgui.h>
-
-namespace detail {
-    uint32_t INVALIDID = -1;
-}
 
 void SceneView::Draw() {
     if (!m_show || !project)
@@ -27,15 +22,15 @@ void SceneView::Draw() {
 
         // Get scenes and track deletion
         auto scenes = project->GetScenes();
-        uint32_t sceneToDelete = detail::INVALIDID;
+        uint32_t sceneToDelete = Utils::INVALIDID;
 
         // Draw each scene and its entities
         for (const auto& scene : scenes) {
             bool isActive = project->GetActiveScene() == scene;
 
             // Scene Selectable
-            if (ImGui::Selectable((scene->GetName() + "##" + std::to_string(scene->GetID())).c_str(),
-                                isActive)) {
+            std::string sceneLabel = scene->GetName() + "##" + std::to_string(scene->GetID());
+            if (ImGui::Selectable(sceneLabel.c_str(), isActive)) {
                 // Set as active scene
                 project->SetActiveScene(scene->GetID());
 
@@ -72,7 +67,7 @@ void SceneView::Draw() {
                 }
 
                 // List all entities in the scene
-                uint32_t entityToDelete = detail::INVALIDID;
+                uint32_t entityToDelete = Utils::INVALIDID;
                 for (const auto& entity : scene->GetEntities()) {
                     // Show enabled/disabled state
                     if (!entity->IsEnabled()) {
@@ -80,9 +75,8 @@ void SceneView::Draw() {
                     }
 
                     bool entitySelected = entity->IsSelected();
-                    if (ImGui::Selectable(
-                        (entity->GetName() + "##" + std::to_string(entity->GetID())).c_str(),
-                        entitySelected)) {
+                    std::string entityLabel = entity->GetName() + "##" + std::to_string(entity->GetID());
+                    if (ImGui::Selectable(entityLabel.c_str(), entitySelected)) {
 
                         bool isShiftHeld = ImGui::GetIO().KeyShift;
 
@@ -125,7 +119,7 @@ void SceneView::Draw() {
                 }
 
                 // Handle entity deletion after iteration
-                if (entityToDelete != detail::INVALIDID) {
+                if (entityToDelete != Utils::INVALIDID) {
                     scene->RemoveEntity(entityToDelete);
                 }
 
@@ -134,7 +128,7 @@ void SceneView::Draw() {
         }
 
         // Handle scene deletion after iteration
-        if (sceneToDelete != detail::INVALIDID) {
+        if (sceneToDelete != Utils::INVALIDID) {
             project->RemoveScene(sceneToDelete);
         }
     }
