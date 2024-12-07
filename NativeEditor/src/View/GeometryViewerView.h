@@ -32,7 +32,15 @@ public:
 
     void SetUpViewport();
     void AddGeometry(uint32_t id, drosim::editor::Geometry* geometry);
-    void RemoveGeometry(uint32_t id);
+    void RemoveGeometry(uint32_t id) {
+        auto it = m_geometries.find(id);
+        if (it != m_geometries.end()) {
+            if (m_selectedGeometry == it->second.get()) {
+                m_selectedGeometry = nullptr;
+            }
+            m_geometries.erase(it);
+        }
+    }
     void HandleInput();
     void SetGeometry(drosim::editor::Geometry* geometry) {
         m_initialized = true;
@@ -46,6 +54,14 @@ public:
     void EnsureFramebuffer(float width, float height);
     void SetActiveProject(std::shared_ptr<Project> activeProject);
     void LoadExistingGeometry();
+
+    void ClearGeometries() {
+        // Clear the map which will trigger destructors for ViewportGeometry
+        // and its contained buffers, cleaning up OpenGL resources
+        m_geometries.clear();
+        m_selectedGeometry = nullptr;
+        m_loaded = false;
+    }
 
 private:
     void UpdateTransformFromGuizmo(ViewportGeometry* geometry, const float* matrix) {

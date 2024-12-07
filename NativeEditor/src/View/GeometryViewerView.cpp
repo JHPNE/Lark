@@ -3,7 +3,10 @@
 #include "../Utils/ImGuizmoManager.h"
 
 void GeometryViewerView::SetActiveProject(std::shared_ptr<Project> activeProject) {
-    project = activeProject;
+    if (project != activeProject) {
+        ClearGeometries();
+        project = activeProject;
+    }
     m_initialized = true;
 }
 
@@ -29,21 +32,6 @@ void GeometryViewerView::LoadExistingGeometry() {
     m_loaded = true;
 }
 
-void GeometryViewerView::RemoveGeometry(uint32_t id) {
-    auto it = m_geometries.find(id);
-    if (it != m_geometries.end()) {
-        // Remove the entity from the engine first
-        if (it->second && !Utils::IsInvalidID(it->second->entity_id)) {
-            if (!RemoveGameEntity(it->second->entity_id)) {
-                printf("[RemoveGeometry] Failed to remove entity ID %u\n", it->second->entity_id);
-                return;
-            }
-        }
-        // Then remove from our map
-        m_geometries.erase(it);
-    }
-}
-
 GeometryViewerView::~GeometryViewerView() {
     // Clean up all entities
     for (auto& [name, geom] : m_geometries) {
@@ -67,7 +55,14 @@ bool GeometryViewerView::GetGeometryTransform(ViewportGeometry* geom, transform_
 
 //TODO remove unecessary args
 void GeometryViewerView::AddGeometry(uint32_t id, drosim::editor::Geometry* geometry) {
-    if (!geometry) return;
+    if (!geometry || !project) return;
+
+    // Check if entity still exists in active scene
+    auto activeScene = project->GetActiveScene();
+    if (!activeScene || !activeScene->GetEntity(id)) {
+        printf("[AddGeometry] Entity %u not found in active scene.\n", id);
+        return;
+    }
 
     auto buffers = GeometryRenderer::CreateBuffersFromGeometry(geometry);
     if (buffers) {
@@ -129,13 +124,19 @@ void GeometryViewerView::Draw() {
             glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
 
             // Render all visible geometries
-            for (const auto& [name, geom] : m_geometries) {
+            std::vector<uint32_t> invalidGeometries;
+            for (const auto& [id, geom] : m_geometries) {
                 std::shared_ptr<Scene> activeScene = project->GetActiveScene();
                 auto entity = activeScene->GetEntity(geom->entity_id);
-                if (auto* geometry = entity->GetComponent<Geometry>()) {
-                    if (!geometry->IsVisible()) continue;
+                
+                // Mark geometry for removal if entity no longer exists
+                if (!entity) {
+                    invalidGeometries.push_back(id);
+                    continue;
                 }
 
+                auto* geometry = entity->GetComponent<Geometry>();
+                if (!geometry || !geometry->IsVisible()) continue;
 
                 // Get the transform matrix from the engine
                 glm::mat4 model = GetEntityTransformMatrix(geom->entity_id);
@@ -150,6 +151,11 @@ void GeometryViewerView::Draw() {
                     projection,
                     m_cameraDistance
                 );
+            }
+
+            // Remove any invalid geometries
+            for (uint32_t id : invalidGeometries) {
+                RemoveGeometry(id);
             }
 
             // Restore OpenGL state

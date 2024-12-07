@@ -17,6 +17,7 @@ class GeometryRenderer {
         if (vao) glDeleteVertexArrays(1, &vao);
         if (vbo) glDeleteBuffers(1, &vbo);
         if (ibo) glDeleteBuffers(1, &ibo);
+        vao = vbo = ibo = 0;
       }
     };
 
