@@ -305,4 +305,29 @@ extern "C" {
 
         return transform_comp.get_transform_matrix();
     }
+
+    ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, uint32_t vertex_index, float x, float y, float z) {
+        if (!is_entity_valid(entity_id)) return false;
+        auto entity = entity_from_id(entity_id);
+        auto geometry_comp  = entity.geometry();
+
+        if(!geometry_comp.is_valid()) return false;
+
+        // Get the mesh from the geometry component
+        auto* mesh = geometry_comp.get_mesh();
+        if (!mesh) return false;
+
+        // Check if vertex index is valid
+        if (vertex_index >= mesh->positions.size()) return false;
+
+        // Update the vertex position
+        mesh->positions[vertex_index] = { x, y, z };
+
+        // Update packed vertices for rendering
+        if (vertex_index < mesh->packed_vertices_static.size()) {
+            mesh->packed_vertices_static[vertex_index].position = { x, y, z };
+        }
+
+        return true;
+    }
 }

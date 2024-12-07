@@ -124,6 +124,10 @@ extern "C" {
     ENGINE_API bool GetEntityTransform(drosim::id::id_type entity_id, transform_component* out_transform);
     ENGINE_API bool ResetEntityTransform(drosim::id::id_type entity_id);
     ENGINE_API glm::mat4 GetEntityTransformMatrix(drosim::id::id_type entity_id);
+
+    // Function to modify vertex positions of an entity's geometry
+    ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, uint32_t vertex_index, float x, float y, float z);
+
 #ifdef __cplusplus
 }
 #endif
