@@ -349,6 +349,7 @@ namespace editor {
 		    			test.type = ObjImport;
 		    			test.file_name = selectedPath;
 		    			test.name = "LoadedGeometry";
+		    			//m_geometry.get()->GetLODGroup()->lods[0].get()->meshes
 
 		    			// Add geometry to the scene
 		    			if (project) {

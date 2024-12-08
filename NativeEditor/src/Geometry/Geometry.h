@@ -6,30 +6,6 @@
 #include "EngineAPI.h"
 
 namespace drosim::editor {
-
-class Mesh {
-public:
-    s32 vertex_size = 0;
-    s32 vertex_count = 0;
-    s32 index_size = 0;
-    s32 index_count = 0;
-    std::vector<u8> vertices;
-    std::vector<u8> indices;
-};
-
-class MeshLOD {
-public:
-    std::string name;
-    f32 lod_threshold = 0.0f;
-    std::vector<std::shared_ptr<Mesh>> meshes;
-};
-
-class LODGroup {
-public:
-    std::string name;
-    std::vector<std::shared_ptr<MeshLOD>> lods;
-};
-
 class Geometry : public Asset {
 public:
     Geometry() : Asset(AssetType::Mesh) {}
