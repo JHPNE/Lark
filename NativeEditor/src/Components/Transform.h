@@ -60,7 +60,7 @@ public:
       transform_component->scale[2] = this->GetScale().z;
     }
 
-    static float* loadFromEngine(transform_component *transform_component) {
+    float* loadFromEngine(transform_component *transform_component) {
         static float value[9];
         value[0] = transform_component->position[0];
         value[1] = transform_component->position[1];
@@ -73,6 +73,12 @@ public:
         value[6] = transform_component->scale[0];
         value[7] = transform_component->scale[1];
         value[8] = transform_component->scale[2];
+
+        // Update within Component aswell
+        SetPosition(value[0], value[1], value[2]);
+        SetRotation(value[3], value[4], value[5]);
+        SetScale(value[6], value[7], value[8]);
+
         return value;
     }
 

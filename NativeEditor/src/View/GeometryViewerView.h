@@ -85,7 +85,7 @@ private:
             transform_data.scale[0] = scale.x;
             transform_data.scale[1] = scale.y;
             transform_data.scale[2] = scale.z;
-
+            
             // Update the engine transform
             SetEntityTransform(geometry->entity_id, transform_data);
         }

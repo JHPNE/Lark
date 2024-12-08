@@ -53,9 +53,9 @@ void ComponentView::Draw() {
                     float scl[3];
 
                     if (GetEntityTransform(selectedEntity->GetID(), &test)) {
-                        memcpy(pos, Transform::loadFromEngine(&test), 3 * sizeof(float));
-                        memcpy(rot, Transform::loadFromEngine(&test) + 3, 3 * sizeof(float));
-                        memcpy(scl, Transform::loadFromEngine(&test) + 6, 3 * sizeof(float));
+                        memcpy(pos, transform->loadFromEngine(&test), 3 * sizeof(float));
+                        memcpy(rot, transform->loadFromEngine(&test) + 3, 3 * sizeof(float));
+                        memcpy(scl, transform->loadFromEngine(&test) + 6, 3 * sizeof(float));
                     } else {
                         memcpy(pos, Vec3::toFloat(position), 3 * sizeof(float));
                         memcpy(rot, Vec3::toFloat(rotation), 3 * sizeof(float));

@@ -158,7 +158,6 @@ namespace editor {
 
 			GeometryViewerView::Get().SetActiveProject(loadedProject);
 			GeometryViewerView::Get().Draw();
-			//GeometryViewerView::Get().LoadExistingGeometry();
 		}
 	}
 
