@@ -366,4 +366,66 @@ namespace drosim::tools {
             }
         }
     }
+
+    void mesh::set_dynamic(bool dynamic) {
+        is_dynamic = dynamic;
+    }
+
+    void mesh::update_vertices(const std::vector<math::v3>& new_positions) {
+        if (!is_dynamic) {
+            throw std::runtime_error("Cannot update vertices for a static mesh");
+        }
+
+        if (new_positions.size() != positions.size()) {
+            throw std::runtime_error("Vertex count mismatch during update");
+        }
+
+        // Update vertex positions
+        positions = new_positions;
+
+        // Update processed vertices
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            vertices[i].position = positions[raw_indices[i]];
+        }
+    }
+
+    void mesh::recalculate_normals() {
+        if (!is_dynamic) {
+            throw std::runtime_error("Cannot recalculate normals for a static mesh");
+        }
+
+        // Clear existing normals
+        normals.clear();
+        normals.resize(positions.size(), math::v3(0.0f));
+
+        // Calculate face normals and accumulate them at vertices
+        for (size_t i = 0; i < raw_indices.size(); i += 3) {
+            const auto& v0 = positions[raw_indices[i]];
+            const auto& v1 = positions[raw_indices[i + 1]];
+            const auto& v2 = positions[raw_indices[i + 2]];
+
+            // Calculate face normal
+            const auto edge1 = v1 - v0;
+            const auto edge2 = v2 - v0;
+            const auto normal = glm::normalize(glm::cross(edge1, edge2));
+
+            // Accumulate normal at each vertex
+            normals[raw_indices[i]] += normal;
+            normals[raw_indices[i + 1]] += normal;
+            normals[raw_indices[i + 2]] += normal;
+        }
+
+        // Normalize accumulated normals
+        for (auto& normal : normals) {
+            normal = glm::normalize(normal);
+        }
+
+        // Update processed vertices
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            vertices[i].normal = normals[raw_indices[i]];
+        }
+
+        // Repack vertices if needed
+        pack_vertices_static(*this);
+    }
 }

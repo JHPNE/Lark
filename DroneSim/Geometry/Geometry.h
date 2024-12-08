@@ -68,6 +68,29 @@ namespace drosim::tools {
         util::vector<packed_vertex::vertex_static> packed_vertices_static;  ///< Packed vertices
         f32 lod_threshold{ -1.f };          ///< LOD switch threshold
         u32 lod_id{u32_invalid_id};         ///< LOD identifier
+
+        bool is_dynamic{ false };           ///< Whether this mesh supports dynamic updates
+
+        /**
+         * @brief Toggle dynamic mode for this mesh
+         * @param dynamic Whether to enable dynamic mode
+         * 
+         * When enabled, the mesh supports runtime vertex position updates
+         */
+        void set_dynamic(bool dynamic);
+
+        /**
+         * @brief Update vertex positions for a dynamic mesh
+         * @param new_positions New vertex positions
+         * @throw std::runtime_error if mesh is not dynamic
+         */
+        void update_vertices(const std::vector<math::v3>& new_positions);
+
+        /**
+         * @brief Recalculate normals after vertex position updates
+         * @throw std::runtime_error if mesh is not dynamic
+         */
+        void recalculate_normals();
     };
 
     /**
