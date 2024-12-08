@@ -97,6 +97,7 @@ public:
             geometry->SetGeometryName(geom->name);
             geometry->SetGeometrySource(geom->file_name);
             geometry->SetGeometryType(geom->type);
+            geometry->loadGeometry();
 
             // Store component in entity
             entity->m_components[geometry->GetType()] = std::unique_ptr<Component>(geometry);

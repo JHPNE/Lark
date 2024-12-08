@@ -27,19 +27,25 @@ public:
   void SetVisible(bool visible) { this->visible = visible; };
   void SetGeometrySource(const std::string &source) { m_geometrySource = source; };
   void SetGeometryType(GeometryType type) { m_geometryType = type; };
+  void SetLodGroup(drosim::editor::LODGroup l_group) {lod_group = l_group; };
+  drosim::editor::LODGroup* GetLodGroup() {return &lod_group; };
   GeometryType GetGeometryType() const { return m_geometryType; };
 
-  std::unique_ptr<drosim::editor::Geometry> loadGeometry() {
+  void loadGeometry() {
     float size[3] = {5.0f, 5.0f, 5.0f};
     uint32_t segments[3] = {32, 16, 1};
 
-    return m_geometryType == ObjImport
+    auto geometry = m_geometryType == ObjImport
                 ? drosim::editor::Geometry::LoadGeometry(m_geometrySource.c_str())
                 : drosim::editor::Geometry::CreatePrimitive(
                         content_tools::PrimitiveMeshType::uv_sphere,
                         size,
                         segments
                     );
+    auto lodGroup = geometry->GetLODGroup();
+    if (lodGroup) {
+      SetLodGroup(*lodGroup);
+    }
   }
 
 
@@ -92,4 +98,5 @@ private:
   bool visible = true;
   std::string m_geometrySource;
   GeometryType m_geometryType;
+  drosim::editor::LODGroup lod_group;
 };

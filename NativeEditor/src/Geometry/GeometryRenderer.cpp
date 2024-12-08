@@ -39,8 +39,8 @@ void GeometryRenderer::Shutdown() {
     }
 }
 
-std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffersFromGeometry(drosim::editor::Geometry* geometry) {
-    if (!geometry) {
+std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffersFromGeometry(drosim::editor::LODGroup* lodGroup) {
+    if (!lodGroup) {
         printf("[CreateBuffersFromGeometry] Null geometry passed.\n");
         return nullptr;
     }
@@ -48,7 +48,7 @@ std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffe
     auto groupBuffers = std::make_unique<LODGroupBuffers>();
 
     // Process each LOD group
-    if (auto* lodGroup = geometry->GetLODGroup(0)) {
+    if (lodGroup) {
         groupBuffers->name = lodGroup->name;
 
 

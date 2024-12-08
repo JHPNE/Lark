@@ -31,7 +31,7 @@ public:
     ~GeometryViewerView();
 
     void SetUpViewport();
-    void AddGeometry(uint32_t id, drosim::editor::Geometry* geometry);
+    void AddGeometry(uint32_t id);
     void RemoveGeometry(uint32_t id) {
         auto it = m_geometries.find(id);
         if (it != m_geometries.end()) {
@@ -42,13 +42,7 @@ public:
         }
     }
     void HandleInput();
-    void SetGeometry(drosim::editor::Geometry* geometry) {
-        m_initialized = true;
-        m_geometryBuffers = GeometryRenderer::CreateBuffersFromGeometry(geometry);
-    };
-
     void DrawControls();
-    glm::mat4 CalculateViewMatrix();
 
     void Draw();
     void EnsureFramebuffer(float width, float height);

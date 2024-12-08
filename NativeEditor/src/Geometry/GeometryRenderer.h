@@ -38,7 +38,7 @@ class GeometryRenderer {
     static void Shutdown();
 
     // Geometry to VertexBuffer OpenGL
-    static std::unique_ptr<LODGroupBuffers> CreateBuffersFromGeometry(drosim::editor::Geometry* geometry);
+    static std::unique_ptr<LODGroupBuffers> CreateBuffersFromGeometry(drosim::editor::LODGroup* lodGroup);
 
   static void RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
                              const glm::mat4& view,

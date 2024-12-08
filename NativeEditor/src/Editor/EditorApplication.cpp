@@ -158,7 +158,7 @@ namespace editor {
 
 			GeometryViewerView::Get().SetActiveProject(loadedProject);
 			GeometryViewerView::Get().Draw();
-			GeometryViewerView::Get().LoadExistingGeometry();
+			//GeometryViewerView::Get().LoadExistingGeometry();
 		}
 	}
 
@@ -274,8 +274,10 @@ namespace editor {
 					test.type = PrimitiveType;
 					test.file_name = m_geometryNameBuffer;
 					test.name = "sphere";
+					test.lod_group = m_geometry.get()->GetLODGroup();
+
 					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("sphere", &test)->GetID();
-					GeometryViewerView::Get().AddGeometry(entityId, m_geometry.get());
+					GeometryViewerView::Get().AddGeometry(entityId);
 				}
 
 			    if (ImGui::Button("Load Obj")) {
@@ -349,12 +351,12 @@ namespace editor {
 		    			test.type = ObjImport;
 		    			test.file_name = selectedPath;
 		    			test.name = "LoadedGeometry";
-		    			//m_geometry.get()->GetLODGroup()->lods[0].get()->meshes
+		    			test.lod_group = m_geometry->GetLODGroup();
 
 		    			// Add geometry to the scene
 		    			if (project) {
 		    				uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("LoadedGeometry", &test)->GetID();
-		    				GeometryViewerView::Get().AddGeometry(entityId, m_geometry.get());
+		    				GeometryViewerView::Get().AddGeometry(entityId);
 		    			}
 		    		}
 		    	}

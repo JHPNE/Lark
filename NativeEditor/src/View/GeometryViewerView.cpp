@@ -25,9 +25,8 @@ void GeometryViewerView::LoadExistingGeometry() {
             continue;
         }
 
-        if (auto geometry = entity->GetComponent<Geometry>()) {
-            AddGeometry(entity->GetID(), geometry->loadGeometry().get());
-        }
+
+        AddGeometry(entity->GetID());
     }
     m_loaded = true;
 }
@@ -54,8 +53,8 @@ bool GeometryViewerView::GetGeometryTransform(ViewportGeometry* geom, transform_
 }
 
 //TODO remove unecessary args
-void GeometryViewerView::AddGeometry(uint32_t id, drosim::editor::Geometry* geometry) {
-    if (!geometry || !project) return;
+void GeometryViewerView::AddGeometry(uint32_t id) {
+    if (!project) return;
 
     // Check if entity still exists in active scene
     auto activeScene = project->GetActiveScene();
@@ -64,7 +63,10 @@ void GeometryViewerView::AddGeometry(uint32_t id, drosim::editor::Geometry* geom
         return;
     }
 
-    auto buffers = GeometryRenderer::CreateBuffersFromGeometry(geometry);
+    auto lodGroup = activeScene->GetEntity(id).get()->GetComponent<Geometry>()->GetLodGroup();
+    if (!lodGroup) return;
+
+    auto buffers = GeometryRenderer::CreateBuffersFromGeometry(lodGroup);
     if (buffers) {
         m_geometries[id] = std::make_unique<ViewportGeometry>();
         m_geometries[id]->buffers = std::move(buffers);
