@@ -35,16 +35,29 @@ public:
     float size[3] = {5.0f, 5.0f, 5.0f};
     uint32_t segments[3] = {32, 16, 1};
 
-    auto geometry = m_geometryType == ObjImport
-                ? drosim::editor::Geometry::LoadGeometry(m_geometrySource.c_str())
-                : drosim::editor::Geometry::CreatePrimitive(
-                        content_tools::PrimitiveMeshType::uv_sphere,
-                        size,
-                        segments
-                    );
-    auto lodGroup = geometry->GetLODGroup();
-    if (lodGroup) {
-      SetLodGroup(*lodGroup);
+    std::shared_ptr<drosim::editor::Geometry> geometry;
+    try {
+      geometry = m_geometryType == ObjImport
+                  ? drosim::editor::Geometry::LoadGeometry(m_geometrySource.c_str())
+                  : drosim::editor::Geometry::CreatePrimitive(
+                          content_tools::PrimitiveMeshType::uv_sphere,
+                          size,
+                          segments
+                      );
+      
+      if (!geometry) {
+        printf("[Geometry::loadGeometry] Failed to create geometry\n");
+        return;
+      }
+
+      auto lodGroup = geometry->GetLODGroup();
+      if (lodGroup) {
+        SetLodGroup(*lodGroup);
+      } else {
+        printf("[Geometry::loadGeometry] No LOD group found in geometry\n");
+      }
+    } catch (const std::exception& e) {
+      printf("[Geometry::loadGeometry] Exception while loading geometry: %s\n", e.what());
     }
   }
 

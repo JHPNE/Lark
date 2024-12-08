@@ -54,25 +54,46 @@ bool GeometryViewerView::GetGeometryTransform(ViewportGeometry* geom, transform_
 
 //TODO remove unecessary args
 void GeometryViewerView::AddGeometry(uint32_t id) {
-    if (!project) return;
+    if (!project) {
+        printf("[AddGeometry] No active project.\n");
+        return;
+    }
 
     // Check if entity still exists in active scene
     auto activeScene = project->GetActiveScene();
-    if (!activeScene || !activeScene->GetEntity(id)) {
+    if (!activeScene) {
+        printf("[AddGeometry] No active scene.\n");
+        return;
+    }
+
+    auto entity = activeScene->GetEntity(id);
+    if (!entity) {
         printf("[AddGeometry] Entity %u not found in active scene.\n", id);
         return;
     }
 
-    auto lodGroup = activeScene->GetEntity(id).get()->GetComponent<Geometry>()->GetLodGroup();
-    if (!lodGroup) return;
+    auto geometryComponent = entity->GetComponent<Geometry>();
+    if (!geometryComponent) {
+        printf("[AddGeometry] Entity %u has no Geometry component.\n", id);
+        return;
+    }
+
+    auto lodGroup = geometryComponent->GetLodGroup();
+    if (!lodGroup) {
+        printf("[AddGeometry] Entity %u has no LOD group.\n", id);
+        return;
+    }
 
     auto buffers = GeometryRenderer::CreateBuffersFromGeometry(lodGroup);
-    if (buffers) {
-        m_geometries[id] = std::make_unique<ViewportGeometry>();
-        m_geometries[id]->buffers = std::move(buffers);
-        m_geometries[id]->entity_id = id;
-        m_selectedGeometry = m_geometries[id].get();
+    if (!buffers) {
+        printf("[AddGeometry] Failed to create buffers for entity %u.\n", id);
+        return;
     }
+
+    m_geometries[id] = std::make_unique<ViewportGeometry>();
+    m_geometries[id]->buffers = std::move(buffers);
+    m_geometries[id]->entity_id = id;
+    m_selectedGeometry = m_geometries[id].get();
 }
 
 // replace ViewGeometry name to id
