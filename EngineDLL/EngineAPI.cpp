@@ -35,8 +35,57 @@ namespace {
 
     geometry::init_info to_engine_geometry(const geometry_component& geometry) {
         geometry::init_info info{};
+
+        if (geometry.scene == nullptr || geometry.scene->lod_groups.empty())
+            return info;
+
         info.is_dynamic = false;
-        //info.scene = geometry.scene;
+        info.scene = new drosim::tools::scene();
+
+        info.scene->name = geometry.scene->name;
+        util::vector<drosim::tools::lod_group> lod_groups;
+        for (auto comp_lod_group : geometry.scene->lod_groups) {
+            drosim::tools::lod_group lod_group;
+            lod_group.name = comp_lod_group.name;
+
+            util::vector<drosim::tools::mesh> meshes;
+            for (auto mesh : comp_lod_group.meshes) {
+                drosim::tools::mesh m;
+                m.name = mesh.name;
+                m.positions = mesh.positions;
+                m.normals = mesh.normals;
+                m.tangents = mesh.tangents;
+                m.uv_sets = mesh.uv_sets;
+                m.raw_indices = mesh.raw_indices;
+
+                util::vector<drosim::tools::vertex> vertices;
+                for (auto vertex : mesh.vertices) {
+                    drosim::tools::vertex v;
+                    v.tangent = vertex.tangent;
+                    v.position = vertex.position;
+                    v.normal = vertex.normal;
+                    v.uv = vertex.uv;
+
+
+                    vertices.emplace_back(v);
+                }
+                m.vertices = vertices;
+                m.indices = mesh.indices;
+                m.lod_threshold = mesh.lod_threshold;
+                m.lod_id = mesh.lod_id;
+                m.is_dynamic = false;
+
+                util::vector<drosim::tools::packed_vertex::vertex_static> packed_vertices_static;
+                m.packed_vertices_static = packed_vertices_static;
+
+                meshes.emplace_back(m);
+            }
+            lod_group.meshes = meshes;
+            lod_groups.emplace_back(lod_group);
+        }
+
+        info.scene->lod_groups = lod_groups;
+
         return info;
     }
 
