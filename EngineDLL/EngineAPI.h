@@ -25,6 +25,7 @@
 #include <Id.h>
 #include <Script.h>
 #include <Transform.h>
+#include <Geometry.h>
 #include "Structures.h"
 
 #ifdef __cplusplus
@@ -64,7 +65,7 @@ extern "C" {
     ENGINE_API glm::mat4 GetEntityTransformMatrix(drosim::id::id_type entity_id);
 
     // Function to modify vertex positions of an entity's geometry
-    ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, uint32_t vertex_index, float x, float y, float z);
+    ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, std::vector<glm::vec3>& new_positions);
 
 #ifdef __cplusplus
 }
