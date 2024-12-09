@@ -55,7 +55,7 @@ namespace drosim::game_entity {
 		}
 
 		// Create Geometry Component
-		if (info.geometry) {
+		if (info.geometry && info.geometry->scene) {
 			assert(!geometries[index].is_valid());
 			geometries[index] = geometry::create(*info.geometry, new_entity);
 		}
@@ -79,7 +79,9 @@ namespace drosim::game_entity {
 		}
 
 		if (geometries[index].is_valid()) {
-			geometry::remove(geometry::geometry_id{ id::id_type(id) });
+			auto geometry_copy = geometries[index];
+			geometries[index] = {};
+			geometry::remove(geometry_copy);
 		}
 
 		transform::remove(transforms[index]);

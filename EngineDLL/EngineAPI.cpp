@@ -36,7 +36,7 @@ namespace {
     geometry::init_info to_engine_geometry(const geometry_component& geometry) {
         geometry::init_info info{};
         info.is_dynamic = false;
-        info.scene = geometry.scene;
+        //info.scene = geometry.scene;
         return info;
     }
 
@@ -318,9 +318,11 @@ extern "C" {
     }
 
     ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, std::vector<glm::vec3>& new_positions) {
+        /*
         if(drosim::api::update_dynamic_mesh(entity_id, new_positions)) {
             return true;
         };
+        */
         return false;
     }
 }

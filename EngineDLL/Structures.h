@@ -109,12 +109,11 @@ enum GeometryType {
 };
 
 struct geometry_component {
-  drosim::tools::scene* scene;
+  drosim::editor::scene* scene;
   bool is_dynamic = false;
   const char *name;
   const char *file_name;
   GeometryType type;
-  //drosim::editor::LODGroup* lod_group;
 };
 
 struct game_entity_descriptor {

@@ -9,5 +9,5 @@ namespace drosim::geometry {
     };
 
     component create(init_info info, game_entity::entity entity);
-    void remove(geometry_id id);
+    void remove(component t);
 }

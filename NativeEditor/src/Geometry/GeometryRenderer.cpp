@@ -39,8 +39,8 @@ void GeometryRenderer::Shutdown() {
     }
 }
 
-std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffersFromGeometry(drosim::editor::LODGroup* lodGroup) {
-    if (!lodGroup) {
+std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffersFromGeometry(drosim::editor::scene* scene) {
+    if (!scene) {
         printf("[CreateBuffersFromGeometry] Null geometry passed.\n");
         return nullptr;
     }
@@ -48,18 +48,19 @@ std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffe
     auto groupBuffers = std::make_unique<LODGroupBuffers>();
 
     // Process each LOD group
-    if (lodGroup) {
-        groupBuffers->name = lodGroup->name;
+    if (scene) {
+        groupBuffers->name = scene->name;
 
 
         // Process each LOD level
-        for (const auto& lod : lodGroup->lods) {
+        for (const auto& lod : scene->lod_groups) {
             auto lodBuffers = std::make_shared<LODLevelBuffers>();
-            lodBuffers->name = lod->name;
-            lodBuffers->threshold = lod->lod_threshold;
+            lodBuffers->name = lod.name;
+
 
             // Process each mesh in this LOD level
-            for (const auto& mesh : lod->meshes) {
+            for (const auto& mesh : lod.meshes) {
+                lodBuffers->threshold = mesh.lod_threshold;
                 auto meshBuffers = CreateMeshBuffers(mesh);
                 if (meshBuffers) {
                     lodBuffers->meshBuffers.push_back(std::move(meshBuffers));
@@ -123,62 +124,41 @@ void GeometryRenderer::RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
     }
 };
 
-std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffers(const std::shared_ptr<drosim::editor::Mesh>& mesh) {
-    if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) return nullptr;
-
-    printf("[CreateMeshBuffers] Creating buffers for mesh with:\n");
-    printf("  Vertex count: %d, size: %d, total: %zu\n", mesh->vertex_count, mesh->vertex_size, mesh->vertices.size());
-    printf("  Index count: %d, size: %d, total: %zu\n", mesh->index_count, mesh->index_size, mesh->indices.size());
+std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffers(const drosim::editor::mesh& mesh) {
+    if (mesh.vertices.empty() || mesh.indices.empty()) return nullptr;
 
     auto buffers = std::make_shared<MeshBuffers>();
 
-    // Create and bind VAO
     glGenVertexArrays(1, &buffers->vao);
     glBindVertexArray(buffers->vao);
 
-    // Create and bind VBO
     glGenBuffers(1, &buffers->vbo);
     glBindBuffer(GL_ARRAY_BUFFER, buffers->vbo);
-    
-    // Calculate total vertex data size
-    size_t vertexDataSize = static_cast<size_t>(mesh->vertex_count) * static_cast<size_t>(mesh->vertex_size);
-    glBufferData(GL_ARRAY_BUFFER, vertexDataSize, mesh->vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(drosim::editor::vertex), mesh.vertices.data(), GL_STATIC_DRAW);
 
-    // Create and bind IBO
     glGenBuffers(1, &buffers->ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers->ibo);
-    
-    // Calculate total index data size
-    size_t indexDataSize = static_cast<size_t>(mesh->index_count) * static_cast<size_t>(mesh->index_size);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexDataSize, mesh->indices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), GL_STATIC_DRAW);
 
-    // Store index count and type
-    buffers->indexCount = mesh->index_count;
-    buffers->indexType = mesh->index_size == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT;
+    size_t stride = sizeof(drosim::editor::vertex);
 
-    // Set up vertex attributes based on vertex format
-    size_t offset = 0;
-    const int stride = mesh->vertex_size;
+    glEnableVertexAttribArray(0); // Position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(drosim::editor::vertex, position));
 
-    // Position attribute (3 floats)
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)offset);
-    offset += sizeof(float) * 3;
+    glEnableVertexAttribArray(1); // Normal
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(drosim::editor::vertex, normal));
 
-    // Normal attribute (3 floats)
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)offset);
-    offset += sizeof(float) * 3;
+    glEnableVertexAttribArray(2); // UV
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(drosim::editor::vertex, uv));
 
-    // UV attribute (2 floats)
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)offset);
-
-    // Unbind VAO
     glBindVertexArray(0);
 
+    buffers->indexCount = static_cast<GLsizei>(mesh.indices.size());
+    buffers->indexType = GL_UNSIGNED_INT;
+
     return buffers;
-};
+}
+
 
 void GeometryRenderer::RenderMesh(const MeshBuffers* meshBuffers) {
     if (!meshBuffers || !meshBuffers->vao) return;

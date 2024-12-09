@@ -53,9 +53,9 @@ namespace drosim::geometry {
 
     void remove(component c) {
         if (!c.is_valid()) return;
-        const geometry_id id = c.get_id();
-        if (!exists(id)) return;
+        if (!exists(c.get_id())) return;
 
+        const geometry_id id = c.get_id();
         const auto index = id::index(id);
         geometry_valid[index] = false;
         geometry_scenes[index] = nullptr;

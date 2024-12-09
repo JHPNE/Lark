@@ -27,8 +27,8 @@ public:
   void SetVisible(bool visible) { this->visible = visible; };
   void SetGeometrySource(const std::string &source) { m_geometrySource = source; };
   void SetGeometryType(GeometryType type) { m_geometryType = type; };
-  void SetLodGroup(drosim::editor::LODGroup l_group) {lod_group = l_group; };
-  drosim::editor::LODGroup* GetLodGroup() {return &lod_group; };
+  void SetScene(drosim::editor::scene scene) {m_scene = scene; };
+  drosim::editor::scene* GetScene() {return &m_scene; };
   GeometryType GetGeometryType() const { return m_geometryType; };
 
   void loadGeometry() {
@@ -50,9 +50,9 @@ public:
         return;
       }
 
-      auto lodGroup = geometry->GetLODGroup();
-      if (lodGroup) {
-        SetLodGroup(*lodGroup);
+      auto scene = geometry->GetScene();
+      if (scene) {
+        SetScene(*scene);
       } else {
         printf("[Geometry::loadGeometry] No LOD group found in geometry\n");
       }
@@ -111,5 +111,5 @@ private:
   bool visible = true;
   std::string m_geometrySource;
   GeometryType m_geometryType;
-  drosim::editor::LODGroup lod_group;
+  drosim::editor::scene m_scene;
 };

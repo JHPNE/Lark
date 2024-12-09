@@ -78,13 +78,13 @@ void GeometryViewerView::AddGeometry(uint32_t id) {
         return;
     }
 
-    auto lodGroup = geometryComponent->GetLodGroup();
-    if (!lodGroup) {
+    auto scene = geometryComponent->GetScene();
+    if (!scene) {
         printf("[AddGeometry] Entity %u has no LOD group.\n", id);
         return;
     }
 
-    auto buffers = GeometryRenderer::CreateBuffersFromGeometry(lodGroup);
+    auto buffers = GeometryRenderer::CreateBuffersFromGeometry(scene);
     if (!buffers) {
         printf("[AddGeometry] Failed to create buffers for entity %u.\n", id);
         return;

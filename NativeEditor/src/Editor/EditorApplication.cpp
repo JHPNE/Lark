@@ -275,7 +275,7 @@ namespace editor {
 					test.type = PrimitiveType;
 					test.file_name = m_geometryNameBuffer;
 					test.name = "sphere";
-					test.lod_group = m_geometry.get()->GetScene();
+					test.scene = m_geometry.get()->GetScene();
 
 					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("sphere", &test)->GetID();
 					GeometryViewerView::Get().AddGeometry(entityId);
@@ -353,7 +353,7 @@ namespace editor {
 		    			test.type = ObjImport;
 		    			test.file_name = selectedPath;
 		    			test.name = "LoadedGeometry";
-		    			test.lod_group = m_geometry->GetLODGroup();
+		    			test.scene = m_geometry->GetScene();
 
 		    			// Add geometry to the scene
 		    			if (project) {

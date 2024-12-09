@@ -12,7 +12,7 @@ class Geometry : public Asset {
 public:
     Geometry() : Asset(AssetType::Mesh) {}
 
-    drosim::tools::scene* GetScene(size_t index = 0) {
+    drosim::editor::scene* GetScene(size_t index = 0) {
         if (index < scenes.size()) {
             return &scenes[index];
         }
@@ -34,8 +34,8 @@ public:
         printf("[Geometry::FromRawData] LOD count: %u\n", lod_count);
 
         for(u32 lod_idx = 0; lod_idx < lod_count; ++lod_idx) {
-            drosim::tools::scene scene;
-            drosim::tools::lod_group lod_group;
+            drosim::editor::scene scene;
+            drosim::editor::lod_group lod_group;
 
             // Read LOD group name length
             u32 group_name_length{0};
@@ -56,7 +56,7 @@ public:
 
             // Process each mesh
             for(u32 mesh_idx = 0; mesh_idx < mesh_count; ++mesh_idx) {
-                drosim::tools::mesh mesh;
+                drosim::editor::mesh mesh;
 
                 // Read mesh name length
                 u32 mesh_name_length{0};
@@ -90,8 +90,8 @@ public:
                     mesh.uv_sets[0].resize(vertex_count);
 
                     // Read vertex data
-                    const size_t vertex_data_size = sizeof(drosim::tools::vertex) * vertex_count;
-                    std::vector<drosim::tools::vertex> vertices(vertex_count);
+                    const size_t vertex_data_size = sizeof(drosim::editor::vertex) * vertex_count;
+                    std::vector<drosim::editor::vertex> vertices(vertex_count);
                     memcpy(vertices.data(), &data[at], vertex_data_size);
                     at += vertex_data_size;
 
@@ -197,7 +197,7 @@ public:
     }
 
 private:
-    std::vector<drosim::tools::scene> scenes;
+    std::vector<drosim::editor::scene> scenes;
 };
 
 } // namespace drosim::editor

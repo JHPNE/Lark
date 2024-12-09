@@ -38,7 +38,7 @@ class GeometryRenderer {
     static void Shutdown();
 
     // Geometry to VertexBuffer OpenGL
-    static std::unique_ptr<LODGroupBuffers> CreateBuffersFromGeometry(drosim::editor::LODGroup* lodGroup);
+    static std::unique_ptr<LODGroupBuffers> CreateBuffersFromGeometry(drosim::editor::scene* scene);
 
   static void RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
                              const glm::mat4& view,
@@ -47,7 +47,7 @@ class GeometryRenderer {
 
   private:
     static GLuint m_basicShader;
-    static std::shared_ptr<MeshBuffers> CreateMeshBuffers(const std::shared_ptr<drosim::editor::Mesh>& mesh);
+    static std::shared_ptr<MeshBuffers> CreateMeshBuffers(const drosim::editor::mesh& mesh);
     // Add shader compilation helper
     static GLuint CompileShader(GLenum type, const char* source);
     static void RenderMesh(const MeshBuffers* meshBuffers);
