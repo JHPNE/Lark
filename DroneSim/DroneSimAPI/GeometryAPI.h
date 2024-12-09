@@ -15,7 +15,7 @@ namespace drosim::api {
         return (data->buffer && data->buffer_size > 0);
     }
 
-    inline bool update_dynamic_mesh(game_entity::entity_id id, const std::vector<math::v3> & new_positions) {
+    inline bool update_dynamic_mesh(game_entity::entity_id id, const std::vector<math::v3>& new_positions) {
         if (!id::is_valid(id) || !game_entity::is_alive(id)) return false;
         
         game_entity::entity entity{ id };  // This is just a wrapper, not creating a new entity
@@ -24,7 +24,12 @@ namespace drosim::api {
 
         // Get the geometry component and update if it's dynamic
         if (geometry.is_dynamic()) {
-            geometry.update_vertices(new_positions);
+            // First update vertices with new positions
+            if (!geometry.update_vertices(new_positions)) return false;
+            
+            // Then recalculate normals to update the buffer
+            if (!geometry.recalculate_normals()) return false;
+            
             return true;
         }
 
