@@ -254,7 +254,7 @@ namespace drosim::tools {
             memcpy(&buffer[at], &s, su32);
             at += su32;
 
-            // Write vertex info
+            // Write vertex size and vertex count
             constexpr u32 vertex_size{ sizeof(packed_vertex::vertex_static) };
             s = vertex_size;
             memcpy(&buffer[at], &s, su32);
@@ -265,7 +265,7 @@ namespace drosim::tools {
             memcpy(&buffer[at], &s, su32);
             at += su32;
 
-            // Write index info
+            // Write index size and index count
             const size_t index_size{ (num_vertices < (1 << 16)) ? sizeof(u16) : sizeof(u32) };
             s = (u32)index_size;
             memcpy(&buffer[at], &s, su32);
@@ -276,13 +276,18 @@ namespace drosim::tools {
             memcpy(&buffer[at], &s, su32);
             at += su32;
 
+            // **Write LOD threshold** before vertex data
+            f32 threshold = m.lod_threshold;
+            memcpy(&buffer[at], &threshold, sizeof(f32));
+            at += sizeof(f32);
+
             // Write vertex data
-            s = vertex_size * num_vertices;
-            memcpy(&buffer[at], m.packed_vertices_static.data(), s);
-            at += s;
+            const u32 vertex_buffer_size = vertex_size * num_vertices;
+            memcpy(&buffer[at], m.packed_vertices_static.data(), vertex_buffer_size);
+            at += vertex_buffer_size;
 
             // Write index data
-            s = (u32)(index_size * num_indices);
+            const u32 index_buffer_size = (u32)(index_size * num_indices);
             void* data{ (void*)m.indices.data() };
             util::vector<u16> indices;
 
@@ -294,9 +299,10 @@ namespace drosim::tools {
                 data = (void*)indices.data();
             }
 
-            memcpy(&buffer[at], data, s);
-            at += s;
+            memcpy(&buffer[at], data, index_buffer_size);
+            at += index_buffer_size;
         }
+
     }
 
     void process_scene(scene& scene, const geometry_import_settings& settings) {

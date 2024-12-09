@@ -47,8 +47,11 @@ std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffe
 
     auto groupBuffers = std::make_unique<LODGroupBuffers>();
 
+    printf("[Application] Creating a new UvSphere");
+
     // Process each LOD group
     if (scene) {
+
         groupBuffers->name = scene->name;
 
 
@@ -125,7 +128,10 @@ void GeometryRenderer::RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
 };
 
 std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffers(const drosim::editor::mesh& mesh) {
-    if (mesh.vertices.empty() || mesh.indices.empty()) return nullptr;
+    if (mesh.vertices.empty() || mesh.indices.empty()) {
+        printf("[CreateMeshBuffers] Empty mesh passed.\n");
+        return nullptr;
+    }
 
     auto buffers = std::make_shared<MeshBuffers>();
 

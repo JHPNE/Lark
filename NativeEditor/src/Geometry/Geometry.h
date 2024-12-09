@@ -24,107 +24,193 @@ public:
 
         scenes.clear();
 
-        size_t at{0};
+        size_t at = 0;
+        constexpr size_t su32 = sizeof(u32);
+
+        // Read scene name length
+        u32 scene_name_length = 0;
+        memcpy(&scene_name_length, &data[at], su32);
+        at += su32;
+
+        // Read scene name
+        std::string scene_name(scene_name_length, '\0');
+        memcpy(scene_name.data(), &data[at], scene_name_length);
+        at += scene_name_length;
 
         // Read number of LOD groups
         u32 lod_count{0};
-        memcpy(&lod_count, &data[at], sizeof(u32));
-        at += sizeof(u32);
+        memcpy(&lod_count, &data[at], su32);
+        at += su32;
 
-        printf("[Geometry::FromRawData] LOD count: %u\n", lod_count);
+        printf("[Geometry::FromRawData] Scene: %s, LOD count: %u\n", scene_name.c_str(), lod_count);
 
-        for(u32 lod_idx = 0; lod_idx < lod_count; ++lod_idx) {
-            drosim::editor::scene scene;
+        drosim::editor::scene main_scene;
+        main_scene.name = scene_name;
+
+        for (u32 lod_idx = 0; lod_idx < lod_count; ++lod_idx) {
             drosim::editor::lod_group lod_group;
 
             // Read LOD group name length
             u32 group_name_length{0};
-            memcpy(&group_name_length, &data[at], sizeof(u32));
-            at += sizeof(u32);
+            memcpy(&group_name_length, &data[at], su32);
+            at += su32;
 
-            // Read LOD group name
+            std::string lod_name;
             if (group_name_length) {
-                lod_group.name.resize(group_name_length);
-                memcpy(lod_group.name.data(), &data[at], group_name_length);
+                lod_name.resize(group_name_length);
+                memcpy(lod_name.data(), &data[at], group_name_length);
                 at += group_name_length;
             }
+            lod_group.name = lod_name;
 
             // Read number of meshes in this LOD group
             u32 mesh_count{0};
-            memcpy(&mesh_count, &data[at], sizeof(u32));
-            at += sizeof(u32);
+            memcpy(&mesh_count, &data[at], su32);
+            at += su32;
 
-            // Process each mesh
-            for(u32 mesh_idx = 0; mesh_idx < mesh_count; ++mesh_idx) {
+            printf("[Geometry::FromRawData] LOD Group '%s' has %u meshes\n", lod_name.c_str(), mesh_count);
+
+            for (u32 mesh_idx = 0; mesh_idx < mesh_count; ++mesh_idx) {
                 drosim::editor::mesh mesh;
 
-                // Read mesh name length
+                // Mesh name length
                 u32 mesh_name_length{0};
-                memcpy(&mesh_name_length, &data[at], sizeof(u32));
-                at += sizeof(u32);
+                memcpy(&mesh_name_length, &data[at], su32);
+                at += su32;
 
-                // Read mesh name
+                std::string mesh_name;
                 if (mesh_name_length) {
-                    mesh.name.resize(mesh_name_length);
-                    memcpy(mesh.name.data(), &data[at], mesh_name_length);
+                    mesh_name.resize(mesh_name_length);
+                    memcpy(mesh_name.data(), &data[at], mesh_name_length);
                     at += mesh_name_length;
                 }
+                mesh.name = mesh_name;
+
                 printf("[Geometry::FromRawData] Processing mesh: %s\n", mesh.name.c_str());
 
-                // Read mesh LOD ID
+                // Mesh LOD ID
                 u32 lod_id{0};
-                memcpy(&lod_id, &data[at], sizeof(u32));
+                memcpy(&lod_id, &data[at], su32);
+                at += su32;
                 mesh.lod_id = lod_id;
-                at += sizeof(u32);
 
-                // Read vertex data
+                // Vertex size
+                u32 vertex_size = 0;
+                memcpy(&vertex_size, &data[at], su32);
+                at += su32;
+
+                // Vertex count
                 u32 vertex_count{0};
-                memcpy(&vertex_count, &data[at], sizeof(u32));
-                at += sizeof(u32);
+                memcpy(&vertex_count, &data[at], su32);
+                at += su32;
 
+                // Index size
+                u32 idx_size = 0;
+                memcpy(&idx_size, &data[at], su32);
+                at += su32;
+
+                // Index count
+                u32 index_count{0};
+                memcpy(&index_count, &data[at], su32);
+                at += su32;
+
+                // LOD threshold
+                f32 lod_threshold = 0.0f;
+                memcpy(&lod_threshold, &data[at], sizeof(f32));
+                at += sizeof(f32);
+                mesh.lod_threshold = lod_threshold;
+
+                printf("[Geometry::FromRawData] Mesh '%s': vertex_count=%u, index_count=%u, lod_threshold=%.2f\n",
+                       mesh.name.c_str(), vertex_count, index_count, lod_threshold);
+
+                // Read vertices
                 if (vertex_count > 0) {
+                    std::vector<drosim::tools::packed_vertex::vertex_static> packed_verts(vertex_count);
+                    memcpy(packed_verts.data(), &data[at], vertex_count * vertex_size);
+                    at += vertex_count * vertex_size;
+
+                    mesh.vertices.resize(vertex_count);
                     mesh.positions.resize(vertex_count);
                     mesh.normals.resize(vertex_count);
                     mesh.tangents.resize(vertex_count);
-                    mesh.uv_sets.resize(1);  // Assuming 1 UV set for now
+                    mesh.uv_sets.resize(1);
                     mesh.uv_sets[0].resize(vertex_count);
 
-                    // Read vertex data
-                    const size_t vertex_data_size = sizeof(drosim::editor::vertex) * vertex_count;
-                    std::vector<drosim::editor::vertex> vertices(vertex_count);
-                    memcpy(vertices.data(), &data[at], vertex_data_size);
-                    at += vertex_data_size;
-
-                    // Populate mesh data
                     for (u32 i = 0; i < vertex_count; ++i) {
-                        mesh.positions[i] = vertices[i].position;
-                        mesh.normals[i] = vertices[i].normal;
-                        mesh.tangents[i] = vertices[i].tangent;
-                        mesh.uv_sets[0][i] = vertices[i].uv;
+                        const auto& pv = packed_verts[i];
+
+                        float nx = math::unpack_float<16>(pv.normal[0], -1.0f, 1.0f);
+                        float ny = math::unpack_float<16>(pv.normal[1], -1.0f, 1.0f);
+
+                        float length_sq = nx*nx + ny*ny;
+                        float nz = (length_sq < 1.0f) ? sqrtf(1.0f - length_sq) : 0.0f;
+                        if ((pv.t_sign & 0x02) == 0) {
+                            nz = -nz;
+                        }
+
+                        mesh.positions[i] = pv.position;
+                        mesh.normals[i]   = math::v3(nx, ny, nz);
+                        mesh.uv_sets[0][i] = pv.uv;
+
+                        // Default tangent
+                        mesh.tangents[i] = math::v4(1.0f, 0.0f, 0.0f, 1.0f);
+
+                        mesh.vertices[i].position = mesh.positions[i];
+                        mesh.vertices[i].normal   = mesh.normals[i];
+                        mesh.vertices[i].tangent  = mesh.tangents[i];
+                        mesh.vertices[i].uv       = mesh.uv_sets[0][i];
+                    }
+
+                    // Print first few vertices for debugging
+                    for (u32 i = 0; i < std::min(vertex_count, 5u); ++i) {
+                        printf("[Debug] Vert %u: Pos(%.3f, %.3f, %.3f), Normal(%.3f, %.3f, %.3f), UV(%.3f, %.3f)\n",
+                               i,
+                               mesh.vertices[i].position.x, mesh.vertices[i].position.y, mesh.vertices[i].position.z,
+                               mesh.vertices[i].normal.x, mesh.vertices[i].normal.y, mesh.vertices[i].normal.z,
+                               mesh.vertices[i].uv.x, mesh.vertices[i].uv.y);
                     }
                 }
 
-                // Read index data
-                u32 index_count{0};
-                memcpy(&index_count, &data[at], sizeof(u32));
-                at += sizeof(u32);
-
+                // Read indices
                 if (index_count > 0) {
                     mesh.indices.resize(index_count);
-                    const size_t index_data_size = sizeof(u32) * index_count;
-                    memcpy(mesh.indices.data(), &data[at], index_data_size);
-                    at += index_data_size;
+                    if (idx_size == sizeof(u32)) {
+                        memcpy(mesh.indices.data(), &data[at], index_count * sizeof(u32));
+                        at += index_count * sizeof(u32);
+                    } else if (idx_size == sizeof(u16)) {
+                        std::vector<u16> temp_indices(index_count);
+                        memcpy(temp_indices.data(), &data[at], index_count * sizeof(u16));
+                        at += index_count * sizeof(u16);
+
+                        for (u32 i = 0; i < index_count; ++i) {
+                            mesh.indices[i] = (u32)temp_indices[i];
+                        }
+                    } else {
+                        printf("[Geometry::FromRawData] Unexpected index size: %u\n", idx_size);
+                        return false;
+                    }
+
+                    // Print first few indices for debugging
+                    for (u32 i = 0; i < std::min(index_count, 15u); i += 3) {
+                        printf("[Debug] Indices %u-%u: %u, %u, %u\n", i, i+2,
+                               mesh.indices[i],
+                               (i+1 < index_count ? mesh.indices[i+1] : 0),
+                               (i+2 < index_count ? mesh.indices[i+2] : 0));
+                    }
                 }
 
                 lod_group.meshes.push_back(std::move(mesh));
             }
 
-            scene.lod_groups.push_back(std::move(lod_group));
-            scenes.push_back(std::move(scene));
+            main_scene.lod_groups.push_back(std::move(lod_group));
         }
+
+        scenes.push_back(std::move(main_scene));
+        printf("[Geometry::FromRawData] Finished Processing\n");
 
         return true;
     }
+
 
     bool ToRawData(std::vector<u8>& data) const {
         // Implementation for serialization

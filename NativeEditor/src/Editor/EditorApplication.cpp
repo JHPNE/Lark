@@ -279,7 +279,7 @@ namespace editor {
 
 					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("sphere", &test)->GetID();
 					GeometryViewerView::Get().AddGeometry(entityId);
-					m_geometry->randomModificationVertexes(entityId,559 );
+					//m_geometry->randomModificationVertexes(entityId,559 );
 				}
 
 			    if (ImGui::Button("Load Obj")) {
