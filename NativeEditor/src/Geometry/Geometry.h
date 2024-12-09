@@ -1,8 +1,10 @@
 #pragma once
 #include "Asset.h"
+#include <cstdlib>
 #include <memory>
 #include <vector>
 #include <string>
+#include <glm/gtc/random.hpp>
 #include "EngineAPI.h"
 
 namespace drosim::editor {
@@ -186,6 +188,19 @@ public:
         }
 
         return nullptr;
+    }
+
+    void modifyVertexes(uint32_t id, std::vector<glm::vec3>& vertices) {
+        ModifyEntityVertexPositions(id, vertices);
+    }
+
+    void randomModificationVertexes(uint32_t id, uint32_t vertexCount) {
+        std::vector<glm::vec3> vertices(vertexCount);
+        for (u32 i = 0; i < vertexCount; i++) {
+             vertices[i] = glm::linearRand(glm::vec3(-1.0f), glm::vec3(1.0f));
+        }
+
+        modifyVertexes(id, vertices);
     }
 
 private:
