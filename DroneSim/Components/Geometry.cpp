@@ -4,107 +4,97 @@
 namespace drosim::geometry {
 
     namespace {
-        struct geometry_component {
-            tools::scene* scene;
-            tools::mesh* mesh;
-            tools::lod_group* lod_group;
-            bool is_valid;
-            bool is_dynamic;
-        };
+        // Arrays storing component data
+        util::vector<bool>                geometry_valid;
+        util::vector<tools::scene*>       geometry_scenes;
+        util::vector<bool>                geometry_is_dynamic;
+        util::vector<game_entity::entity_id> geometry_entities;
 
-        util::vector<geometry_component> geometry;
+        util::vector<id::generation_type> geometry_generations;
+        std::deque<geometry_id>           free_ids;
+
+        inline bool exists(geometry_id id) {
+            if (!id::is_valid(id)) return false;
+            const auto index = id::index(id);
+            if (index >= geometry_valid.size()) return false;
+            if (!geometry_valid[index]) return false;
+            return (geometry_generations[index] == id::generation(id));
+        }
     }
 
     component create(init_info info, game_entity::entity entity) {
-        assert(info.scene || info.mesh || info.lod_group); // At least one geometry source must be provided
-        assert(entity.is_valid());
-        const id::id_type entity_index{ id::index(entity.get_id()) };
+        assert(entity.is_valid() && "Entity must be valid");
+        assert(info.scene && "A valid scene pointer must be provided");
 
-        geometry.emplace_back(geometry_component{
-            info.scene,
-            info.mesh,
-            info.lod_group,
-            true,
-            info.is_dynamic
-        });
+        geometry_id id{};
+        // Reuse a free id if available
+        if (!free_ids.empty()) {
+            id = free_ids.front();
+            free_ids.pop_front();
+            id = geometry_id{ id::new_generation(id) };
+            ++geometry_generations[id::index(id)];
+        } else {
+            // Allocate a new slot
+            const auto index = static_cast<id::id_type>(geometry_valid.size());
 
-        // If dynamic is requested, set the mesh as dynamic
-        auto& comp = geometry.back();
-        if (comp.is_dynamic && comp.mesh) {
-            comp.mesh->set_dynamic(true);
+            geometry_valid.push_back(true);
+            geometry_scenes.push_back(info.scene);
+            geometry_is_dynamic.push_back(info.is_dynamic);
+            geometry_entities.push_back(entity.get_id());
+            geometry_generations.push_back(0);
+
+            id = geometry_id{ index };
         }
 
-        return component(geometry_id{ (id::id_type)geometry.size() - 1 });
+        // Validate
+        assert(id::is_valid(id));
+        return component{ id };
     }
 
-    void remove(geometry_id id) {
-        assert(id::is_valid(id));
-        const id::id_type index{ id::index(id) };
-        assert(index < geometry.size());
-        assert(geometry[index].is_valid);
-        
-        geometry[index].is_valid = false;
-        geometry[index].scene = nullptr;
-        geometry[index].mesh = nullptr;
-        geometry[index].lod_group = nullptr;
-        geometry[index].is_dynamic = false;
+    void remove(component c) {
+        if (!c.is_valid()) return;
+        const geometry_id id = c.get_id();
+        if (!exists(id)) return;
+
+        const auto index = id::index(id);
+        geometry_valid[index] = false;
+        geometry_scenes[index] = nullptr;
+        geometry_is_dynamic[index] = false;
+        geometry_entities[index] = game_entity::entity_id{id::invalid_id};
+
+        // Make this id available for reuse if generations allow
+        if (geometry_generations[index] < id::max_generation) {
+            free_ids.push_back(id);
+        }
+    }
+
+    void shutdown() {
+        // Clear all geometry data
+        geometry_valid.clear();
+        geometry_scenes.clear();
+        geometry_is_dynamic.clear();
+        geometry_entities.clear();
+        geometry_generations.clear();
+        free_ids.clear();
     }
 
     tools::scene* component::get_scene() const {
         assert(is_valid());
-        return geometry[_id].scene;
-    }
-
-    tools::mesh* component::get_mesh() const {
-        assert(is_valid());
-        return geometry[_id].mesh;
-    }
-
-    tools::lod_group* component::get_lod_group() const {
-        assert(is_valid());
-        return geometry[_id].lod_group;
+        const auto index = id::index(_id);
+        return geometry_scenes[index];
     }
 
     bool component::set_dynamic(bool dynamic) {
         assert(is_valid());
-        auto& comp = geometry[_id];
-        if (!comp.mesh) return false;
-
-        comp.is_dynamic = dynamic;
-        comp.mesh->set_dynamic(dynamic);
+        const auto index = id::index(_id);
+        geometry_is_dynamic[index] = dynamic;
         return true;
-    }
-
-    bool component::update_vertices(const std::vector<math::v3>& new_positions) {
-        assert(is_valid());
-        auto& comp = geometry[_id];
-        if (!comp.mesh || !comp.is_dynamic) return false;
-
-        try {
-            comp.mesh->update_vertices(new_positions);
-            return true;
-        }
-        catch (const std::runtime_error&) {
-            return false;
-        }
-    }
-
-    bool component::recalculate_normals() {
-        assert(is_valid());
-        auto& comp = geometry[_id];
-        if (!comp.mesh || !comp.is_dynamic) return false;
-
-        try {
-            comp.mesh->recalculate_normals();
-            return true;
-        }
-        catch (const std::runtime_error&) {
-            return false;
-        }
     }
 
     bool component::is_dynamic() const {
         assert(is_valid());
-        return geometry[_id].is_dynamic;
+        const auto index = id::index(_id);
+        return geometry_is_dynamic[index];
     }
+
 }

@@ -23,6 +23,8 @@ namespace drosim::api {
         if (!geometry.is_valid()) return false;
 
         // Get the geometry component and update if it's dynamic
+        geometry.set_dynamic(true);
+
         if (geometry.is_dynamic()) {
             // First update vertices with new positions
             if (!geometry.update_vertices(new_positions)) return false;

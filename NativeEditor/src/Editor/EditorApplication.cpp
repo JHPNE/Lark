@@ -269,14 +269,17 @@ namespace editor {
 						segments
 					);
 
+
+
 					geometry_component test{};
 					test.type = PrimitiveType;
 					test.file_name = m_geometryNameBuffer;
 					test.name = "sphere";
-					test.lod_group = m_geometry.get()->GetLODGroup();
+					test.lod_group = m_geometry.get()->GetScene();
 
 					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("sphere", &test)->GetID();
 					GeometryViewerView::Get().AddGeometry(entityId);
+					m_geometry->randomModificationVertexes(entityId,559 );
 				}
 
 			    if (ImGui::Button("Load Obj")) {

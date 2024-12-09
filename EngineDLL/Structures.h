@@ -40,25 +40,55 @@ struct PrimitiveInitInfo {
 }
 
 namespace drosim::editor {
-struct Mesh {
-  s32 vertex_size = 0;
-  s32 vertex_count = 0;
-  s32 index_size = 0;
-  s32 index_count = 0;
-  std::vector<u8> vertices;
-  std::vector<u8> indices;
+struct vertex_static {
+  math::v3 position;     ///< Vertex position in 3D space
+  u8 reserved[3];        ///< Reserved for alignment
+  u8 t_sign;            ///< Tangent sign bit
+  u16 normal[2];        ///< Compressed normal vector
+  u16 tangent[2];       ///< Compressed tangent vector
+  math::v2 uv;          ///< Texture coordinates
 };
 
-struct MeshLOD {
-  std::string name;
-  f32 lod_threshold = 0.0f;
-  std::vector<std::shared_ptr<Mesh>> meshes;
+struct vertex {
+  math::v4 tangent{};    ///< Tangent vector with handedness
+  math::v3 position{};   ///< Vertex position
+  math::v3 normal{};     ///< Normal vector
+  math::v2 uv{};         ///< Texture coordinates
 };
 
-struct LODGroup {
-  std::string name;
-  std::vector<std::shared_ptr<MeshLOD>> lods;
+struct mesh {
+  util::vector<math::v3> positions;     ///< Vertex positions
+  util::vector<math::v3> normals;       ///< Vertex normals
+  util::vector<math::v4> tangents;      ///< Vertex tangents
+  util::vector<util::vector<math::v2>> uv_sets;  ///< Multiple UV sets
+
+  util::vector<u32> raw_indices;        ///< Raw triangle indices
+
+  util::vector<vertex> vertices;        ///< Processed vertices
+  util::vector<u32> indices;           ///< Processed indices
+
+  std::string name;                    ///< Mesh name
+  util::vector<packed_vertex::vertex_static> packed_vertices_static;  ///< Packed vertices
+  f32 lod_threshold{ -1.f };          ///< LOD switch threshold
+  u32 lod_id{u32_invalid_id};         ///< LOD identifier
 };
+
+struct lod_group {
+  std::string name;              ///< Group name
+  util::vector<mesh> meshes;     ///< Meshes at different LOD levels
+};
+
+struct scene {
+  std::string name;                    ///< Scene name
+  util::vector<lod_group> lod_groups;  ///< LOD groups in the scene
+};
+
+struct scene_data {
+  u8* buffer;                    ///< Raw data buffer
+  u32 buffer_size;               ///< Size of the data buffer
+  geometry_import_settings settings;  ///< Import settings used
+};
+
 }
 
 // Component Structures
@@ -79,10 +109,12 @@ enum GeometryType {
 };
 
 struct geometry_component {
+  drosim::tools::scene* scene;
+  bool is_dynamic = false;
   const char *name;
   const char *file_name;
   GeometryType type;
-  drosim::editor::LODGroup* lod_group;
+  //drosim::editor::LODGroup* lod_group;
 };
 
 struct game_entity_descriptor {

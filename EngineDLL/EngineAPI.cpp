@@ -1,5 +1,7 @@
 #include "EngineAPI.h"
 
+
+
 #define ENGINEDLL_EXPORTS
 
 using namespace drosim;
@@ -28,6 +30,13 @@ namespace {
     script::init_info to_engine_script(const script_component& script) {
         script::init_info info{};
         info.script_creator = script.script_creator;  // Direct assignment since types match
+        return info;
+    }
+
+    geometry::init_info to_engine_geometry(const geometry_component& geometry) {
+        geometry::init_info info{};
+        info.is_dynamic = false;
+        info.scene = geometry.scene;
         return info;
     }
 
@@ -96,10 +105,12 @@ extern "C" {
         assert(e);
         transform::init_info transform_info = to_engine_transform(e->transform);
         script::init_info script_info = to_engine_script(e->script);
+        geometry::init_info geometry_info = to_engine_geometry(e->geometry);
 
         game_entity::entity_info entity_info{
             &transform_info,
             &script_info,
+            &geometry_info
         };
 
         auto entity = game_entity::create(entity_info);
@@ -306,28 +317,10 @@ extern "C" {
         return transform_comp.get_transform_matrix();
     }
 
-    ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, uint32_t vertex_index, float x, float y, float z) {
-        if (!is_entity_valid(entity_id)) return false;
-        auto entity = entity_from_id(entity_id);
-        auto geometry_comp  = entity.geometry();
-
-        if(!geometry_comp.is_valid()) return false;
-
-        // Get the mesh from the geometry component
-        auto* mesh = geometry_comp.get_mesh();
-        if (!mesh) return false;
-
-        // Check if vertex index is valid
-        if (vertex_index >= mesh->positions.size()) return false;
-
-        // Update the vertex position
-        mesh->positions[vertex_index] = { x, y, z };
-
-        // Update packed vertices for rendering
-        if (vertex_index < mesh->packed_vertices_static.size()) {
-            mesh->packed_vertices_static[vertex_index].position = { x, y, z };
-        }
-
-        return true;
+    ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, std::vector<glm::vec3>& new_positions) {
+        if(drosim::api::update_dynamic_mesh(entity_id, new_positions)) {
+            return true;
+        };
+        return false;
     }
 }

@@ -84,7 +84,8 @@ public:
 
 
         if (geom != nullptr) {
-            desc.geometry.file_name = geom->file_name;
+            desc.geometry.is_dynamic = false;
+            desc.geometry.scene = geom->scene;
         }
 
         uint32_t entityId = CreateGameEntity(&desc);
