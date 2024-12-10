@@ -393,9 +393,12 @@ namespace drosim::tools {
         for (size_t i = 0; i < vertices.size(); ++i) {
             vertices[i].position = positions[raw_indices[i]];
         }
+
+        recalculate_normals();
     }
 
     void mesh::recalculate_normals() {
+        mesh& m = *this;
         if (!is_dynamic) {
             throw std::runtime_error("Cannot recalculate normals for a static mesh");
         }
@@ -404,31 +407,26 @@ namespace drosim::tools {
         normals.clear();
         normals.resize(positions.size(), math::v3(0.0f));
 
-        // Calculate face normals and accumulate them at vertices
-        for (size_t i = 0; i < raw_indices.size(); i += 3) {
-            const auto& v0 = positions[raw_indices[i]];
-            const auto& v1 = positions[raw_indices[i + 1]];
-            const auto& v2 = positions[raw_indices[i + 2]];
+        const u32 num_triangles = (u32)m.raw_indices.size() / 3;
+        m.normals.resize(m.raw_indices.size());
 
-            // Calculate face normal
-            const auto edge1 = v1 - v0;
-            const auto edge2 = v2 - v0;
-            const auto normal = glm::normalize(glm::cross(edge1, edge2));
+        #pragma omp parallel for
+        for (s32 i = 0; i < (s32)num_triangles; ++i) {
+            const u32 base_idx = i * 3;
+            const u32 i0 = m.raw_indices[base_idx];
+            const u32 i1 = m.raw_indices[base_idx + 1];
+            const u32 i2 = m.raw_indices[base_idx + 2];
 
-            // Accumulate normal at each vertex
-            normals[raw_indices[i]] += normal;
-            normals[raw_indices[i + 1]] += normal;
-            normals[raw_indices[i + 2]] += normal;
-        }
+            const math::v3 n = calculate_triangle_normal(
+                m.positions[i0],
+                m.positions[i1],
+                m.positions[i2]
+            );
 
-        // Normalize accumulated normals
-        for (auto& normal : normals) {
-            normal = glm::normalize(normal);
-        }
-
-        // Update processed vertices
-        for (size_t i = 0; i < vertices.size(); ++i) {
-            vertices[i].normal = normals[raw_indices[i]];
+            // Store normal for all three vertices
+            m.normals[base_idx] = n;
+            m.normals[base_idx + 1] = n;
+            m.normals[base_idx + 2] = n;
         }
 
         // Repack vertices if needed

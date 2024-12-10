@@ -367,11 +367,9 @@ extern "C" {
     }
 
     ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, std::vector<glm::vec3>& new_positions) {
-        /*
         if(drosim::api::update_dynamic_mesh(entity_id, new_positions)) {
             return true;
         };
-        */
         return false;
     }
 }

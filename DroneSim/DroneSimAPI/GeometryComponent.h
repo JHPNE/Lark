@@ -34,12 +34,6 @@ namespace drosim::geometry {
     bool update_vertices(const std::vector<math::v3>& new_positions);
 
     /**
-     * @brief Recalculate normals for a dynamic geometry
-     * @return true if the operation was successful
-     */
-    bool recalculate_normals();
-
-    /**
      * @brief Check if this geometry is dynamic
      * @return true if the geometry is dynamic
      */
