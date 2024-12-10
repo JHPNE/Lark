@@ -74,7 +74,7 @@ public:
     }
 
     std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name,
-                         const geometry_component * geom = nullptr) {
+                         const geometry_component* geom = nullptr) {
         game_entity_descriptor desc{};
         desc.transform.position[0] = desc.transform.position[1] = desc.transform.position[2] = 0.f;
         // Zero out rotation
@@ -83,7 +83,7 @@ public:
         desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
 
 
-        if (geom != nullptr) {
+        if (geom != nullptr && geom->scene != nullptr) {
             desc.geometry.is_dynamic = false;
             desc.geometry.scene = geom->scene;
         }

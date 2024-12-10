@@ -378,6 +378,20 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
                 geom.file_name = geometrySourceElement;
                 geom.name = geometryName;
 
+                float size[3] = {5.0f, 5.0f, 5.0f};
+                uint32_t segments[3] = {32, 16, 1};
+
+                std::shared_ptr<drosim::editor::Geometry> geometry;
+                geometry = geomType == ObjImport
+                            ? drosim::editor::Geometry::LoadGeometry(geometrySourceElement)
+                            : drosim::editor::Geometry::CreatePrimitive(
+                                    content_tools::PrimitiveMeshType::uv_sphere,
+                                    size,
+                                    segments
+                                );
+
+                geom.scene = geometry->GetScene();
+
                 entity = scene->CreateEntityInternal(entityName, &geom);
             } else {
                 entity = scene->CreateEntityInternal(entityName);
