@@ -28,13 +28,26 @@ namespace drosim::api {
         if (geometry.is_dynamic()) {
             // First update vertices with new positions
             if (!geometry.update_vertices(new_positions)) return false;
-            
-            // Then recalculate normals to update the buffer
-            if (!geometry.recalculate_normals()) return false;
-            
+
             return true;
         }
 
         return false;
+    }
+
+    inline bool get_mesh_data(game_entity::entity_id id, tools::scene_data* data) {
+        if (!id::is_valid(id) || !game_entity::is_alive(id) || !data) return false;
+        
+        game_entity::entity entity{ id };
+        auto geometry = entity.geometry();
+        if (!geometry.is_valid() || !geometry.is_dynamic()) return false;
+
+        // Get the current mesh data
+        auto* scene = geometry.get_scene();
+        if (!scene) return false;
+
+        // Pack the current mesh data into the output buffer
+        tools::pack_data(*scene, *data);
+        return (data->buffer && data->buffer_size > 0);
     }
 }

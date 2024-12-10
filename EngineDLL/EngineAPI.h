@@ -66,7 +66,7 @@ extern "C" {
 
     // Function to modify vertex positions of an entity's geometry
     ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, std::vector<glm::vec3>& new_positions);
-
+    ENGINE_API bool GetModifiedMeshData(drosim::id::id_type entity_id, content_tools::SceneData* data);
 #ifdef __cplusplus
 }
 #endif

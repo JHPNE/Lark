@@ -372,4 +372,22 @@ extern "C" {
         };
         return false;
     }
+
+    ENGINE_API bool GetModifiedMeshData(drosim::id::id_type entity_id, content_tools::SceneData* data) {
+        if (!data) return false;
+        
+        // Convert content tools scene data to engine scene data
+        tools::scene_data engine_data{};
+        
+        // Get the mesh data from the entity
+        bool success = drosim::api::get_mesh_data(entity_id, &engine_data);
+        if (!success) return false;
+
+        // Copy the data to the output buffer
+        data->buffer_size = engine_data.buffer_size;
+        data->buffer = new u8[data->buffer_size];
+        memcpy(data->buffer, engine_data.buffer, data->buffer_size);
+
+        return true;
+    }
 }
