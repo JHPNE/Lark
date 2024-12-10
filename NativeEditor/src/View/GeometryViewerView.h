@@ -1,17 +1,17 @@
 #pragma once
 #include "../Geometry/Geometry.h"
 #include "../Geometry/GeometryRenderer.h"
+#include "Components/Geometry.h"
+#include "Project/Project.h"
 #include "Utils/Utils.h"
 #include "glad/glad.h"
 #include <imgui.h>
-
 #include <ImGuizmo.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <string>
 #include <unordered_map>
-class Project;
 
 struct ViewportGeometry {
     std::string name;
@@ -32,6 +32,7 @@ public:
 
     void SetUpViewport();
     void AddGeometry(uint32_t id);
+    void UpdateGeometry(uint32_t id);
     void RemoveGeometry(uint32_t id) {
         auto it = m_geometries.find(id);
         if (it != m_geometries.end()) {
@@ -91,8 +92,41 @@ private:
         }
     }
 
-    uint32_t CreateEntityForGeometry(ViewportGeometry* geometry);
     bool GetGeometryTransform(ViewportGeometry* geom, transform_component& transform);
+
+    drosim::editor::scene* GetScene(std::shared_ptr<Project> project, uint32_t id) {
+        if (!project) {
+            printf("[AddGeometry] No active project.\n");
+            return nullptr;
+        }
+
+        // Check if entity still exists in active scene
+        auto activeScene = project->GetActiveScene();
+        if (!activeScene) {
+            printf("[AddGeometry] No active scene.\n");
+            return nullptr;
+        }
+
+        auto entity = activeScene->GetEntity(id);
+        if (!entity) {
+            printf("[AddGeometry] Entity %u not found in active scene.\n", id);
+            return nullptr;
+        }
+
+        auto geometryComponent = entity->GetComponent<Geometry>();
+        if (!geometryComponent) {
+            printf("[AddGeometry] Entity %u has no Geometry component.\n", id);
+            return nullptr;
+        }
+
+        auto scene = geometryComponent->GetScene();
+        if (!scene) {
+            printf("[AddGeometry] Entity %u has no LOD group.\n", id);
+            return nullptr;
+        }
+        return scene;
+    }
+
 
 
     bool m_loaded = false;

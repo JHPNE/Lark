@@ -128,6 +128,10 @@ void ComponentView::Draw() {
                         geometry->SetVisible(isVisible);
                     }
 
+                    if(ImGui::Button("Weird Out Geometry", ImVec2(120, 0))) {
+                        drosim::editor::Geometry::randomModificationVertexes(selectedEntity->GetID(), 559);
+                    };
+
                     ImGui::PopStyleColor();
                     ImGui::PopStyleVar();
                 }

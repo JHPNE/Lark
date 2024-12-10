@@ -378,6 +378,7 @@ namespace drosim::tools {
     }
 
     void mesh::update_vertices(const std::vector<math::v3>& new_positions) {
+        this->is_dynamic = true;
         if (!is_dynamic) {
             throw std::runtime_error("Cannot update vertices for a static mesh");
         }

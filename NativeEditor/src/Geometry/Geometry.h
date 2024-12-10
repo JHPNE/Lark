@@ -269,11 +269,11 @@ public:
         return nullptr;
     }
 
-    void modifyVertexes(uint32_t id, std::vector<glm::vec3>& vertices) {
+    static void modifyVertexes(uint32_t id, std::vector<glm::vec3>& vertices) {
         ModifyEntityVertexPositions(id, vertices);
     }
 
-    void randomModificationVertexes(uint32_t id, uint32_t vertexCount) {
+    static void randomModificationVertexes(uint32_t id, uint32_t vertexCount) {
         std::vector<glm::vec3> vertices(vertexCount);
         for (u32 i = 0; i < vertexCount; i++) {
              vertices[i] = glm::linearRand(glm::vec3(-1.0f), glm::vec3(1.0f));

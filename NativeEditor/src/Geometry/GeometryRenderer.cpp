@@ -77,6 +77,37 @@ std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffe
     return groupBuffers;
 }
 
+std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::UpdateBuffersfromGeometry(drosim::editor::scene* scene, std::unique_ptr<LODGroupBuffers> buffers) {
+    if (!scene) {
+        printf("[UpdateBuffersfromGeometry] Null geometry passed.\n");
+        return nullptr;
+    }
+    if (scene) {
+
+        buffers->name = scene->name;
+
+        // Process each LOD level
+        for (const auto& lod : scene->lod_groups) {
+            auto lodBuffers = std::make_shared<LODLevelBuffers>();
+            lodBuffers->name = lod.name;
+
+
+            // Process each mesh in this LOD level
+            for (const auto& mesh : lod.meshes) {
+                lodBuffers->threshold = mesh.lod_threshold;
+                auto meshBuffers = CreateMeshBuffers(mesh);
+                if (meshBuffers) {
+                    lodBuffers->meshBuffers.push_back(std::move(meshBuffers));
+                }
+            }
+
+            buffers->lodLevels.push_back(lodBuffers);
+        }
+    }
+
+    return buffers;
+}
+
 void GeometryRenderer::RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
                              const glm::mat4& view,
                              const glm::mat4& projection,

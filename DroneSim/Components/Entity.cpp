@@ -55,6 +55,7 @@ namespace drosim::game_entity {
 		}
 
 		// Create Geometry Component
+		// TODO doesnt create it properly during Deserialization
 		if (info.geometry && info.geometry->scene) {
 			assert(!geometries[index].is_valid());
 			geometries[index] = geometry::create(*info.geometry, new_entity);

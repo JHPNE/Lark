@@ -1,6 +1,4 @@
 #include "GeometryViewerView.h"
-#include "../Project/Project.h"
-#include "../Utils/ImGuizmoManager.h"
 
 void GeometryViewerView::SetActiveProject(std::shared_ptr<Project> activeProject) {
     if (project != activeProject) {
@@ -54,35 +52,7 @@ bool GeometryViewerView::GetGeometryTransform(ViewportGeometry* geom, transform_
 
 //TODO remove unecessary args
 void GeometryViewerView::AddGeometry(uint32_t id) {
-    if (!project) {
-        printf("[AddGeometry] No active project.\n");
-        return;
-    }
-
-    // Check if entity still exists in active scene
-    auto activeScene = project->GetActiveScene();
-    if (!activeScene) {
-        printf("[AddGeometry] No active scene.\n");
-        return;
-    }
-
-    auto entity = activeScene->GetEntity(id);
-    if (!entity) {
-        printf("[AddGeometry] Entity %u not found in active scene.\n", id);
-        return;
-    }
-
-    auto geometryComponent = entity->GetComponent<Geometry>();
-    if (!geometryComponent) {
-        printf("[AddGeometry] Entity %u has no Geometry component.\n", id);
-        return;
-    }
-
-    auto scene = geometryComponent->GetScene();
-    if (!scene) {
-        printf("[AddGeometry] Entity %u has no LOD group.\n", id);
-        return;
-    }
+    auto scene = GetScene(project, id);
 
     auto buffers = GeometryRenderer::CreateBuffersFromGeometry(scene);
     if (!buffers) {
@@ -93,6 +63,22 @@ void GeometryViewerView::AddGeometry(uint32_t id) {
     m_geometries[id] = std::make_unique<ViewportGeometry>();
     m_geometries[id]->buffers = std::move(buffers);
     m_geometries[id]->entity_id = id;
+    m_selectedGeometry = m_geometries[id].get();
+}
+
+void GeometryViewerView::UpdateGeometry(uint32_t id) {
+    auto scene = GetScene(project, id);
+
+    auto buffers = GeometryRenderer::UpdateBuffersfromGeometry(scene, std::move(m_geometries[id]->buffers));
+    if (!buffers) {
+        printf("[AddGeometry] Failed to create buffers for entity %u.\n", id);
+        return;
+    }
+
+    m_geometries[id] = std::make_unique<ViewportGeometry>();
+    m_geometries[id]->buffers = std::move(buffers);
+    m_geometries[id]->entity_id = id;
+    m_selectedGeometry = m_geometries[id].get();
     m_selectedGeometry = m_geometries[id].get();
 }
 
