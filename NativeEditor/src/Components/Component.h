@@ -1,7 +1,7 @@
 #pragma once
 #include <cassert>
+#include <string>
 #include <memory>
-
 #include "Utils/MathUtils.h"
 
 class GameEntity;
