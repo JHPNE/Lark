@@ -1,11 +1,11 @@
-# Drosim
+# Lark 
 
 ## Overview
-Drosim is a simulation framework that utilizes Data-Oriented Programming to efficiently manage and simulate complex entities and behaviors. The primary language used is C#, with performance-critical components written in C++.
+Lark is a simulation framework that utilizes Data-Oriented Programming to efficiently manage and simulate complex entities and behaviors. The primary language used is C#, with performance-critical components written in C++.
 
 ## Implementation
 ### Data-Oriented Programming
-Drosim uses Data-Oriented Programming to optimize data layout and access patterns. This approach minimizes cache misses and improves performance, particularly in simulations involving numerous entities.
+Lark uses Data-Oriented Programming to optimize data layout and access patterns. This approach minimizes cache misses and improves performance, particularly in simulations involving numerous entities.
 
 ## How to Implement New Components
 ### Creating a New Component

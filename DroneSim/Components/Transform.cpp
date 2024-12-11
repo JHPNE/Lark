@@ -19,6 +19,7 @@ math::v4 euler_to_quaternion(const math::v3& euler_angles) {
   return math::v4(q.x, q.y, q.z, q.w);
 }
 
+// TODO remove if there is no further use
 math::v3 quaternion_to_euler(const math::v4 &quaternion) {
   glm::quat q(quaternion.w, quaternion.x, quaternion.y, quaternion.z);
   return glm::degrees(glm::eulerAngles(q));
