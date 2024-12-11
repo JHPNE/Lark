@@ -390,11 +390,9 @@ namespace drosim::tools {
         // Update vertex positions
         positions = new_positions;
 
-        // Update processed vertices
-        for (size_t i = 0; i < vertices.size(); ++i) {
-            vertices[i].position = positions[raw_indices[i]];
-        }
 
+        // Update processed vertices
+        pack_vertices_static(*this);
         recalculate_normals();
     }
 
