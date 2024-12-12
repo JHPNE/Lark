@@ -2,7 +2,6 @@ set(PROJECT_NAME EngineDLL)
 
 # Explicitly list source files
 set(SOURCE_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/dllmain.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/EngineAPI.cpp"
 )
 
