@@ -117,3 +117,11 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/scripts")
             "${CMAKE_BINARY_DIR}/bin/scripts"
     )
 endif()
+
+if(WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${Python_RUNTIME_LIBRARY_RELEASE}"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+    )
+endif()
