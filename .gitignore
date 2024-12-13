@@ -365,3 +365,4 @@ FodyWeavers.xsd
 /.vs/
 /.idea/
 /cmake-build-*/
+*.vscode/
