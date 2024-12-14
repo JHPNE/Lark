@@ -67,11 +67,22 @@ void GeometryViewerView::AddGeometry(uint32_t id) {
 }
 
 void GeometryViewerView::UpdateGeometry(uint32_t id) {
-    auto scene = GetScene(project, id);
+    content_tools::SceneData sceneData{};
+
+    GetModifiedMeshData(id, &sceneData);
+    if (!sceneData.buffer || sceneData.buffer_size == 0) {
+        printf("[UpdateGeometry] Failed to get modified mesh data for entity %u.\n", id);
+        return;
+    }
+
+    // Loaded new geometry
+    auto geometry = new drosim::editor::Geometry();
+    geometry->FromRawData(sceneData.buffer, sceneData.buffer_size);
+    auto scene = geometry->GetScene();
 
     auto buffers = GeometryRenderer::UpdateBuffersfromGeometry(scene, std::move(m_geometries[id]->buffers));
     if (!buffers) {
-        printf("[AddGeometry] Failed to create buffers for entity %u.\n", id);
+        printf("[UpdatedGeometry] Failed to create buffers for entity %u.\n", id);
         return;
     }
 

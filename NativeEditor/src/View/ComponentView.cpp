@@ -130,6 +130,7 @@ void ComponentView::Draw() {
 
                     if(ImGui::Button("Weird Out Geometry", ImVec2(120, 0))) {
                         drosim::editor::Geometry::randomModificationVertexes(selectedEntity->GetID(), 559);
+                        GeometryViewerView::Get().UpdateGeometry(selectedEntity->GetID());
                     };
 
                     ImGui::PopStyleColor();
