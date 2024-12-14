@@ -103,41 +103,45 @@ namespace drosim::geometry {
         assert(exists(_id));
         assert(geometry_is_dynamic[index] && "Geometry must be dynamic to update vertices");
 
-        tools::scene* old_scene = geometry_scenes[index];
-        if (!old_scene || old_scene->lod_groups.empty() || old_scene->lod_groups[0].meshes.empty()) {
+        tools::scene* scene = geometry_scenes[index];
+        if (!scene || scene->lod_groups.empty() || scene->lod_groups[0].meshes.empty()) {
             return false;
         }
 
-        const tools::mesh& old_mesh = old_scene->lod_groups[0].meshes[0];
-        if (new_positions.size() != old_mesh.positions.size()) {
+        tools::mesh& mesh = scene->lod_groups[0].meshes[0];
+        if (new_positions.size() != mesh.positions.size()) {
             return false;
         }
 
-        mesh obj_mesh{};
-        obj_mesh.name = old_mesh.name;
-        obj_mesh.positions = new_positions;
-        obj_mesh.raw_indices = old_mesh.indices;
+        // Store original indices if they're in raw_indices
+        if (mesh.raw_indices.empty() && !mesh.indices.empty()) {
+            mesh.raw_indices = mesh.indices;
+        }
 
-        scene scene{};
-        scene.name = old_scene->name;
+        // Update positions
+        mesh.positions = new_positions;
 
-        lod_group lod{};
-        lod.name = old_scene->lod_groups[0].name;
-        lod.meshes.push_back(std::move(obj_mesh));
-        scene.lod_groups.push_back(std::move(lod));
+        // Clear processed data but keep raw data
+        mesh.vertices.clear();
+        mesh.indices.clear();
+        mesh.normals.clear();
+        mesh.tangents.clear();
+        mesh.packed_vertices_static.clear();
 
-        // Process and pack data
+        // Keep UV data if it exists
+        if (mesh.uv_sets.size() > 1) {
+            util::vector<util::vector<math::v2>> temp_uvs;
+            temp_uvs.swap(mesh.uv_sets);
+            mesh.uv_sets.clear();
+            mesh.uv_sets.push_back(std::move(temp_uvs[0])); // Keep only the first UV set
+        }
+
+        // Reprocess the scene
         tools::geometry_import_settings import_settings{};
         import_settings.calculate_normals = true;
         import_settings.smoothing_angle = 178.0f;
+        tools::process_scene(*scene, import_settings);
 
-
-        tools::process_scene(scene, import_settings);
-        
-        // Clean up old scene and assign new one
-        delete geometry_scenes[index];
-        geometry_scenes[index] = &scene;
-        
         return true;
     }
 

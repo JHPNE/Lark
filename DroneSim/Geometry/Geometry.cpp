@@ -5,6 +5,20 @@
 namespace drosim::tools {
     namespace {
 
+        // Add this new function at the top of the anonymous namespace
+        void clear_processed_vertex_data(tools::mesh& m) {
+            m.vertices.clear();
+            m.vertices.shrink_to_fit();
+            m.indices.clear();
+            m.indices.shrink_to_fit();
+            m.normals.clear();
+            m.normals.shrink_to_fit();
+            m.tangents.clear();
+            m.tangents.shrink_to_fit();
+            m.packed_vertices_static.clear();
+            m.packed_vertices_static.shrink_to_fit();
+        }
+
         inline math::v3 calculate_triangle_normal(const math::v3& v0, const math::v3& v1, const math::v3& v2) {
             const math::v3 e0{ v1 - v0 };
             const math::v3 e1{ v2 - v0 };
