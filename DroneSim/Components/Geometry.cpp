@@ -113,49 +113,30 @@ namespace drosim::geometry {
             return false;
         }
 
-        auto new_scene = std::make_unique<tools::scene>();
-        new_scene->name = old_scene->name;
-        
-        tools::lod_group new_lod{};
-        new_lod.name = old_scene->lod_groups[0].name;
-        
-        tools::mesh new_mesh{};
-        new_mesh.name = old_mesh.name;
-        new_mesh.is_dynamic = true;
-        new_mesh.lod_id = old_mesh.lod_id;
-        new_mesh.lod_threshold = old_mesh.lod_threshold;
+        mesh obj_mesh{};
+        obj_mesh.name = old_mesh.name;
+        obj_mesh.positions = new_positions;
+        obj_mesh.raw_indices = old_mesh.indices;
 
-        // Create raw data from existing mesh
-        new_mesh.positions = new_positions;
-        new_mesh.raw_indices.clear();
-        
-        // Convert existing indices into raw triangles
-        // This rebuilds the raw index buffer similar to loadObj
-        const size_t num_indices = old_mesh.indices.size();
-        new_mesh.raw_indices.reserve(num_indices);
-        
-        for (size_t i = 0; i < num_indices; i++) {
-            new_mesh.raw_indices.push_back(old_mesh.indices[i]);
-        }
-        
-        // Copy UV sets if they exist
-        if (!old_mesh.uv_sets.empty()) {
-            new_mesh.uv_sets = old_mesh.uv_sets;
-        }
-        
-        new_lod.meshes.push_back(std::move(new_mesh));
-        new_scene->lod_groups.push_back(std::move(new_lod));
+        scene scene{};
+        scene.name = old_scene->name;
 
-        // Process the new scene with appropriate settings
-        tools::geometry_import_settings settings{};
-        settings.calculate_normals = true;
-        settings.smoothing_angle = 178.0f;
-        
-        tools::process_scene(*new_scene, settings);
+        lod_group lod{};
+        lod.name = old_scene->lod_groups[0].name;
+        lod.meshes.push_back(std::move(obj_mesh));
+        scene.lod_groups.push_back(std::move(lod));
+
+        // Process and pack data
+        tools::geometry_import_settings import_settings{};
+        import_settings.calculate_normals = true;
+        import_settings.smoothing_angle = 178.0f;
+
+
+        tools::process_scene(scene, import_settings);
         
         // Clean up old scene and assign new one
         delete geometry_scenes[index];
-        geometry_scenes[index] = new_scene.release();
+        geometry_scenes[index] = &scene;
         
         return true;
     }
