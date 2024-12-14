@@ -97,19 +97,67 @@ namespace drosim::geometry {
         return geometry_is_dynamic[index];
     }
 
-    bool component::update_vertices(const std::vector<math::v3> &new_positions) {
+    bool component::update_vertices(const std::vector<math::v3>& new_positions) {
         assert(is_valid());
         const auto index = id::index(_id);
-        assert(exists(index));
+        assert(exists(_id));
+        assert(geometry_is_dynamic[index] && "Geometry must be dynamic to update vertices");
 
-        auto lod_groups = geometry_scenes[index]->lod_groups;
-        for (auto lod_group : lod_groups) {
-            for (auto mesh : lod_group.meshes) {
-                mesh.update_vertices(new_positions);
-            }
+        tools::scene* old_scene = geometry_scenes[index];
+        if (!old_scene || old_scene->lod_groups.empty() || old_scene->lod_groups[0].meshes.empty()) {
+            return false;
         }
-        return false;
-    }
 
+        const tools::mesh& old_mesh = old_scene->lod_groups[0].meshes[0];
+        if (new_positions.size() != old_mesh.positions.size()) {
+            return false;
+        }
+
+        auto new_scene = std::make_unique<tools::scene>();
+        new_scene->name = old_scene->name;
+        
+        tools::lod_group new_lod{};
+        new_lod.name = old_scene->lod_groups[0].name;
+        
+        tools::mesh new_mesh{};
+        new_mesh.name = old_mesh.name;
+        new_mesh.is_dynamic = true;
+        new_mesh.lod_id = old_mesh.lod_id;
+        new_mesh.lod_threshold = old_mesh.lod_threshold;
+
+        // Create raw data from existing mesh
+        new_mesh.positions = new_positions;
+        new_mesh.raw_indices.clear();
+        
+        // Convert existing indices into raw triangles
+        // This rebuilds the raw index buffer similar to loadObj
+        const size_t num_indices = old_mesh.indices.size();
+        new_mesh.raw_indices.reserve(num_indices);
+        
+        for (size_t i = 0; i < num_indices; i++) {
+            new_mesh.raw_indices.push_back(old_mesh.indices[i]);
+        }
+        
+        // Copy UV sets if they exist
+        if (!old_mesh.uv_sets.empty()) {
+            new_mesh.uv_sets = old_mesh.uv_sets;
+        }
+        
+        new_lod.meshes.push_back(std::move(new_mesh));
+        new_scene->lod_groups.push_back(std::move(new_lod));
+
+        // Process the new scene with appropriate settings
+        tools::geometry_import_settings settings{};
+        settings.calculate_normals = true;
+        settings.smoothing_angle = 178.0f;
+        
+        tools::process_scene(*new_scene, settings);
+        
+        // Clean up old scene and assign new one
+        delete geometry_scenes[index];
+        geometry_scenes[index] = new_scene.release();
+        
+        return true;
+    }
 
 }
