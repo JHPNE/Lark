@@ -80,12 +80,13 @@ void GeometryViewerView::UpdateGeometry(uint32_t id) {
     geometry->FromRawData(sceneData.buffer, sceneData.buffer_size);
     auto scene = geometry->GetScene();
 
-    auto buffers = GeometryRenderer::UpdateBuffersfromGeometry(scene, std::move(m_geometries[id]->buffers));
+    auto buffers = GeometryRenderer::CreateBuffersFromGeometry(scene);
     if (!buffers) {
         printf("[UpdatedGeometry] Failed to create buffers for entity %u.\n", id);
         return;
     }
 
+    printf("[UpdatedGeometry] Succeeded to create buffers for entity %u.\n", id);
     m_geometries[id] = std::make_unique<ViewportGeometry>();
     m_geometries[id]->buffers = std::move(buffers);
     m_geometries[id]->entity_id = id;

@@ -152,4 +152,24 @@ namespace drosim::tools {
      * storage or transmission.
      */
     void pack_data(const scene& scene, scene_data& data);
+
+    /**
+     * @brief Update the positions of a single mesh within a scene, then reprocess geometry.
+     *
+     * Unlike the older `update_vertices` method, this function directly updates mesh data,
+     * regenerates normals/tangents (if requested via settings), and repacks vertices.
+     *
+     * @param scn          Reference to the scene containing the mesh.
+     * @param lod_index    Which LOD group to update.
+     * @param mesh_index   Which mesh within that LOD group to update.
+     * @param new_positions A vector of new vertex positions; must match the old position count.
+     * @param settings     Geometry import settings (controls normal/tangent recalculation, smoothing angle, etc.).
+     *
+     * @return true if successful, false otherwise (e.g., invalid indices, size mismatch).
+    */
+    bool update_scene_mesh_positions(scene& scn,
+                                 size_t lod_index,
+                                 size_t mesh_index,
+                                 const std::vector<math::v3>& new_positions,
+                                 const geometry_import_settings& settings);
 }

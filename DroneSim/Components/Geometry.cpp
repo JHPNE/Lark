@@ -103,46 +103,13 @@ namespace drosim::geometry {
         assert(exists(_id));
         assert(geometry_is_dynamic[index] && "Geometry must be dynamic to update vertices");
 
-        tools::scene* scene = geometry_scenes[index];
-        if (!scene || scene->lod_groups.empty() || scene->lod_groups[0].meshes.empty()) {
-            return false;
-        }
+        geometry_import_settings settings{};
+        settings.calculate_normals   = true;   // Recalculate normals
+        settings.calculate_tangents  = true;   // Also recalc tangents if needed
+        settings.smoothing_angle     = 178.f;  // Example smoothing angle
 
-        tools::mesh& mesh = scene->lod_groups[0].meshes[0];
-        if (new_positions.size() != mesh.positions.size()) {
-            return false;
-        }
-
-        // Store original indices if they're in raw_indices
-        if (mesh.raw_indices.empty() && !mesh.indices.empty()) {
-            mesh.raw_indices = mesh.indices;
-        }
-
-        // Update positions
-        mesh.positions = new_positions;
-
-        // Clear processed data but keep raw data
-        mesh.vertices.clear();
-        mesh.indices.clear();
-        mesh.normals.clear();
-        mesh.tangents.clear();
-        mesh.packed_vertices_static.clear();
-
-        // Keep UV data if it exists
-        if (mesh.uv_sets.size() > 1) {
-            util::vector<util::vector<math::v2>> temp_uvs;
-            temp_uvs.swap(mesh.uv_sets);
-            mesh.uv_sets.clear();
-            mesh.uv_sets.push_back(std::move(temp_uvs[0])); // Keep only the first UV set
-        }
-
-        // Reprocess the scene
-        tools::geometry_import_settings import_settings{};
-        import_settings.calculate_normals = true;
-        import_settings.smoothing_angle = 178.0f;
-        tools::process_scene(*scene, import_settings);
-
-        return true;
+        bool success = tools::update_scene_mesh_positions(*geometry_scenes[index], 0, 0, new_positions, settings);
+        return success;
     }
 
 }

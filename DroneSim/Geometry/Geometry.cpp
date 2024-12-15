@@ -386,4 +386,88 @@ namespace drosim::tools {
             }
         }
     }
+
+    /**
+     * @brief Update the positions of a single mesh within a scene, then reprocess geometry.
+     *
+     * Unlike the older `update_vertices` method, this function directly updates mesh data,
+     * regenerates normals/tangents (if requested via settings), and repacks vertices.
+     *
+     * @param scn          Reference to the scene containing the mesh.
+     * @param lod_index    Which LOD group to update.
+     * @param mesh_index   Which mesh within that LOD group to update.
+     * @param new_positions A vector of new vertex positions; must match the old position count.
+     * @param settings     Geometry import settings (controls normal/tangent recalculation, smoothing angle, etc.).
+     *
+     * @return true if successful, false otherwise (e.g., invalid indices, size mismatch).
+     */
+    bool update_scene_mesh_positions(scene& scn,
+                                     size_t lod_index,
+                                     size_t mesh_index,
+                                     const std::vector<math::v3>& new_positions,
+                                     const geometry_import_settings& settings)
+    {
+        // Validate LOD index and mesh index.
+        if (lod_index >= scn.lod_groups.size()) {
+            printf("Invalid LOD index.");
+            return false;
+        }
+        lod_group& lod = scn.lod_groups[lod_index];
+        if (mesh_index >= lod.meshes.size()) {
+            printf("Invalid mesh index.");
+            return false;
+        }
+
+        // Fetch the mesh.
+        mesh& m = lod.meshes[mesh_index];
+
+        // Make sure the new_positions size matches the current vertex count.
+        // If the mesh was previously processed, the authoritative vertex count
+        // is m.positions.size() (the "raw" positions).
+        if (new_positions.size() != m.positions.size()) {
+            printf("new_positions.size() does not match mesh.positions.size()");
+            return false;
+        }
+
+        // Update positions directly.
+        m.positions = new_positions;
+
+        // If raw_indices is empty, but we *do* have final indices, copy them back so
+        // process_scene() can safely recalc normals/tangents from raw_indices.
+        if (m.raw_indices.empty() && !m.indices.empty()) {
+            m.raw_indices = m.indices;
+        }
+
+        // Clear only *processed* data (vertices, indices, normals, tangents, packed vertices).
+        // DO NOT clear raw_indices if we want to recalc geometry properly.
+        m.vertices.clear();
+        m.vertices.shrink_to_fit();
+
+        m.indices.clear();
+        m.indices.shrink_to_fit();
+
+        m.normals.clear();
+        m.normals.shrink_to_fit();
+
+        m.tangents.clear();
+        m.tangents.shrink_to_fit();
+
+        m.packed_vertices_static.clear();
+        m.packed_vertices_static.shrink_to_fit();
+
+        // Usually we preserve UV sets (m.uv_sets) unless you specifically want to modify them.
+
+        if (m.uv_sets.empty()) {
+            m.uv_sets.resize(1);
+        }
+        m.uv_sets[0].resize(m.indices.size());
+        for (size_t i = 0; i < m.indices.size(); ++i) {
+            m.uv_sets[0][i] = glm::vec2(0.f, 0.f);
+        }
+        // Now reprocess the entire scene to recalc normals/tangents (if requested),
+        // rebuild vertex/index buffers, and pack vertex data.
+        process_scene(scn, settings);
+
+        return true;
+    }
 }
