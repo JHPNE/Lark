@@ -97,6 +97,7 @@ namespace drosim::geometry {
         return geometry_is_dynamic[index];
     }
 
+    // TODO fix remove id resassign id missing bug
     bool component::update_vertices(const std::vector<math::v3>& new_positions) {
         assert(is_valid());
         const auto index = id::index(_id);

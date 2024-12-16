@@ -122,12 +122,29 @@ namespace drosim::tools {
         }
 
         void process_uvs(mesh& m) {
-            if (m.uv_sets.empty()) return;
+            if (m.uv_sets.empty() || m.uv_sets[0].empty()) {
+                // If no UV data, create default UVs (0,0) for all vertices
+                if (!m.vertices.empty()) {
+                    for (auto& vertex : m.vertices) {
+                        vertex.uv = math::v2(0.0f, 0.0f);
+                    }
+                }
+                return;
+            }
 
             const u32 num_vertices = (u32)m.vertices.size();
             const u32 num_indices = (u32)m.indices.size();
             if (!num_vertices || !num_indices) return;
 
+            // Ensure UV set has enough data
+            if (m.uv_sets[0].size() < num_indices) {
+                printf("Warning: UV data size mismatch. Expected %u, got %zu\n", 
+                       num_indices, m.uv_sets[0].size());
+                // Resize and fill with default values
+                m.uv_sets[0].resize(num_indices, math::v2(0.0f, 0.0f));
+            }
+
+            // Rest of the existing process_uvs implementation...
             util::vector<vertex> new_vertices;
             new_vertices.reserve(num_indices); // Reserve space for worst case
             util::vector<u32> new_indices(num_indices);
@@ -457,12 +474,14 @@ namespace drosim::tools {
 
         // Usually we preserve UV sets (m.uv_sets) unless you specifically want to modify them.
 
+        // Initialize UV sets properly
         if (m.uv_sets.empty()) {
             m.uv_sets.resize(1);
-        }
-        m.uv_sets[0].resize(m.indices.size());
-        for (size_t i = 0; i < m.indices.size(); ++i) {
-            m.uv_sets[0][i] = glm::vec2(0.f, 0.f);
+            // Initialize UVs to match the number of raw indices, not processed indices
+            m.uv_sets[0].resize(m.raw_indices.size(), math::v2(0.0f, 0.0f));
+        } else if (m.uv_sets[0].size() != m.raw_indices.size()) {
+            // Ensure UV set matches the number of indices
+            m.uv_sets[0].resize(m.raw_indices.size(), math::v2(0.0f, 0.0f));
         }
         // Now reprocess the entire scene to recalc normals/tangents (if requested),
         // rebuild vertex/index buffers, and pack vertex data.

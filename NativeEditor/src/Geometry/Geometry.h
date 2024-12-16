@@ -275,13 +275,13 @@ public:
 
     static void randomModificationVertexes(uint32_t id, uint32_t vertexCount) {
         std::vector<glm::vec3> vertices(vertexCount);
+        // Expand the range to [-5.0f, 5.0f] on each axis
         for (u32 i = 0; i < vertexCount; i++) {
-             vertices[i] = glm::linearRand(glm::vec3(-1.0f), glm::vec3(1.0f));
+            vertices[i] = glm::linearRand(glm::vec3(-5.0f), glm::vec3(5.0f));
         }
 
         modifyVertexes(id, vertices);
     }
-
 private:
     std::vector<drosim::editor::scene> scenes;
 };
