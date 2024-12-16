@@ -275,9 +275,15 @@ public:
 
     static void randomModificationVertexes(uint32_t id, uint32_t vertexCount) {
         std::vector<glm::vec3> vertices(vertexCount);
-        // Expand the range to [-5.0f, 5.0f] on each axis
+        
         for (u32 i = 0; i < vertexCount; i++) {
-            vertices[i] = glm::linearRand(glm::vec3(-5.0f), glm::vec3(5.0f));
+            // Get angle based on vertex index
+            float angle = static_cast<float>(i) * 0.1f;
+            
+            // Create a spiral-like pattern
+            vertices[i].x = 3.1f * sinf(angle);
+            vertices[i].y = 2.1f * cosf(angle);
+            vertices[i].z = 1.05f * sinf(angle * 2.0f);
         }
 
         modifyVertexes(id, vertices);
