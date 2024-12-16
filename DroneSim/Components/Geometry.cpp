@@ -2,52 +2,60 @@
 #include "../Common/CommonHeaders.h"
 
 namespace drosim::geometry {
-
     namespace {
-        // Arrays storing component data
-        util::vector<bool>                geometry_valid;
-        util::vector<tools::scene*>       geometry_scenes;
-        util::vector<bool>                geometry_is_dynamic;
-        util::vector<game_entity::entity_id> geometry_entities;
+        // Replace individual arrays with a single vector of geometry data
+        struct geometry_data {
+            bool is_valid{ false };
+            bool is_dynamic{ false };
+            tools::scene* scene{ nullptr };
+            game_entity::entity_id entity_id{};
+        };
 
-        util::vector<id::generation_type> geometry_generations;
-        std::deque<geometry_id>           free_ids;
+        util::vector<geometry_data> geometries;
+        util::vector<id::id_type> id_mapping;
+        util::vector<id::generation_type> generations;
+        std::deque<geometry_id> free_ids;
 
-        inline bool exists(geometry_id id) {
-            if (!id::is_valid(id)) return false;
-            const auto index = id::index(id);
-            if (index >= geometry_valid.size()) return false;
-            if (!geometry_valid[index]) return false;
-            return (geometry_generations[index] == id::generation(id));
+        bool exists(geometry_id id) {
+            assert(id::is_valid(id));
+            const id::id_type index{ id::index(id) };
+            assert(index < generations.size() && 
+                   !(id::is_valid(id_mapping[index]) && 
+                     id_mapping[index] >= geometries.size()));
+            return (id::is_valid(id_mapping[index]) &&
+                    generations[index] == id::generation(id) &&
+                    geometries[id_mapping[index]].is_valid);
         }
     }
 
     component create(init_info info, game_entity::entity entity) {
-        assert(entity.is_valid() && "Entity must be valid");
-        assert(info.scene && "A valid scene pointer must be provided");
-
+        assert(entity.is_valid());
+        assert(info.scene);
+        
         geometry_id id{};
-        // Reuse a free id if available
-        if (!free_ids.empty()) {
+        
+        if (free_ids.size() > id::min_deleted_elements) {
             id = free_ids.front();
+            assert(!exists(id));
             free_ids.pop_front();
             id = geometry_id{ id::new_generation(id) };
-            ++geometry_generations[id::index(id)];
+            ++generations[id::index(id)];
         } else {
-            // Allocate a new slot
-            const auto index = static_cast<id::id_type>(geometry_valid.size());
-
-            geometry_valid.push_back(true);
-            geometry_scenes.push_back(info.scene);
-            geometry_is_dynamic.push_back(info.is_dynamic);
-            geometry_entities.push_back(entity.get_id());
-            geometry_generations.push_back(0);
-
-            id = geometry_id{ index };
+            id = geometry_id{ (id::id_type)id_mapping.size() };
+            id_mapping.emplace_back();
+            generations.push_back(0);
         }
 
-        // Validate
         assert(id::is_valid(id));
+        const id::id_type index{ (id::id_type)geometries.size() };
+        geometries.emplace_back(geometry_data{
+            true,
+            info.is_dynamic,
+            info.scene,
+            entity.get_id()
+        });
+        
+        id_mapping[id::index(id)] = index;
         return component{ id };
     }
 
@@ -55,62 +63,63 @@ namespace drosim::geometry {
         if (!c.is_valid()) return;
         if (!exists(c.get_id())) return;
 
-        const geometry_id id = c.get_id();
-        const auto index = id::index(id);
-        geometry_valid[index] = false;
-        geometry_scenes[index] = nullptr;
-        geometry_is_dynamic[index] = false;
-        geometry_entities[index] = game_entity::entity_id{id::invalid_id};
+        const geometry_id id{ c.get_id() };
+        const id::id_type index{ id_mapping[id::index(id)] };
+        const id::id_type last_index{ (id::id_type)geometries.size() - 1 };
 
-        // Make this id available for reuse if generations allow
-        if (geometry_generations[index] < id::max_generation) {
+        // Move last element to the removed position
+        if (index != last_index) {
+            geometries[index] = std::move(geometries[last_index]);
+            // Update the id_mapping for the moved element
+            const auto moved_id = std::find_if(id_mapping.begin(), id_mapping.end(),
+                [last_index](id::id_type mapping) { return mapping == last_index; });
+            if (moved_id != id_mapping.end()) {
+                *moved_id = index;
+            }
+        }
+        
+        geometries.pop_back();
+        id_mapping[id::index(id)] = id::invalid_id;
+
+        if (generations[id::index(id)] < id::max_generation) {
             free_ids.push_back(id);
         }
     }
 
-    void shutdown() {
-        // Clear all geometry data
-        geometry_valid.clear();
-        geometry_scenes.clear();
-        geometry_is_dynamic.clear();
-        geometry_entities.clear();
-        geometry_generations.clear();
-        free_ids.clear();
-    }
-
+    // Update the component methods to use the new data structure
     tools::scene* component::get_scene() const {
-        assert(is_valid());
-        const auto index = id::index(_id);
-        return geometry_scenes[index];
+        assert(is_valid() && exists(_id));
+        return geometries[id_mapping[id::index(_id)]].scene;
     }
 
     bool component::set_dynamic(bool dynamic) {
-        assert(is_valid());
-        const auto index = id::index(_id);
-        geometry_is_dynamic[index] = dynamic;
+        assert(is_valid() && exists(_id));
+        geometries[id_mapping[id::index(_id)]].is_dynamic = dynamic;
         return true;
     }
 
     bool component::is_dynamic() const {
-        assert(is_valid());
-        const auto index = id::index(_id);
-        return geometry_is_dynamic[index];
+        assert(is_valid() && exists(_id));
+        return geometries[id_mapping[id::index(_id)]].is_dynamic;
     }
 
-    // TODO fix remove id resassign id missing bug
     bool component::update_vertices(const std::vector<math::v3>& new_positions) {
-        assert(is_valid());
-        const auto index = id::index(_id);
-        assert(exists(_id));
-        assert(geometry_is_dynamic[index] && "Geometry must be dynamic to update vertices");
+        assert(is_valid() && exists(_id));
+        const auto& geom = geometries[id_mapping[id::index(_id)]];
+        assert(geom.is_dynamic && "Geometry must be dynamic to update vertices");
 
         geometry_import_settings settings{};
-        settings.calculate_normals   = true;   // Recalculate normals
-        settings.calculate_tangents  = true;   // Also recalc tangents if needed
-        settings.smoothing_angle     = 178.f;  // Example smoothing angle
+        settings.calculate_normals = true;
+        settings.calculate_tangents = true;
+        settings.smoothing_angle = 178.f;
 
-        bool success = tools::update_scene_mesh_positions(*geometry_scenes[index], 0, 0, new_positions, settings);
-        return success;
+        return tools::update_scene_mesh_positions(*geom.scene, 0, 0, new_positions, settings);
     }
 
+    void shutdown() {
+        geometries.clear();
+        id_mapping.clear();
+        generations.clear();
+        free_ids.clear();
+    }
 }
