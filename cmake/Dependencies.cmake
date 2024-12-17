@@ -59,28 +59,6 @@ endfunction()
 ensure_openmp()
 
 ###############################################################################
-# PhysX
-###############################################################################
-FetchContent_Declare(
-    PhysX
-    GIT_REPOSITORY https://github.com/NVIDIAGameWorks/PhysX.git
-    GIT_TAG 4.1
-)
-
-FetchContent_GetProperties(PhysX)
-if(NOT physx_POPULATED)
-    FetchContent_Populate(PhysX)
-    set(PHYSX_INCLUDE_DIR "${physx_SOURCE_DIR}/physx/include" CACHE INTERNAL "PhysX include directory")
-endif()
-
-# Basic PhysX configuration
-set(PX_BUILDSNIPPETS OFF CACHE BOOL "" FORCE)
-set(PX_BUILDPUBLICSAMPLES OFF CACHE BOOL "" FORCE)
-set(PX_GENERATE_STATIC_LIBRARIES ON CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(PhysX)
-
-###############################################################################
 # PyBind
 ###############################################################################
 FetchContent_Declare(

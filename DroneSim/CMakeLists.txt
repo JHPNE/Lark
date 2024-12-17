@@ -34,11 +34,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     glm
     Python::Python
     pybind11::pybind11
-    PhysXFoundation_static
-    PhysXCommon_static
-    PhysXExtensions_static
-    PhysXPvdSDK_static
-    # Add any other required PhysX libraries
 )
 
 # Platform-specific configurations
