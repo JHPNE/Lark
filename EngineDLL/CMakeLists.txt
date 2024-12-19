@@ -25,7 +25,6 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_SOURCE_DIR}/DroneSim/Common
         ${CMAKE_SOURCE_DIR}/DroneSim/Components
         ${CMAKE_SOURCE_DIR}/DroneSim/DroneSimAPI
-        ${CMAKE_SOURCE_DIR}/DroneSim/Scripting
         ${Python_INCLUDE_DIRS}
         ${pybind11_INCLUDE_DIRS}
 )

@@ -53,6 +53,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 add_subdirectory(DroneSim)
 add_subdirectory(EngineDLL)
 add_subdirectory(NativeEditor)
+add_subdirectory(Tests)
 
 # Add this after your add_subdirectory calls
 set(SCRIPT_OUTPUT_DIR "${CMAKE_BINARY_DIR}/bin/scripts")
@@ -65,3 +66,4 @@ if(DEFAULT_SCRIPTS)
 endif()
 
 add_dependencies(DroSimEditor EngineDLL)
+add_dependencies(Tests EngineDLL)

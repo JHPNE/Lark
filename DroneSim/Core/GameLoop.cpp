@@ -1,9 +1,4 @@
 #include "GameLoop.h"
-
-#include "Physics/IPhysicsSystem.h"
-#include "Physics/PhysicSystems/RigidBodySystem.h"
-#include "Physics/PhysicsSystemManager.h"
-
 #if defined(_WIN32)
 #include <Windows.h>
 #elif defined(__linux__) || defined(__APPLE__)
@@ -73,10 +68,6 @@ namespace drosim {
 
         // Variable timestep updates
         update_script_components(_current_delta_time);
-
-        drosim::physics::PhysicsSystemManager physics_system_manager;
-        physics_system_manager.AddSystem<drosim::physics::rigidbody::RigidBodySystem>();
-        physics_system_manager.GetSystem<physics::rigidbody::RigidBodySystem>();
 
         // Update FPS counter
         _frame_count++;
