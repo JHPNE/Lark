@@ -13,7 +13,10 @@ using namespace drosim::physics::shaders;
 class PhysicsBackend {
   public:
     virtual ~PhysicsBackend() {}
+
     virtual void updateRigidBodies(size_t count, float dt) = 0;
+    virtual void updateCollisionBodies(size_t count, float dt) = 0;
+
     virtual Environment GetEnvironment() { return environment; }
     virtual std::string GetCompShader(physics_type type) { return compShaders[type](); }
 

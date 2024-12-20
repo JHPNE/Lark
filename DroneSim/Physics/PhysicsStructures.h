@@ -1,7 +1,8 @@
-#include <vector>
+#pragma once
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
+#include <vector>
 
 struct Environment {
   glm::vec3 Gravity = glm::vec3(0.0f, -9.81f, 0.0f);
@@ -22,4 +23,18 @@ struct RigidBodyArrays {
   // inertiaData[i]= (inertia.z, invInertia.x, invInertia.y, invInertia.z)
   std::vector<glm::vec4> massData;
   std::vector<glm::vec4> inertiaData;
+};
+
+// Axis Aligned Bounding Box
+struct AABB {
+  glm::vec3 min, max;
+
+  [[nodiscard]] bool overlaps(const AABB& other) const {
+    return !(max.x < other.min.x || min.x > other.max.x || max.y < other.min.y || min.y > other.max.y || max.z < other.min.z || min.z > other.max.z);
+  }
+
+  void expand(float amount) {
+    min.x -= amount; min.y -= amount; min.z -= amount;
+    max.x += amount; max.y += amount; max.z += amount;
+  }
 };

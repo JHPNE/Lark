@@ -44,6 +44,16 @@ class CpuPhysicsBackend : public PhysicsBackend {
         }
       }
     }
+
+    void updateCollisionBodies(size_t count, float dt) override {
+      // motion without collision we prolly can use updateRigidBodies for that
+
+      // broad-phase
+      // linear search most distant points
+      // create space
+      // split space till
+
+    }
   private:
     RigidBodyArrays &rbData;
 };
