@@ -27,10 +27,13 @@ struct RigidBodyArrays {
 
 // Axis Aligned Bounding Box
 struct AABB {
-  glm::vec3 min, max;
+  glm::vec3 min;
+  glm::vec3 max;
 
-  [[nodiscard]] bool overlaps(const AABB& other) const {
-    return !(max.x < other.min.x || min.x > other.max.x || max.y < other.min.y || min.y > other.max.y || max.z < other.min.z || min.z > other.max.z);
+  bool overlaps(const AABB& other) const {
+    return !(max.x < other.min.x || min.x > other.max.x ||
+             max.y < other.min.y || min.y > other.max.y ||
+             max.z < other.min.z || min.z > other.max.z);
   }
 
   void expand(float amount) {
@@ -38,3 +41,15 @@ struct AABB {
     max.x += amount; max.y += amount; max.z += amount;
   }
 };
+
+inline AABB expandAABB(const AABB& a, const AABB& b) {
+  AABB result;
+  result.min = glm::min(a.min, b.min);
+  result.max = glm::max(a.max, b.max);
+  return result;
+}
+
+inline float surfaceArea(const AABB& aabb) {
+  glm::vec3 d = aabb.max - aabb.min;
+  return 2.0f * (d.x * d.y + d.y * d.z + d.z * d.x);
+}

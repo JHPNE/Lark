@@ -1,9 +1,32 @@
 #pragma once
 #include "PhysicsBackend.h"
+#include "detail/CollisionCPU.h"
 
 class CpuPhysicsBackend : public PhysicsBackend {
   public:
-    CpuPhysicsBackend(RigidBodyArrays &rb) : rbData(rb) {};
+    CpuPhysicsBackend(RigidBodyArrays &rb) : rbData(rb) {
+      size_t count = rbData.positions.size();
+      broadphase.collisionBodies.resize(count);
+
+      for (size_t i = 0; i < count; i++) {
+        CollisionBody body;
+        body.position = rbData.positions[i];
+        body.velocity = rbData.linearVelocities[i];
+
+        // If radius isn't stored directly in rbData, you need a way to determine it.
+        // For now, assume a radius from rbData or a default value:
+        body.radius = 1.0f; // or from rbData if available
+
+        broadphase.collisionBodies[i] = body;
+      }
+
+      // Optionally build an initial BVH. If your BVH builds as you go, skip this.
+      for (int i = 0; i < (int)broadphase.collisionBodies.size(); i++) {
+        AABB initialAABB = broadphase.collisionBodies[i].tightAABB();
+        initialAABB.expand(broadphase.expansionAmount);
+        broadphase.tree.insert(i, initialAABB);
+      }
+    };
 
     // See PhysicsStructures for diagonal vectors
     void updateRigidBodies(size_t count, float dt) override {
@@ -45,15 +68,28 @@ class CpuPhysicsBackend : public PhysicsBackend {
       }
     }
 
-    void updateCollisionBodies(size_t count, float dt) override {
-      // motion without collision we prolly can use updateRigidBodies for that
+    void detectCollisions(float dt) override {
+      // Here we can call the broadphase to update and find new collisions
+      broadphase.update(dt);
 
-      // broad-phase
-      // linear search most distant points
-      // create space
-      // split space till
-
+      // After update, broadphase.activePairs contains potential collision pairs
+      // and broadphase.contacts can be filled in the future if you add narrowphase details.
     }
+
+    void resolveCollisions(float dt) override {
+      // Apply responses based on broadphase (and potentially narrowphase) results
+      // If you've implemented broadphase.resolveCollisions, call it here
+      broadphase.resolveCollisions(dt);
+
+      // The resolveCollisions function can adjust velocities/positions of objects
+      // in broadphase.collisionBodies, which you then copy back to rbData if needed
+      for (size_t i = 0; i < rbData.positions.size(); i++) {
+        rbData.positions[i] = broadphase.collisionBodies[i].position;
+        rbData.linearVelocities[i] = broadphase.collisionBodies[i].velocity;
+      }
+    }
+
   private:
     RigidBodyArrays &rbData;
+    BroadphaseCPU broadphase;
 };

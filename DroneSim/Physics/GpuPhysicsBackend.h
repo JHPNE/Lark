@@ -68,6 +68,8 @@ class GpuPhysicsBackend : public PhysicsBackend {
       downloadData(massBuffer, rbData.massData, false);
       downloadData(inertiaBuffer, rbData.inertiaData, false);
     }
+    void detectCollisions(float dt) override {};
+    void resolveCollisions(float dt) override {};
 
   private:
     RigidBodyArrays &rbData;
