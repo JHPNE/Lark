@@ -12,7 +12,7 @@ using namespace drosim::physics::shaders;
 
 class PhysicsBackend {
   public:
-    virtual ~PhysicsBackend() {}
+    virtual ~PhysicsBackend() = default;
 
     virtual void updateRigidBodies(size_t count, float dt) = 0;
 
@@ -20,9 +20,9 @@ class PhysicsBackend {
     virtual void resolveCollisions(float dt) = 0;
 
     virtual Environment GetEnvironment() { return environment; }
-    virtual std::string GetCompShader(physics_type type) { return compShaders[type](); }
+    virtual std::string GetCompShader(const compute_shaders type) { return compShaders[type](); }
 
-    bool isGpuComputeSupported() {
+    static bool isGpuComputeSupported() {
       GLint major, minor;
       glGetIntegerv(GL_MAJOR_VERSION, &major);
       glGetIntegerv(GL_MINOR_VERSION, &minor);

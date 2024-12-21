@@ -3,9 +3,9 @@
 
 class GpuPhysicsBackend : public PhysicsBackend {
   public:
-    GpuPhysicsBackend(RigidBodyArrays &rb, size_t count) : rbData(rb), bodyCount(count) {
+    GpuPhysicsBackend(RigidBodyArrays &rb, const size_t count) : rbData(rb), bodyCount(count) {
       // Create/compile shader
-      program = createComputeProgram(GetCompShader(rigid_body));
+      program = createComputeProgram(PhysicsBackend::GetCompShader(physics_update));
       if (!program) {
         std::cerr << "Failed to create compute shader program.\n";
       }

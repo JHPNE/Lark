@@ -1,0 +1,62 @@
+#version 430
+
+layout(local_size_x = 256) in;
+
+// Input and output buffers
+layout(std430, binding = 0) buffer MortonCodesIn {
+    uint mortonCodesIn[];
+};
+layout(std430, binding = 1) buffer MortonCodesOut {
+    uint mortonCodesOut[];
+};
+layout(std430, binding = 2) buffer IndicesIn {
+    uint indicesIn[];
+};
+layout(std430, binding = 3) buffer IndicesOut {
+    uint indicesOut[];
+};
+
+uniform int bitOffset;
+uniform uint NUM_OBJECTS;
+
+shared uint histogram[256]; // 8-bit histogram
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    uint local_id = gl_LocalInvocationID.x;
+
+    // Initialize shared histogram
+    if (local_id < 256) {
+        histogram[local_id] = 0;
+    }
+    barrier();
+
+    // Each thread processes multiple elements
+    for (uint i = gid; i < NUM_OBJECTS; i += gl_WorkGroupSize.x) {
+        uint key = (mortonCodesIn[i] >> bitOffset) & 0xFF;
+        atomicAdd(histogram[key], 1);
+    }
+
+    barrier();
+
+    // Exclusive scan on histogram to get offsets
+    // Simple sequential scan for demonstration; replace with parallel scan for performance
+    if (local_id < 256) {
+        uint sum = 0;
+        for (uint j = 0; j < local_id; j++) {
+            sum += histogram[j];
+        }
+        histogram[local_id] = sum;
+    }
+    barrier();
+
+    // Each thread processes multiple elements again for scattering
+    for (uint i = gid; i < NUM_OBJECTS; i += gl_WorkGroupSize.x) {
+        uint key = (mortonCodesIn[i] >> bitOffset) & 0xFF;
+        uint pos = atomicAdd(histogram[key], 1);
+        mortonCodesOut[pos] = mortonCodesIn[i];
+        indicesOut[pos] = indicesIn[i];
+    }
+
+    barrier();
+}

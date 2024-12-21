@@ -1,6 +1,6 @@
 #version 430
 
-layout(local_size_x = 64) in; //Work group size
+layout(local_size_x = 64) in; // Work group size
 
 // Positions
 layout(std430, binding = 0) buffer PositionBuffer {
@@ -50,14 +50,6 @@ void main() {
     float mass = mData.x;
     float invMass = mData.y;
     // Inertia diagonals (for simplicity)
-    // mData.z, mData.w and iData.x for the remaining inertia components
-    // Let’s say:
-    // massData[i].z = inertia.x
-    // massData[i].w = inertia.y
-    // inertiaData[i].x = inertia.z
-    // inertiaData[i].y = invInertia.x
-    // inertiaData[i].z = invInertia.y
-    // inertiaData[i].w = invInertia.z
     vec3 inertia = vec3(mData.z, mData.w, iData.x);
     vec3 invInertia = vec3(iData.y, iData.z, iData.w);
 
@@ -67,9 +59,8 @@ void main() {
         // 1) Update linear velocity with gravity
         linVel.xyz += gravity * dt;
 
-        // 2) Update angular velocity (no external torque in this example, but you could apply some if needed)
-        // Here we do nothing special, but if you had torques, you'd do:
-        // angVel.xyz += invInertia * torque * dt; // For diagonal inertia, this is element-wise multiply.
+        // 2) Update angular velocity (no external torque in this example)
+        // Implement torque application if needed
 
         // 3) Update position
         pos.xyz += linVel.xyz * dt;

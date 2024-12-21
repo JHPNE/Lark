@@ -99,7 +99,7 @@ class PhysicsTests {
       // Create backend
       std::unique_ptr<PhysicsBackend> backend;
       std::unique_ptr<PhysicsBackend> testBackend = std::make_unique<CpuPhysicsBackend>(rbData);
-      if (testBackend->isGpuComputeSupported()) {
+      if (PhysicsBackend::isGpuComputeSupported()) {
         printf("GPU compute is supported. Using GpuPhysicsBackend.\n");
         backend = std::make_unique<GpuPhysicsBackend>(rbData, count);
       } else {
