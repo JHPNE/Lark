@@ -5,69 +5,47 @@ class GpuPhysicsBackend : public PhysicsBackend {
   public:
     GpuPhysicsBackend(RigidBodyArrays &rb, const size_t count) : rbData(rb), bodyCount(count) {
       // Create/compile shader
-      program = createComputeProgram(PhysicsBackend::GetCompShader(physics_update));
-      if (!program) {
-        std::cerr << "Failed to create compute shader program.\n";
-      }
+      initComputeShaders();
 
-      // Get uniforms
-      dtLocation = glGetUniformLocation(program, "dt");
-      gravityLocation = glGetUniformLocation(program, "gravity");
+      // create SSBOs for physics data
+      createPhysicsSSBOs();
 
-      // Create SSBOs
-      createSSBO(positionBuffer, rbData.positions.size() * sizeof(glm::vec4)); // We'll store pos as vec4
-      createSSBO(orientationBuffer, rbData.orientations.size() * sizeof(glm::vec4));
-      createSSBO(linearVelBuffer, rbData.linearVelocities.size() * sizeof(glm::vec4));
-      createSSBO(angularVelBuffer, rbData.angularVelocities.size() * sizeof(glm::vec4));
-      createSSBO(massBuffer, rbData.massData.size() * sizeof(glm::vec4));
-      createSSBO(inertiaBuffer, rbData.inertiaData.size() * sizeof(glm::vec4));
+      // Create SSBOs for BVH
+      createBVHSSBOs();
+
+      // Create SSBOs for collision data
+      createCollisionSSBOs();
     };
 
     ~GpuPhysicsBackend() {
+      // Delete physics SSBOs
       glDeleteBuffers(1, &positionBuffer);
       glDeleteBuffers(1, &orientationBuffer);
       glDeleteBuffers(1, &linearVelBuffer);
       glDeleteBuffers(1, &angularVelBuffer);
       glDeleteBuffers(1, &massBuffer);
       glDeleteBuffers(1, &inertiaBuffer);
-      if (program) glDeleteProgram(program);
+
+      // Delete BVH SSBOs
+      glDeleteBuffers(1, &mortonCodesBuffer);
+      glDeleteBuffers(1, &sortedMortonCodesBuffer);
+      glDeleteBuffers(1, &indicesBuffer);
+      glDeleteBuffers(1, &sortedIndicesBuffer);
+      glDeleteBuffers(1, &bvhNodesBuffer);
+
+      // Delete collision SSBOs
+      glDeleteBuffers(1, &collisionPairsBuffer);
+
+      // Delete shader programs
+      glDeleteProgram(physicsProgram);
+      glDeleteProgram(mortonProgram);
+      glDeleteProgram(sortProgram);
+      glDeleteProgram(bvhProgram);
+      glDeleteProgram(refitProgram);
+      glDeleteProgram(collisionProgram);
     }
 
-    void updateRigidBodies(size_t count, float dt) override {
-      if (!program || count == 0) return;
-
-      // Upload data
-      uploadData(positionBuffer, rbData.positions, true);
-      uploadData(orientationBuffer, rbData.orientations, true);
-      uploadData(linearVelBuffer, rbData.linearVelocities, true);
-      uploadData(angularVelBuffer, rbData.angularVelocities, true);
-      uploadData(massBuffer, rbData.massData, false);
-      uploadData(inertiaBuffer, rbData.inertiaData, false);
-
-      glUseProgram(program);
-      glUniform1f(dtLocation, dt);
-      glUniform3f(gravityLocation, GetEnvironment().Gravity.x, GetEnvironment().Gravity.y, GetEnvironment().Gravity.z);
-
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, positionBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, orientationBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, linearVelBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, angularVelBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, massBuffer);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, inertiaBuffer);
-
-      // Dispatch
-      GLuint groups = (GLuint)((count + 63) / 64); // match local_size_x=64 in shader
-      glDispatchCompute(groups, 1, 1);
-      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-      // Download data
-      downloadData(positionBuffer, rbData.positions, true);
-      downloadData(orientationBuffer, rbData.orientations, true);
-      downloadData(linearVelBuffer, rbData.linearVelocities, true);
-      downloadData(angularVelBuffer, rbData.angularVelocities, true);
-      downloadData(massBuffer, rbData.massData, false);
-      downloadData(inertiaBuffer, rbData.inertiaData, false);
-    }
+    void updateRigidBodies(size_t count, float dt) override;
     void detectCollisions(float dt) override {};
     void resolveCollisions(float dt) override {};
 
@@ -75,10 +53,18 @@ class GpuPhysicsBackend : public PhysicsBackend {
     RigidBodyArrays &rbData;
     size_t bodyCount;
 
-    GLuint program = 0;
+    // Shader Programs
+    GLuint physicsProgram = 0;
+    GLuint mortonProgram = 0;
+    GLuint sortProgram = 0;
+    GLuint bvhProgram = 0;
+    GLuint refitProgram = 0;
+    GLuint collisionProgram = 0;
+
     GLint dtLocation = -1;
     GLint gravityLocation = -1;
 
+    // Physics SSBOs
     GLuint positionBuffer = 0;
     GLuint orientationBuffer = 0;
     GLuint linearVelBuffer = 0;
@@ -86,53 +72,33 @@ class GpuPhysicsBackend : public PhysicsBackend {
     GLuint massBuffer = 0;
     GLuint inertiaBuffer = 0;
 
-    static void createSSBO(GLuint &buffer, size_t size) {
-      glGenBuffers(1, &buffer);
-      glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
-      glBufferData(GL_SHADER_STORAGE_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
-      glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-    }
+    // BVH SSBOs
+    GLuint mortonCodesBuffer = 0;
+    GLuint sortedMortonCodesBuffer = 0;
+    GLuint indicesBuffer = 0;
+    GLuint sortedIndicesBuffer = 0;
+    GLuint bvhNodesBuffer = 0;
 
-    GLuint createComputeProgram(const std::string &shaderName) {
-      std::string compSource = loadFileAsString(shaderName);
-      if (compSource.empty()) {
-        std::cerr << "Compute shader file not found. \n";
-        return 0;
-      };
+    // Collision SSBOs
+    GLuint collisionPairsBuffer = 0;
 
-      const char* src = compSource.c_str();
-      GLuint comp = glCreateShader(GL_COMPUTE_SHADER);
-      glShaderSource(comp, 1, &src, nullptr);
-      glCompileShader(comp);
+    // Scene Bounds for Morton Encoding
+    glm::vec3 sceneMin = glm::vec3(-1000.0f);
+    glm::vec3 sceneMax = glm::vec3(1000.0f);
 
-      GLint status = 0;
-      glGetShaderiv(comp, GL_COMPILE_STATUS, &status);
-      if (!status) {
-        char log[512];
-        glGetShaderInfoLog(comp, 512, nullptr, log);
-        std::cerr << "Compute shader compilation failed: " << log << "\n";
-        glDeleteShader(comp);
-        return 0;
-      }
+    void initComputeShaders();
+    void createPhysicsSSBOs();
+    void createBVHSSBOs();
+    void createCollisionSSBOs();
+    static void createSSBO(GLuint &buffer, size_t size);
 
-      GLuint prog = glCreateProgram();
-      glAttachShader(prog, comp);
-      glLinkProgram(prog);
+    void uploadPhysicsData();
+    void bindPhysicsSSBOs();
+    void downloadPhysicsData();
 
-      glGetProgramiv(prog, GL_LINK_STATUS, &status);
-      if (!status) {
-        char log[512];
-        glGetProgramInfoLog(prog, 512, nullptr, log);
-        std::cerr << "Link shader program failed: " << log << "\n";
-        glDeleteProgram(prog);
-        glDeleteShader(comp);
-        return 0;
-      }
+    GLuint createComputeProgram(const std::string &shaderName);
 
-      glDeleteShader(comp);
-      return prog;
-    }
-
+    // Helper Functions
     std::string loadFileAsString(const std::string& path) {
       FILE* f = fopen(path.c_str(), "rb");
       if (!f) return "";

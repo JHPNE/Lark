@@ -2,24 +2,25 @@
 
 layout(local_size_x = 256) in;
 
+// Define the BVHNode struct outside the buffer block
+struct BVHNode {
+    vec4 boundsMin;
+    vec4 boundsMax;
+    uint leftChild;
+    uint rightChild;
+    uint parent;
+    uint isLeaf;
+};
+
 // Inputs: BVH Nodes
 layout(std430, binding = 3) buffer BVHNodesBuffer {
-    struct BVHNode {
-        vec4 boundsMin;
-        vec4 boundsMax;
-        uint leftChild;
-        uint rightChild;
-        uint parent;
-        uint isLeaf;
-    } nodes[];
+    BVHNode nodes[];
 };
 
 // Inputs: Positions and Orientations (if needed)
 layout(std430, binding = 2) buffer PositionBuffer {
     vec4 positions[];
 };
-
-// No output; modifies nodes in place
 
 uniform uint NUM_OBJECTS;
 

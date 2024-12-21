@@ -15,7 +15,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/Common
     ${Python_INCLUDE_DIRS}
     ${pybind11_INCLUDE_DIRS}
-    ${PHYSX_INCLUDE_DIR}        # Updated PhysX include path
 )
 
 # OpenMP configuration
@@ -31,6 +30,7 @@ endif()
 
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PUBLIC
+    glad
     glm
     Python::Python
     pybind11::pybind11

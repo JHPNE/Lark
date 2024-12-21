@@ -2,16 +2,19 @@
 
 layout(local_size_x = 256) in;
 
+// Define the BVHNode struct outside the buffer block
+struct BVHNode {
+    vec4 boundsMin;
+    vec4 boundsMax;
+    uint leftChild;
+    uint rightChild;
+    uint parent;
+    uint isLeaf;
+};
+
 // Inputs: BVH Nodes and sorted indices
 layout(std430, binding = 3) buffer BVHNodesBuffer {
-    struct BVHNode {
-        vec4 boundsMin;
-        vec4 boundsMax;
-        uint leftChild;
-        uint rightChild;
-        uint parent;
-        uint isLeaf;
-    } nodes[];
+    BVHNode nodes[];
 };
 layout(std430, binding = 1) buffer Indices {
     uint sortedIndices[];
@@ -19,15 +22,16 @@ layout(std430, binding = 1) buffer Indices {
 
 // Output: Collision Pairs
 layout(std430, binding = 2) buffer CollisionPairsBuffer {
-    uvec2 collisionPairs[];
+    uvec2 collisionPairs[]; // Use uvec2 instead of uint2
 };
-
-uniform uint NUM_OBJECTS;
-uniform float dt;
 
 // Atomic counter for collision pairs
 layout(binding = 6, offset = 0) uniform atomic_uint collisionCount;
 
+uniform uint NUM_OBJECTS;
+uniform float dt;
+
+// Function to check AABB overlap
 bool aabbOverlap(vec4 minA, vec4 maxA, vec4 minB, vec4 maxB) {
     return (minA.x <= maxB.x && maxA.x >= minB.x) &&
     (minA.y <= maxB.y && maxA.y >= minB.y) &&
@@ -49,7 +53,7 @@ void main() {
         if (aabbOverlap(nodeA.boundsMin, nodeA.boundsMax, nodeB.boundsMin, nodeB.boundsMax)) {
             // Record the collision pair
             uint pairIndex = atomicCounterIncrement(collisionCount);
-            collisionPairs[pairIndex] = uvec2(indexA, indexB);
+            collisionPairs[pairIndex] = uvec2(indexA, indexB); // Use uvec2 here
         }
     }
 }

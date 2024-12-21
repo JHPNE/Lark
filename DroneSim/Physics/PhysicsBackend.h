@@ -1,14 +1,11 @@
 #pragma once
 #include <iostream>
 #include <memory>
-#include <cmath>
-#include <chrono>
 #include <string>
 #include "glad/glad.h"
+#include <glm/glm.hpp>
 #include "PhysicsStructures.h"
 #include "ShaderManager.h"
-
-using namespace drosim::physics::shaders;
 
 class PhysicsBackend {
   public:
@@ -20,7 +17,7 @@ class PhysicsBackend {
     virtual void resolveCollisions(float dt) = 0;
 
     virtual Environment GetEnvironment() { return environment; }
-    virtual std::string GetCompShader(const compute_shaders type) { return compShaders[type](); }
+    virtual std::string GetCompShader(const drosim::physics::shaders::compute_shaders type) { return drosim::physics::shaders::compShaders[type](); }
 
     static bool isGpuComputeSupported() {
       GLint major, minor;
