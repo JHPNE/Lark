@@ -314,7 +314,7 @@ void GpuPhysicsBackend::downloadCollisionData() {
     // Simple collision response: swap velocities (elastic collision)
     glm::vec3 velA = glm::vec3(rbData.linearVelocities[indexA].x, rbData.linearVelocities[indexA].y, rbData.linearVelocities[indexA].z);
     glm::vec3 velB = glm::vec3(rbData.linearVelocities[indexB].x, rbData.linearVelocities[indexB].y, rbData.linearVelocities[indexB].z);
-
+    
     rbData.linearVelocities[indexA].x = velB.x;
     rbData.linearVelocities[indexA].y = velB.y;
     rbData.linearVelocities[indexA].z = velB.z;

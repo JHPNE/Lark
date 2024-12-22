@@ -10,6 +10,6 @@ int main() {
 
   printf("Physics Tests \n");
   PhysicsTests physicsTests;
-  physicsTests.runTests();
+  physicsTests.runTests(false);
   return 0;
 }

@@ -74,6 +74,7 @@ class CpuPhysicsBackend : public PhysicsBackend {
 
       // After update, broadphase.activePairs contains potential collision pairs
       // and broadphase.contacts can be filled in the future if you add narrowphase details.
+      resolveCollisions(dt);
     }
 
     void resolveCollisions(float dt) override {

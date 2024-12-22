@@ -4,13 +4,15 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <ctime>
+#include <cstdlib>
 #include "GLFW/glfw3.h"
 
 class PhysicsTests {
   public:
-    void runTests() {
+    void runTests(bool gpu) {
       //rigidBodyTest();
-      collisionTest();
+      collisionTest(gpu);
     };
     void glInit() {
       if (!glfwInit())
@@ -59,7 +61,7 @@ class PhysicsTests {
     }
 
 
-    void collisionTest() {
+    void collisionTest(bool gpu) {
       glInit();
       printf("Starting Collision Tests\n");
       size_t count = 50;
@@ -74,10 +76,16 @@ class PhysicsTests {
       rbData.inertiaData.resize(count);
 
       printf("Initializing rigid body data...\n");
+      std::srand(std::time(nullptr));
+      int max = 10;
+
       for (size_t i = 0; i < count; ++i) {
-        rbData.positions[i] = glm::vec3((float)1.0 + (i/10), 0.0f, 0.0f);
+        float randomFloatPos = ((float)rand() / (float)RAND_MAX) * max;
+        float randomFloatlinearVelocities = ((float)rand() / (float)RAND_MAX) * max;
+
+        rbData.positions[i] = glm::vec3(randomFloatPos, 0.0f, 0.0f);
         rbData.orientations[i] = glm::quat(1.0f,0.0f,0.0f,0.0f);
-        rbData.linearVelocities[i] = glm::vec3(0.0f, (float)0.1f, 0.0f);
+        rbData.linearVelocities[i] = glm::vec3(randomFloatlinearVelocities, (float)0.1f, 0.0f);
         rbData.angularVelocities[i] = glm::vec3((float)i*0.01f,0.0f,0.0f);
 
         float mass = 1.0f;
@@ -100,7 +108,7 @@ class PhysicsTests {
 
       // Create backend
       std::unique_ptr<PhysicsBackend> backend;
-      if (false) {
+      if (PhysicsBackend::isGpuComputeSupported() && gpu) {
         printf("GPU compute is supported. Using GpuPhysicsBackend.\n");
         backend = std::make_unique<GpuPhysicsBackend>(rbData, count);
       } else {

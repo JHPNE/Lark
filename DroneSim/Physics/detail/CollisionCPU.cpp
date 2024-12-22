@@ -95,7 +95,20 @@ void BroadphaseCPU::update(float dt) {
   // After this, collisions are resolved in resolveCollisions if needed
 }
 
+// simple resolve for now
 void BroadphaseCPU::resolveCollisions(float dt) {
-  // For now, empty or implement collision response
-  // ...
+  for (auto it = activePairs.begin(); it != activePairs.end();) {
+    const Pair& pair = *it;
+    if (pair.bodyA >= collisionBodies.size() || pair.bodyB >= collisionBodies.size()) {
+      it = activePairs.erase(it); // Remove invalid pair and get the next iterator
+      continue;
+    }
+
+    if (pair.bodyA != pair.bodyB) {
+      // Swap velocities correctly
+      std::swap(collisionBodies[pair.bodyA], collisionBodies[pair.bodyB]);
+    }
+
+    ++it; // Move to the next pair
+  }
 }

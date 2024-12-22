@@ -129,7 +129,7 @@ void ComponentView::Draw() {
                     }
 
                     if(ImGui::Button("Weird Out Geometry", ImVec2(120, 0))) {
-                        drosim::editor::Geometry::randomModificationVertexes(selectedEntity->GetID(), 559);
+                        drosim::editor::Geometry::randomModificationVertexes(selectedEntity->GetID(), 559, geometry->GetScene()->lod_groups[0].meshes[0].positions);
                         GeometryViewerView::Get().UpdateGeometry(selectedEntity->GetID());
                     };
 

@@ -273,10 +273,11 @@ public:
         ModifyEntityVertexPositions(id, vertices);
     }
 
-    static void randomModificationVertexes(uint32_t id, uint32_t vertexCount) {
+    static void randomModificationVertexes(uint32_t id, uint32_t vertexCount, std::vector<glm::vec3> old_vertices) {
         std::vector<glm::vec3> vertices(vertexCount);
-        
+        std::srand(std::time(nullptr));
         for (u32 i = 0; i < vertexCount; i++) {
+            /*
             // Get angle based on vertex index
             float angle = static_cast<float>(i) * 0.1f;
             
@@ -284,6 +285,11 @@ public:
             vertices[i].x = 3.1f * sinf(angle);
             vertices[i].y = 2.1f * cosf(angle);
             vertices[i].z = 1.05f * sinf(angle * 2.0f);
+            */
+
+            vertices[i].x = old_vertices[i].x + ((float)rand() / (float)RAND_MAX) * 1;
+            vertices[i].y = old_vertices[i].y +((float)rand() / (float)RAND_MAX) * 1;
+            vertices[i].z = old_vertices[i].z +((float)rand() / (float)RAND_MAX) * 1;
         }
 
         modifyVertexes(id, vertices);
