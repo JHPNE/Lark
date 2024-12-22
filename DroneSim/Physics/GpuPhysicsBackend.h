@@ -3,7 +3,8 @@
 
 class GpuPhysicsBackend : public PhysicsBackend {
   public:
-    GpuPhysicsBackend(RigidBodyArrays &rb, const size_t count) : rbData(rb), bodyCount(count) {
+    GpuPhysicsBackend(RigidBodyArrays &rb, const size_t count)
+      : rbData(rb), bodyCount(static_cast<GLuint>(count)), maxPairs(static_cast<GLuint>(count * 10)) {
       // Create/compile shader
       initComputeShaders();
 
@@ -17,7 +18,7 @@ class GpuPhysicsBackend : public PhysicsBackend {
       createCollisionSSBOs();
     };
 
-    ~GpuPhysicsBackend() {
+    ~GpuPhysicsBackend() override {
       // Delete physics SSBOs
       glDeleteBuffers(1, &positionBuffer);
       glDeleteBuffers(1, &orientationBuffer);
@@ -35,6 +36,7 @@ class GpuPhysicsBackend : public PhysicsBackend {
 
       // Delete collision SSBOs
       glDeleteBuffers(1, &collisionPairsBuffer);
+      glDeleteBuffers(1, &collisionCountBuffer); // Add this line
 
       // Delete shader programs
       glDeleteProgram(physicsProgram);
@@ -46,12 +48,13 @@ class GpuPhysicsBackend : public PhysicsBackend {
     }
 
     void updateRigidBodies(size_t count, float dt) override;
-    void detectCollisions(float dt) override {};
+    void detectCollisions(float dt) override;
     void resolveCollisions(float dt) override {};
 
   private:
     RigidBodyArrays &rbData;
-    size_t bodyCount;
+    GLuint bodyCount;
+    GLuint maxPairs;
 
     // Shader Programs
     GLuint physicsProgram = 0;
@@ -81,6 +84,7 @@ class GpuPhysicsBackend : public PhysicsBackend {
 
     // Collision SSBOs
     GLuint collisionPairsBuffer = 0;
+    GLuint collisionCountBuffer = 0;
 
     // Scene Bounds for Morton Encoding
     glm::vec3 sceneMin = glm::vec3(-1000.0f);
@@ -95,6 +99,8 @@ class GpuPhysicsBackend : public PhysicsBackend {
     void uploadPhysicsData();
     void bindPhysicsSSBOs();
     void downloadPhysicsData();
+
+    void downloadCollisionData();
 
     GLuint createComputeProgram(const std::string &shaderName);
 

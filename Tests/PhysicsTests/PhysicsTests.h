@@ -9,7 +9,8 @@
 class PhysicsTests {
   public:
     void runTests() {
-      rigidBodyTest();
+      //rigidBodyTest();
+      collisionTest();
     };
     void glInit() {
       if (!glfwInit())
@@ -52,6 +53,85 @@ class PhysicsTests {
         std::cerr << "Failed to initialize GLAD" << std::endl;
         return;
       }
+
+    }
+
+
+    void collisionTest() {
+      glInit();
+      printf("Starting Collision Tests\n");
+      size_t count = 50;
+      printf("Number of Collisions: %zu\n", count);
+
+      RigidBodyArrays rbData;
+      rbData.positions.resize(count, glm::vec3(0.0f));
+      rbData.orientations.resize(count, glm::quat(1.0f,0.0f,0.0f,0.0f));
+      rbData.linearVelocities.resize(count, glm::vec3(0.0f));
+      rbData.angularVelocities.resize(count, glm::vec3(0.0f));
+      rbData.massData.resize(count);
+      rbData.inertiaData.resize(count);
+
+      printf("Initializing rigid body data...\n");
+      for (size_t i = 0; i < count; ++i) {
+        rbData.positions[i] = glm::vec3((float)1.0 + (i/10), 0.0f, 0.0f);
+        rbData.orientations[i] = glm::quat(1.0f,0.0f,0.0f,0.0f);
+        rbData.linearVelocities[i] = glm::vec3(0.0f, (float)0.1f, 0.0f);
+        rbData.angularVelocities[i] = glm::vec3((float)i*0.01f,0.0f,0.0f);
+
+        float mass = 1.0f;
+        float invMass = 1.0f/mass;
+        glm::vec3 inertia(1.0f,1.0f,1.0f);
+        glm::vec3 invInertia = 1.0f/inertia;
+
+        rbData.massData[i] = glm::vec4(mass, invMass, inertia.x, inertia.y);
+        rbData.inertiaData[i] = glm::vec4(inertia.z, invInertia.x, invInertia.y, invInertia.z);
+      }
+
+      printf("Finished initializing rigid bodies.\n");
+      printf("Positions of first few bodies before simulation:\n");
+      for (int i = 0; i < 5 && i < (int)count; ++i) {
+        auto &pos = rbData.positions[i];
+        printf("Body %d initial: Pos(%.3f, %.3f, %.3f), LinVel(%.3f, %.3f, %.3f)\n",
+                i, pos.x, pos.y, pos.z,
+                rbData.linearVelocities[i].x, rbData.linearVelocities[i].y, rbData.linearVelocities[i].z);
+      }
+
+      // Create backend
+      std::unique_ptr<PhysicsBackend> backend;
+      if (false) {
+        printf("GPU compute is supported. Using GpuPhysicsBackend.\n");
+        backend = std::make_unique<GpuPhysicsBackend>(rbData, count);
+      } else {
+        printf("GPU compute not supported. Using CpuPhysicsBackend.\n");
+        backend = std::make_unique<CpuPhysicsBackend>(rbData);
+      }
+
+      printf("Starting simulation updates...\n");
+      float dt = 0.016f; // 60 Hz
+      for (int frame = 0; frame < 10; ++frame) {
+        printf("Update frame %d with dt=%.4f...\n", frame, dt);
+
+        // Perform the update
+        backend->updateRigidBodies(count, dt);
+        backend->detectCollisions(dt);
+
+        // Print out the position of a sample body after each update
+        auto &samplePos = rbData.positions[0];
+        auto &sampleOri = rbData.linearVelocities[0];
+        printf("After frame %d: Body 0 Pos(%.3f, %.3f, %.3f), LinVelo(%.3f, %.3f, %.3f)\n",
+               frame, samplePos.x, samplePos.y, samplePos.z,
+               sampleOri.x, sampleOri.y, sampleOri.z);
+      }
+
+      printf("Simulation complete. Printing final state of first 5 bodies:\n");
+      for (int i = 0; i < 5 && i < (int)count; ++i) {
+        auto &pos = rbData.positions[i];
+        auto &q = rbData.linearVelocities[i];
+        std::cout << "Body " << i << ": Pos(" << pos.x << ", " << pos.y << ", " << pos.z
+                  << ") linVelo( " << q.x << ", " << q.y << ", " << q.z << ")\n";
+      }
+
+      printf("RigidBody/Collision Tests completed.\n");
 
     }
 
