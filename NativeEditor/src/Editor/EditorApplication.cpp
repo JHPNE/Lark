@@ -31,11 +31,13 @@ namespace editor {
 		// Change GLSL version based on platform
 		#ifdef __APPLE__
 				const char* glsl_version = "#version 330";
+				glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 		#else
 				const char* glsl_version = "#version 130";
+				glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 		#endif
 
-				glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+
 				glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 				glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
