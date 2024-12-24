@@ -1,10 +1,10 @@
 #pragma once
 #include <glm/glm.hpp>
 #include "Shape.h"
-#include "RayCast.h"
-
 
 namespace drosim::physics {
+  struct Ray3;  // Forward declaration
+  
   class Collider {
     public:
       Collider() = default;

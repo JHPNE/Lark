@@ -1,7 +1,8 @@
 #pragma once
-#include "Collider.h"
 
 namespace drosim::physics {
+  // Forward declaration
+  class Collider;
 
   struct Ray3 {
     glm::vec3 pos;
@@ -15,6 +16,4 @@ namespace drosim::physics {
     glm::vec3 normal;
     float t;
   };
-
-
 };
