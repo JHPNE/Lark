@@ -12,6 +12,8 @@ namespace drosim::physics {
       glm::mat3 ComputeLocalInertiaTensor() const override;
       glm::vec3 ComputeLocalCentroid() const override;
 
+      glm::vec3 Support(const glm::vec3& direction) const;
+
     private:
       std::vector<glm::vec3> m_vertices;
       // Possibly store volume, etc., once computed

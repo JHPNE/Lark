@@ -6,6 +6,8 @@ namespace drosim::physics {
   void RigidBody::AddCollider(const Collider &collider) {
     m_colliders.push_back(collider);
 
+    m_colliders.back().SetRigidBody(this);
+
     m_mass = 0.0f;
     m_localCentroid = glm::vec3(0.0f);
 
@@ -120,4 +122,5 @@ namespace drosim::physics {
   glm::vec3 RigidBody::GlobalToLocalVec(const glm::vec3 &v) const {
     return m_inverseOrientation * v;
   }
+
 }

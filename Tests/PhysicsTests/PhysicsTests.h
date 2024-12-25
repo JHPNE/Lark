@@ -1,12 +1,14 @@
 #pragma once
-#include "Physics/CpuPhysicsBackend.h"
-#include "Physics/GpuPhysicsBackend.h"
-#include <iostream>
 #include <memory>
 #include <string>
 #include <ctime>
-#include <cstdlib>
-#include "GLFW/glfw3.h"
+#include <iostream>
+#include "Physics/CPU/PhysicsWorld.h"
+#include "Physics/CPU/Colliders/BoxCollider.h"
+#include "Physics/CPU/Colliders/SphereCollider.h"
+#include "Physics/CPU/AABB.h"
+
+using namespace drosim::physics;
 
 class PhysicsTests {
   public:
@@ -14,213 +16,94 @@ class PhysicsTests {
       //rigidBodyTest();
       collisionTest(gpu);
     };
-    void glInit() {
-      if (!glfwInit())
-      {
-        std::cerr << "Failed to initialize GLFW" << std::endl;
-        return;
-      }
-
-      // Change GLSL version based on platform
-#ifdef __APPLE__
-      const char* glsl_version = "#version 330";
-      glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-#else
-      const char* glsl_version = "#version 130";
-      glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-#endif
-
-
-      glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-      glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-#ifdef __APPLE__
-      glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-      glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GL_TRUE);
-#endif
-
-
-      //Creating a window
-      GLFWwindow* m_window = glfwCreateWindow(1280, 720, "Native Editor", nullptr, nullptr);
-      if (m_window == nullptr)
-      {
-        std::cerr << "Failed to create window" << std::endl;
-        return;
-      }
-
-      glfwMakeContextCurrent(m_window);
-      glfwSwapInterval(1); // Enable vsync
-
-      // Initialize GLAD
-      if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-      {
-        std::cerr << "Failed to initialize GLAD" << std::endl;
-        return;
-      }
-
-    }
 
 
     void collisionTest(bool gpu) {
-      glInit();
-      printf("Starting Collision Tests\n");
-      size_t count = 50;
-      printf("Number of Collisions: %zu\n", count);
+      PhysicsWorld world;
 
-      RigidBodyArrays rbData;
-      rbData.positions.resize(count, glm::vec3(0.0f));
-      rbData.orientations.resize(count, glm::quat(1.0f,0.0f,0.0f,0.0f));
-      rbData.linearVelocities.resize(count, glm::vec3(0.0f));
-      rbData.angularVelocities.resize(count, glm::vec3(0.0f));
-      rbData.massData.resize(count);
-      rbData.inertiaData.resize(count);
+      // falling box
+      auto boxBody = world.CreateRigidBody();
+      auto boxCollider = std::make_unique<BoxCollider>(glm::vec3(0.5f));
+      boxBody->AddCollider(*boxCollider);
+      boxBody->SetPosition(glm::vec3(0.0f, 5.0f, 0.0f));
+      boxBody->SetVelocity(glm::vec3(1.0f, 0.0f, 0.0f));
+      boxBody->SetMass(1.0f);
 
-      printf("Initializing rigid body data...\n");
-      std::srand(std::time(nullptr));
-      int max = 10;
+      // create aabb for the box
+      const float AABB_MARGIN = 0.1f;
+      auto boxAABB = std::make_unique<AABB>();
+      glm::vec3 boxPos = boxBody->GetPosition();
+      glm::vec3 boxExtent = glm::vec3(0.5f) + glm::vec3(AABB_MARGIN);
+      boxAABB->minPoint = boxPos - boxExtent;
+      boxAABB->maxPoint = boxPos + boxExtent;
+      boxAABB->colliderPtr = boxCollider.get();
 
-      for (size_t i = 0; i < count; ++i) {
-        float randomFloatPos = ((float)rand() / (float)RAND_MAX) * max;
-        float randomFloatlinearVelocities = ((float)rand() / (float)RAND_MAX) * max;
+      // ground plane
+      auto groundBody = world.CreateRigidBody();
+      auto groundCollider = std::make_unique<BoxCollider>(glm::vec3(10.0f, 0.1f, 10.0f));
+      groundBody->AddCollider(*groundCollider);
+      groundBody->SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+      groundBody->SetMass(0.0f);
 
-        rbData.positions[i] = glm::vec3(randomFloatPos, 0.0f, 0.0f);
-        rbData.orientations[i] = glm::quat(1.0f,0.0f,0.0f,0.0f);
-        rbData.linearVelocities[i] = glm::vec3(randomFloatlinearVelocities, (float)0.1f, 0.0f);
-        rbData.angularVelocities[i] = glm::vec3((float)i*0.01f,0.0f,0.0f);
+      auto groundAABB = std::make_unique<AABB>();
+      groundAABB->minPoint = groundBody->GetPosition() - glm::vec3(10.0f, 0.1f, 10.0f);
+      groundAABB->maxPoint = groundBody->GetPosition() + glm::vec3(10.0f, 0.1f, 10.0f);
+      groundAABB->colliderPtr = groundCollider.get();
+      groundAABB->userData = nullptr;
 
-        float mass = 1.0f;
-        float invMass = 1.0f/mass;
-        glm::vec3 inertia(1.0f,1.0f,1.0f);
-        glm::vec3 invInertia = 1.0f/inertia;
-
-        rbData.massData[i] = glm::vec4(mass, invMass, inertia.x, inertia.y);
-        rbData.inertiaData[i] = glm::vec4(inertia.z, invInertia.x, invInertia.y, invInertia.z);
+      if (!boxAABB->IsValid()) {
+        std::cout << "Box AABB invalid before simulation!\n";
+        return;
+      }
+      if (!groundAABB->IsValid()) {
+        std::cout << "Ground AABB invalid before simulation!\n";
+        return;
       }
 
-      printf("Finished initializing rigid bodies.\n");
-      printf("Positions of first few bodies before simulation:\n");
-      for (int i = 0; i < 5 && i < (int)count; ++i) {
-        auto &pos = rbData.positions[i];
-        printf("Body %d initial: Pos(%.3f, %.3f, %.3f), LinVel(%.3f, %.3f, %.3f)\n",
-                i, pos.x, pos.y, pos.z,
-                rbData.linearVelocities[i].x, rbData.linearVelocities[i].y, rbData.linearVelocities[i].z);
+      world.AddToAABBTree(boxAABB.get());
+      world.AddToAABBTree(groundAABB.get());
+
+      // Simulation Parameters
+      float dt = 1.0f/60.0f;
+      float totalTime = 0.0f;
+      int maxSteps = 300;
+
+      std::cout << "Starting physics Simulation ...\n";
+      std::cout << "Time(s), PosX, PosY, PosZ, VelX, VelY, VelZ\n";
+
+      for (int step = 0; step < maxSteps; step++) {
+        // Get current state
+        boxPos = boxBody->GetPosition();
+        glm::vec3 vel = boxBody->GetVelocity();
+
+        // Validate position before updating AABB
+        if (glm::any(glm::isnan(boxPos)) || glm::any(glm::isinf(boxPos))) {
+          std::cout << "Invalid box position detected at step " << step << "\n";
+          return;
+        }
+
+        // Update AABB for moving box
+        //boxAABB->minPoint = boxPos - boxExtent;
+        //boxAABB->maxPoint = boxPos + boxExtent;
+
+        world.StepSimulation(dt);
+        totalTime += dt;
+
+        // Print state every 10 frames
+        if (step % 10 == 0) {
+          glm::vec3 pos = boxBody->GetPosition();
+          glm::vec3 vel = boxBody->GetVelocity();
+
+          std::cout << totalTime << ", "
+                   << pos.x << ", " << pos.y << ", " << pos.z << ", "
+                   << vel.x << ", " << vel.y << ", " << vel.z << "\n";
+        }
+
+        // Optional: Break if box has settled (very low velocity)
+        if (glm::length(vel) < 0.01f && boxBody->GetPosition().y <= 0.5f) {
+          std::cout << "Box has settled, ending simulation.\n";
+          break;
+        }
       }
-
-      // Create backend
-      std::unique_ptr<PhysicsBackend> backend;
-      if (PhysicsBackend::isGpuComputeSupported() && gpu) {
-        printf("GPU compute is supported. Using GpuPhysicsBackend.\n");
-        backend = std::make_unique<GpuPhysicsBackend>(rbData, count);
-      } else {
-        printf("GPU compute not supported. Using CpuPhysicsBackend.\n");
-        backend = std::make_unique<CpuPhysicsBackend>(rbData);
-      }
-
-      printf("Starting simulation updates...\n");
-      float dt = 0.016f; // 60 Hz
-      for (int frame = 0; frame < 10; ++frame) {
-        printf("Update frame %d with dt=%.4f...\n", frame, dt);
-
-        // Perform the update
-        backend->updateRigidBodies(count, dt);
-        backend->detectCollisions(dt);
-
-        // Print out the position of a sample body after each update
-        auto &samplePos = rbData.positions[0];
-        auto &sampleOri = rbData.linearVelocities[0];
-        printf("After frame %d: Body 0 Pos(%.3f, %.3f, %.3f), LinVelo(%.3f, %.3f, %.3f)\n",
-               frame, samplePos.x, samplePos.y, samplePos.z,
-               sampleOri.x, sampleOri.y, sampleOri.z);
-      }
-
-      printf("Simulation complete. Printing final state of first 5 bodies:\n");
-      for (int i = 0; i < 5 && i < (int)count; ++i) {
-        auto &pos = rbData.positions[i];
-        auto &q = rbData.linearVelocities[i];
-        std::cout << "Body " << i << ": Pos(" << pos.x << ", " << pos.y << ", " << pos.z
-                  << ") linVelo( " << q.x << ", " << q.y << ", " << q.z << ")\n";
-      }
-
-      printf("RigidBody/Collision Tests completed.\n");
-
-    }
-
-    void rigidBodyTest() {
-      glInit();
-      printf("Starting RigidBody Tests\n");
-
-      // Test configuration
-      size_t count = 100;
-      printf("Number of rigid bodies: %zu\n", count);
-
-      RigidBodyArrays rbData;
-      rbData.positions.resize(count, glm::vec3(0.0f));
-      rbData.orientations.resize(count, glm::quat(1.0f,0.0f,0.0f,0.0f));
-      rbData.linearVelocities.resize(count, glm::vec3(0.0f));
-      rbData.angularVelocities.resize(count, glm::vec3(0.0f));
-      rbData.massData.resize(count);
-      rbData.inertiaData.resize(count);
-
-      printf("Initializing rigid body data...\n");
-      for (size_t i = 0; i < count; ++i) {
-        rbData.positions[i] = glm::vec3((float)i, 0.0f, 0.0f);
-        rbData.orientations[i] = glm::quat(1.0f,0.0f,0.0f,0.0f);
-        rbData.linearVelocities[i] = glm::vec3(0.0f, (float)i*0.1f, 0.0f);
-        rbData.angularVelocities[i] = glm::vec3((float)i*0.01f,0.0f,0.0f);
-
-        float mass = 1.0f;
-        float invMass = 1.0f/mass;
-        glm::vec3 inertia(1.0f,1.0f,1.0f);
-        glm::vec3 invInertia = 1.0f/inertia;
-
-        rbData.massData[i] = glm::vec4(mass, invMass, inertia.x, inertia.y);
-        rbData.inertiaData[i] = glm::vec4(inertia.z, invInertia.x, invInertia.y, invInertia.z);
-      }
-
-      printf("Finished initializing rigid bodies.\n");
-      printf("Positions of first few bodies before simulation:\n");
-      for (int i = 0; i < 5 && i < (int)count; ++i) {
-        auto &pos = rbData.positions[i];
-        printf("Body %d initial: Pos(%.3f, %.3f, %.3f), LinVel(%.3f, %.3f, %.3f)\n",
-                i, pos.x, pos.y, pos.z,
-                rbData.linearVelocities[i].x, rbData.linearVelocities[i].y, rbData.linearVelocities[i].z);
-      }
-
-      // Create backend
-      std::unique_ptr<PhysicsBackend> backend;
-      std::unique_ptr<PhysicsBackend> testBackend = std::make_unique<CpuPhysicsBackend>(rbData);
-      if (PhysicsBackend::isGpuComputeSupported()) {
-        printf("GPU compute is supported. Using GpuPhysicsBackend.\n");
-        backend = std::make_unique<GpuPhysicsBackend>(rbData, count);
-      } else {
-        printf("GPU compute not supported. Using CpuPhysicsBackend.\n");
-        backend = std::make_unique<CpuPhysicsBackend>(rbData);
-      }
-
-      printf("Starting simulation updates...\n");
-      float dt = 0.016f; // 60 Hz
-      for (int frame = 0; frame < 10; ++frame) {
-        printf("Update frame %d with dt=%.4f...\n", frame, dt);
-
-        // Perform the update
-        backend->updateRigidBodies(count, dt);
-
-        // Print out the position of a sample body after each update
-        auto &samplePos = rbData.positions[0];
-        auto &sampleOri = rbData.orientations[0];
-        printf("After frame %d: Body 0 Pos(%.3f, %.3f, %.3f), Orientation(%.3f, %.3f, %.3f, %.3f)\n",
-               frame, samplePos.x, samplePos.y, samplePos.z,
-               sampleOri.w, sampleOri.x, sampleOri.y, sampleOri.z);
-      }
-
-      printf("Simulation complete. Printing final state of first 5 bodies:\n");
-      for (int i = 0; i < 5 && i < (int)count; ++i) {
-        auto &pos = rbData.positions[i];
-        auto &q = rbData.orientations[i];
-        std::cout << "Body " << i << ": Pos(" << pos.x << ", " << pos.y << ", " << pos.z
-                  << ") Orientation(" << q.w << ", " << q.x << ", " << q.y << ", " << q.z << ")\n";
-      }
-
-      printf("RigidBody Tests completed.\n");
     }
 };

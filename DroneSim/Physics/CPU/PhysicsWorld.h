@@ -1,20 +1,39 @@
 #pragma once
 
-#include <vector>
-#include <memory>
+#include "AABBTree.h"
 #include "RigidBody.h"
+#include "collision/ContactSolver.h"
+#include "collision/GJK.h"
+#include <memory>
+#include <vector>
+
+#include <stdexcept>
 
 namespace drosim::physics {
   class PhysicsWorld {
     public:
-      PhysicsWorld() = default;
+      PhysicsWorld() {
+        m_broadphase = std::make_unique<AABBTree>();
+      };
       ~PhysicsWorld() = default;
 
       std::shared_ptr<RigidBody> CreateRigidBody();
 
       void StepSimulation(float dt);
+
+      void AddToAABBTree(AABB* aabb) {
+        if (!m_broadphase) {
+          throw std::runtime_error("Broadphase not initialized!");
+        }
+        if (!aabb) {
+          throw std::runtime_error("Null AABB pointer!");
+        }
+        m_broadphase->Add(aabb);
+      }
+
     private:
       std::vector<std::shared_ptr<RigidBody>> m_rigidBodies;
+      std::unique_ptr<Broadphase> m_broadphase;
   };
 };
 

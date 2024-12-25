@@ -10,15 +10,52 @@ namespace drosim::physics {
 
   void PhysicsWorld::StepSimulation(float dt) {
 
-    // In a production engine, you typically:
-    // 1) Broad-phase collision detection (collect possible colliding pairs)
-    // 2) Narrow-phase collision detection (exact contact points)
-    // 3) Solve constraints / impulses
-    // 4) Integrate bodies, etc.
+    // broadphase
+    m_broadphase->Update();
 
-    // For now, do the simplest approach: just integrate all bodies
-    for (auto &body : m_rigidBodies) {
-      body->Integrate(dt);
+    // collision pairs
+    const auto& potentialPairs = m_broadphase->ComputePairs();
+
+    // narrow phase
+    std::vector<ContactInfo> contacts;
+
+    for (const auto& pair : potentialPairs) {
+      Collider* colliderA = pair.first;
+      Collider* colliderB = pair.second;
+
+      RigidBody* bodyA = colliderA->GetRigidBody();
+      RigidBody* bodyB = colliderB->GetRigidBody();
+
+      if (bodyA->GetInverseMass() == 0.0f && bodyB->GetInverseMass() == 0.0f) {
+        continue;
+      }
+
+      ContactInfo contact;
+      if (GJKAlgorithm::DetectCollision(colliderA, colliderB, contact)) {
+        contact.bodyA = bodyA;
+        contact.bodyB = bodyB;
+        contacts.push_back(contact);
+      }
+    }
+
+    // solve constraints
+    if (!contacts.empty()) {
+      ContactSolver solver;
+      solver.InitializeConstraints(contacts, dt);
+      solver.WarmStart();
+      solver.Solve();
+    }
+
+    // integrate velocities and apply forces
+    for (auto& rigidBody : m_rigidBodies) {
+      if (rigidBody->GetInverseMass() > 0.0f) {
+        rigidBody->ApplyForce(
+          glm::vec3(0.0f, -9.81f * rigidBody->GetMass(), 0.0f),
+          rigidBody->GetPosition()
+        );
+      }
+
+      rigidBody->Integrate(dt);
     }
   }
 }
