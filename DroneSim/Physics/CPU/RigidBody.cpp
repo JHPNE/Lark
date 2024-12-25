@@ -52,11 +52,11 @@ namespace drosim::physics {
   }
 
   void RigidBody::UpdateGlobalCentroidFromPosition() {
-    m_globalCentroid = m_orientation * m_localCentroid + m_position;
+    m_globalCentroid = m_position + m_orientation * m_localCentroid;
   }
 
   void RigidBody::UpdatePositionFromGlobalCentroid() {
-    m_position = m_orientation * (-m_localCentroid) + m_globalCentroid;
+    m_position = m_globalCentroid - m_orientation * m_localCentroid;
   }
 
   void RigidBody::UpdateOrientation() {
@@ -81,35 +81,41 @@ namespace drosim::physics {
 
   void RigidBody::Integrate(float dt) {
     if (m_inverseMass == 0.0f) return;
-    // lin velo
-    m_linearVelocity += (m_inverseMass * m_forceAccumulator) * dt;
 
-    // angular velo
+    // Store initial state for debug
+    glm::vec3 initialPos = m_position;
+    glm::vec3 initialVel = m_linearVelocity;
+
+    // Update linear velocity from forces
+    glm::vec3 acceleration = m_forceAccumulator * m_inverseMass;
+    m_linearVelocity += acceleration * dt;
+
+    // Update angular velocity from torques
     glm::vec3 deltaOmega = m_globalInverseInertiaTensor * (m_torqueAccumulator * dt);
     m_angularVelocity += deltaOmega;
 
-    // reset force/torque
+    // Reset force/torque accumulators
     m_forceAccumulator = glm::vec3(0.0f);
     m_torqueAccumulator = glm::vec3(0.0f);
 
-    // integrate pos
-    m_globalCentroid += m_linearVelocity * dt;
+    // Direct position integration instead of going through centroid
+    m_position += m_linearVelocity * dt;
 
-    // integrate orientation
+    // Update orientation if there's angular velocity
     float angularSpeed = glm::length(m_angularVelocity);
     if (angularSpeed > 1e-8f) {
       glm::vec3 axis = m_angularVelocity / angularSpeed;
       float angle = angularSpeed * dt;
-      // rotation matrix
       glm::mat4 rot4x4 = glm::rotate(glm::mat4(1.0f), angle, axis);
       glm::mat3 rot3x3 = glm::mat3(rot4x4);
-
       m_orientation = rot3x3 * m_orientation;
     }
 
+    // Update orientation-derived quantities
     UpdateOrientation();
 
-    UpdatePositionFromGlobalCentroid();
+    // Update global centroid from new position
+    UpdateGlobalCentroidFromPosition();
   }
 
   glm::vec3 RigidBody::LocalToGlobal(const glm::vec3 &p) const {

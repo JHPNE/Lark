@@ -25,7 +25,10 @@ namespace drosim::physics {
 
       void Integrate(float dt);
 
-      void SetPosition(const glm::vec3 &pos) { m_position = pos;};
+      void SetPosition(const glm::vec3 &pos) {
+        m_position = pos;
+        UpdateGlobalCentroidFromPosition();
+      };
       glm::vec3 GetPosition() { return m_position; };
 
       void SetVelocity(const glm::vec3 &vel) { m_linearVelocity = vel;};
