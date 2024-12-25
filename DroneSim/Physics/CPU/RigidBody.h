@@ -1,8 +1,11 @@
 #pragma once
+#include "Collider.h"
+#include "Physics/PhysicsStructures.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <vector>
-#include "Collider.h"
+
+#include <memory>
 
 namespace drosim::physics {
 
@@ -38,6 +41,10 @@ namespace drosim::physics {
 
       glm::mat3 GetLocalInverseInertiaTensor() const { return m_localInverseInertiaTensor; }
 
+      const std::vector<Collider>& GetColliders() const { return m_colliders; }
+      std::vector<Collider>& GetColliders() { return m_colliders; }
+
+      const glm::mat3& GetOrientation() const { return m_orientation; }
 
       // Local->Global / Global->Local conversions
       glm::vec3 LocalToGlobal(const glm::vec3 &p) const;
@@ -108,8 +115,10 @@ namespace drosim::physics {
       // --- Colliders (each body can contain multiple colliders) ---
       std::vector<Collider> m_colliders;
 
+      std::vector<std::unique_ptr<AABB>> m_aabbs;
+
       // Helper to recalc global inverse inertia
       void UpdateGlobalInverseInertia();
-
+      void UpdateMassProperties();
   };
 }

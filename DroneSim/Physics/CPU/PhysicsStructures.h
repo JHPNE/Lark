@@ -3,11 +3,28 @@
 #include <algorithm>
 #include <limits>
 #include <vector>
-#include "Collider.h"
 
-namespace drosim::physics
-{
-    /**
+namespace drosim::physics {
+  // Forward declaration
+  class Collider;
+  class RigidBody;
+  struct AABB;
+  struct Ray3;
+  struct ContactInfo;
+
+  struct Ray3 {
+    glm::vec3 pos;
+    glm::vec3 dir;
+  };
+
+  struct RayCastResult {
+    bool hit;
+    Collider *collider;
+    glm::vec3 position;
+    glm::vec3 normal;
+    float t;
+  };
+ /**
      * @brief Simple Axis-Aligned Bounding Box (AABB) structure.
      *
      * - Stores minimum and maximum corners in world or local space
@@ -19,13 +36,8 @@ namespace drosim::physics
     {
         glm::vec3 minPoint;  ///< minimum corner (x_min, y_min, z_min)
         glm::vec3 maxPoint;  ///< maximum corner (x_max, y_max, z_max)
-
         void* userData = nullptr;
 
-        // needs to be initialized when creating aabb.coliderPtr = myCollider
-        Collider *colliderPtr = nullptr;  // <--- add this
-
-        Collider* Collider() const { return colliderPtr;}
         //---------------------------------------------------------
         // 1) Constructors
         //---------------------------------------------------------
@@ -231,4 +243,4 @@ namespace drosim::physics
         tMaxOut = tMax;
         return true;
     }
-} // namespace drosim::physics
+};

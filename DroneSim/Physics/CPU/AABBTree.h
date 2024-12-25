@@ -1,12 +1,9 @@
 #pragma once
-
+#include "PhysicsStructures.h"       // your bounding box class/struct
 #include <list>
 #include <vector>
-#include <queue>
 #include <glm/glm.hpp> // for glm::vec3, etc., if you need it
 #include "Broadphase.h"
-#include "AABB.h"       // your bounding box class/struct
-#include "Collider.h"   // your collider class/struct
 
 namespace drosim::physics {
   struct AABBTreeNode;
@@ -35,15 +32,18 @@ namespace drosim::physics {
         AABBTreeNode *children[2];
         bool childrenCrossed; // used to avoid duplicate pairs
         AABB fatAABB; // fat aabb if leaf or union of children
-        AABB *data;
+        AABB* data;
+        void* userData;
 
         AABBTreeNode()
           : parent(nullptr),
             children{nullptr, nullptr},
             childrenCrossed(false),
-            data(nullptr) {}
+            data(nullptr),
+            userData(nullptr)
+        {}
 
-        inline bool IsLeaf() const {
+        bool IsLeaf() const {
           return (children[0] == nullptr);
         }
 
@@ -54,17 +54,18 @@ namespace drosim::physics {
           n1->parent = this;
         }
 
-        void SetLeaf(AABB *aabb) {
+        void SetLeaf(AABB *aabb, Collider* collider) {
           data = aabb;
-          if (aabb) {
-            aabb->userData = this;
+          userData = collider;
+          if (data) {
+            data->userData = this;
           }
         }
 
         void UpdateAABB(float margin) {
           if (IsLeaf()) {
             if (data) {
-              const glm::vec3 marginVec(margin, margin, margin);
+              const glm::vec3 marginVec(margin);
               fatAABB.minPoint = data->minPoint - marginVec;
               fatAABB.maxPoint = data->maxPoint + marginVec;
             }

@@ -21,6 +21,8 @@ namespace drosim::physics {
 
       void StepSimulation(float dt);
 
+      void UpdateRigidBodyAABBs();
+
       void AddToAABBTree(AABB* aabb) {
         if (!m_broadphase) {
           throw std::runtime_error("Broadphase not initialized!");

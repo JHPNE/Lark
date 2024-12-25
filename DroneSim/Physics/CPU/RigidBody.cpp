@@ -5,9 +5,13 @@ namespace drosim::physics {
 
   void RigidBody::AddCollider(const Collider &collider) {
     m_colliders.push_back(collider);
-
     m_colliders.back().SetRigidBody(this);
 
+    // Update mass properties
+    UpdateMassProperties();
+  }
+
+  void RigidBody::UpdateMassProperties() {
     m_mass = 0.0f;
     m_localCentroid = glm::vec3(0.0f);
 
@@ -76,6 +80,7 @@ namespace drosim::physics {
   }
 
   void RigidBody::Integrate(float dt) {
+    if (m_inverseMass == 0.0f) return;
     // lin velo
     m_linearVelocity += (m_inverseMass * m_forceAccumulator) * dt;
 

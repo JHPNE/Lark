@@ -6,104 +6,87 @@
 #include "Physics/CPU/PhysicsWorld.h"
 #include "Physics/CPU/Colliders/BoxCollider.h"
 #include "Physics/CPU/Colliders/SphereCollider.h"
-#include "Physics/CPU/AABB.h"
 
 using namespace drosim::physics;
 
 class PhysicsTests {
-  public:
+public:
     void runTests(bool gpu) {
-      //rigidBodyTest();
-      collisionTest(gpu);
-    };
-
+        collisionTest(gpu);
+    }
 
     void collisionTest(bool gpu) {
-      PhysicsWorld world;
+        PhysicsWorld world;
 
-      // falling box
-      auto boxBody = world.CreateRigidBody();
-      auto boxCollider = std::make_unique<BoxCollider>(glm::vec3(0.5f));
-      boxBody->AddCollider(*boxCollider);
-      boxBody->SetPosition(glm::vec3(0.0f, 5.0f, 0.0f));
-      boxBody->SetVelocity(glm::vec3(1.0f, 0.0f, 0.0f));
-      boxBody->SetMass(1.0f);
+        // Create falling box
+        auto boxBody = world.CreateRigidBody();
+        auto boxCollider = std::make_unique<BoxCollider>(glm::vec3(0.5f));
 
-      // create aabb for the box
-      const float AABB_MARGIN = 0.1f;
-      auto boxAABB = std::make_unique<AABB>();
-      glm::vec3 boxPos = boxBody->GetPosition();
-      glm::vec3 boxExtent = glm::vec3(0.5f) + glm::vec3(AABB_MARGIN);
-      boxAABB->minPoint = boxPos - boxExtent;
-      boxAABB->maxPoint = boxPos + boxExtent;
-      boxAABB->colliderPtr = boxCollider.get();
+        // Store collider pointer before moving it
+        Collider* boxColliderPtr = boxCollider.get();
 
-      // ground plane
-      auto groundBody = world.CreateRigidBody();
-      auto groundCollider = std::make_unique<BoxCollider>(glm::vec3(10.0f, 0.1f, 10.0f));
-      groundBody->AddCollider(*groundCollider);
-      groundBody->SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-      groundBody->SetMass(0.0f);
+        // Add collider to body (transfers ownership)
+        boxBody->AddCollider(*boxCollider);
 
-      auto groundAABB = std::make_unique<AABB>();
-      groundAABB->minPoint = groundBody->GetPosition() - glm::vec3(10.0f, 0.1f, 10.0f);
-      groundAABB->maxPoint = groundBody->GetPosition() + glm::vec3(10.0f, 0.1f, 10.0f);
-      groundAABB->colliderPtr = groundCollider.get();
-      groundAABB->userData = nullptr;
+        // Setup box properties
+        boxBody->SetPosition(glm::vec3(0.0f, 5.0f, 0.0f));
+        boxBody->SetVelocity(glm::vec3(1.0f, 0.0f, 0.0f));
+        boxBody->SetMass(1.0f);
 
-      if (!boxAABB->IsValid()) {
-        std::cout << "Box AABB invalid before simulation!\n";
-        return;
-      }
-      if (!groundAABB->IsValid()) {
-        std::cout << "Ground AABB invalid before simulation!\n";
-        return;
-      }
+        // Create ground plane
+        auto groundBody = world.CreateRigidBody();
+        auto groundCollider = std::make_unique<BoxCollider>(glm::vec3(10.0f, 0.1f, 10.0f));
 
-      world.AddToAABBTree(boxAABB.get());
-      world.AddToAABBTree(groundAABB.get());
+        // Store ground collider pointer
+        Collider* groundColliderPtr = groundCollider.get();
 
-      // Simulation Parameters
-      float dt = 1.0f/60.0f;
-      float totalTime = 0.0f;
-      int maxSteps = 300;
+        // Add ground collider to body
+        groundBody->AddCollider(*groundCollider);
+        groundBody->SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+        groundBody->SetMass(0.0f); // Static body
 
-      std::cout << "Starting physics Simulation ...\n";
-      std::cout << "Time(s), PosX, PosY, PosZ, VelX, VelY, VelZ\n";
+        // Add colliders' AABBs to broadphase
+        world.AddToAABBTree(boxColliderPtr->GetAABB());
+        world.AddToAABBTree(groundColliderPtr->GetAABB());
 
-      for (int step = 0; step < maxSteps; step++) {
-        // Get current state
-        boxPos = boxBody->GetPosition();
-        glm::vec3 vel = boxBody->GetVelocity();
+        // Simulation Parameters
+        float dt = 1.0f/60.0f;
+        float totalTime = 0.0f;
+        int maxSteps = 300;
 
-        // Validate position before updating AABB
-        if (glm::any(glm::isnan(boxPos)) || glm::any(glm::isinf(boxPos))) {
-          std::cout << "Invalid box position detected at step " << step << "\n";
-          return;
+        std::cout << "Starting physics simulation...\n";
+        std::cout << "Time(s), PosX, PosY, PosZ, VelX, VelY, VelZ\n";
+
+        for (int step = 0; step < maxSteps; step++) {
+            // Get current state for validation
+            glm::vec3 pos = boxBody->GetPosition();
+            glm::vec3 vel = boxBody->GetVelocity();
+
+            // Validate position
+            if (glm::any(glm::isnan(pos)) || glm::any(glm::isinf(pos))) {
+                std::cout << "Invalid box position detected at step " << step << "\n";
+                return;
+            }
+
+            // Step simulation (this will update AABBs internally)
+            world.StepSimulation(dt);
+            totalTime += dt;
+
+            // Print state every 10 frames
+            if (step % 10 == 0) {
+                pos = boxBody->GetPosition();
+                vel = boxBody->GetVelocity();
+
+                std::cout << totalTime << ", "
+                         << pos.x << ", " << pos.y << ", " << pos.z << ", "
+                         << vel.x << ", " << vel.y << ", " << vel.z << "\n";
+            }
+
+            // Optional: Break if box has settled
+            if (glm::length(vel) < 0.01f && pos.y <= 0.5f) {
+                std::cout << "Box has settled, ending simulation.\n";
+                break;
+            }
         }
-
-        // Update AABB for moving box
-        //boxAABB->minPoint = boxPos - boxExtent;
-        //boxAABB->maxPoint = boxPos + boxExtent;
-
-        world.StepSimulation(dt);
-        totalTime += dt;
-
-        // Print state every 10 frames
-        if (step % 10 == 0) {
-          glm::vec3 pos = boxBody->GetPosition();
-          glm::vec3 vel = boxBody->GetVelocity();
-
-          std::cout << totalTime << ", "
-                   << pos.x << ", " << pos.y << ", " << pos.z << ", "
-                   << vel.x << ", " << vel.y << ", " << vel.z << "\n";
-        }
-
-        // Optional: Break if box has settled (very low velocity)
-        if (glm::length(vel) < 0.01f && boxBody->GetPosition().y <= 0.5f) {
-          std::cout << "Box has settled, ending simulation.\n";
-          break;
-        }
-      }
     }
-};
+};;

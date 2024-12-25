@@ -1,5 +1,5 @@
 #include "AABBTree.h"
-#include <assert.h> // for assert()
+#include "Collider.h"
 #include <queue>
 
 namespace drosim::physics {
@@ -24,15 +24,21 @@ namespace drosim::physics {
   }
 
   void AABBTree::Add(AABB *aabb) {
+    if (!aabb) return;
+
+    // Get the Collider that owns this AABB
+    Collider* collider = static_cast<Collider*>(aabb->userData);
+    if (!collider) return;
+
     if (!m_root) {
       m_root = new AABBTreeNode();
-      m_root->SetLeaf(aabb);
+      m_root->SetLeaf(aabb, collider);
       m_root->UpdateAABB(m_margin);
       return;
     }
 
     AABBTreeNode *leaf = new AABBTreeNode();
-    leaf->SetLeaf(aabb);
+    leaf->SetLeaf(aabb, collider);
     leaf->UpdateAABB(m_margin);
 
     InsertNode(leaf, &m_root);
@@ -197,94 +203,82 @@ namespace drosim::physics {
   // ComputePairsHelper
   //-----------------------------------------------------------
   void AABBTree::ComputePairsHelper(AABBTreeNode *n0, AABBTreeNode *n1) {
-      if (!n0 || !n1) return;
+    if (!n0 || !n1) return;
 
-      // If leaf vs leaf => direct check
-      if (n0->IsLeaf() && n1->IsLeaf())
-      {
-          // We check the *actual* bounding boxes:
-          // If they overlap, add to pair list
-          if (n0->data->Collides(*n1->data))
-          {
-              Collider *c0 = n0->data->colliderPtr;
-              Collider *c1 = n1->data->colliderPtr;
+    // If leaf vs leaf => direct check
+    if (n0->IsLeaf() && n1->IsLeaf()) {
+      if (n0->data->Intersects(*n1->data)) {
+        // Find the collider that owns each AABB
+        void* userDataA = n0->data->userData;
+        void* userDataB = n1->data->userData;
 
-              if (c0 && c1) {
-                m_pairs.push_back(AllocatePair(c0, c1));
-              }
-          }
-          return;
+        if (!userDataA || !userDataB) return;
+
+        // userData should be the AABBTreeNode*
+        AABBTreeNode* nodeA = static_cast<AABBTreeNode*>(userDataA);
+        AABBTreeNode* nodeB = static_cast<AABBTreeNode*>(userDataB);
+
+        if (!nodeA || !nodeB) return;
+
+        m_pairs.push_back(AllocatePair(
+            static_cast<Collider*>(nodeA->userData),
+            static_cast<Collider*>(nodeB->userData)));
       }
+      return;
+    }
 
-      // if n1 is branch but n0 is leaf => cross children of n1
-      if (n0->IsLeaf() && !n1->IsLeaf())
-      {
-          CrossChildren(n1);
-          ComputePairsHelper(n0, n1->children[0]);
-          ComputePairsHelper(n0, n1->children[1]);
-          return;
-      }
-
-      // if n0 is branch but n1 is leaf => cross children of n0
-      if (!n0->IsLeaf() && n1->IsLeaf())
-      {
-          CrossChildren(n0);
-          ComputePairsHelper(n0->children[0], n1);
-          ComputePairsHelper(n0->children[1], n1);
-          return;
-      }
-
-      // else => both are branches => cross children of both
-      CrossChildren(n0);
+    // Same logic for branch vs leaf cases
+    if (n0->IsLeaf() && !n1->IsLeaf()) {
       CrossChildren(n1);
-      ComputePairsHelper(n0->children[0], n1->children[0]);
-      ComputePairsHelper(n0->children[0], n1->children[1]);
-      ComputePairsHelper(n0->children[1], n1->children[0]);
-      ComputePairsHelper(n0->children[1], n1->children[1]);
+      ComputePairsHelper(n0, n1->children[0]);
+      ComputePairsHelper(n0, n1->children[1]);
+      return;
+    }
+
+    if (!n0->IsLeaf() && n1->IsLeaf()) {
+      CrossChildren(n0);
+      ComputePairsHelper(n0->children[0], n1);
+      ComputePairsHelper(n0->children[1], n1);
+      return;
+    }
+
+    // Both are branches
+    CrossChildren(n0);
+    CrossChildren(n1);
+    ComputePairsHelper(n0->children[0], n1->children[0]);
+    ComputePairsHelper(n0->children[0], n1->children[1]);
+    ComputePairsHelper(n0->children[1], n1->children[0]);
+    ComputePairsHelper(n0->children[1], n1->children[1]);
   }
 
   //-----------------------------------------------------------
   // Pick(const glm::vec3&)
   //   - A simple point-in-AABB test for all leaves
   //-----------------------------------------------------------
-  Collider *AABBTree::Pick(const glm::vec3 &point) const {
-      if (!m_root)
-          return nullptr;
+  Collider* AABBTree::Pick(const glm::vec3 &point) const {
+    if (!m_root) return nullptr;
 
-      // We’ll just do a BFS over the tree
-      // and see if we find a leaf that contains the point
-      std::queue<AABBTreeNode*> queue;
-      queue.push(m_root);
+    std::queue<AABBTreeNode*> queue;
+    queue.push(m_root);
 
-      while (!queue.empty())
-      {
-          AABBTreeNode *node = queue.front();
-          queue.pop();
+    while (!queue.empty()) {
+      AABBTreeNode* node = queue.front();
+      queue.pop();
 
-          // If the ray or point intersects the node's bounding box
-          if (node->fatAABB.Contains(point))
-          {
-              // If leaf => we can do a more exact check or just return
-              if (node->IsLeaf())
-              {
-                  // Check the leaf’s real AABB
-                  if (node->data && node->data->Contains(point))
-                  {
-                      // Return the first found
-                      return node->data->Collider();
-                  }
-              }
-              else
-              {
-                  // Not a leaf => push children
-                  queue.push(node->children[0]);
-                  queue.push(node->children[1]);
-              }
+      if (node->fatAABB.Contains(point)) {
+        if (node->IsLeaf()) {
+          if (node->data && node->data->Contains(point)) {
+            // userData of the node points to the Collider
+            return static_cast<Collider*>(node->userData);
           }
+        } else {
+          queue.push(node->children[0]);
+          queue.push(node->children[1]);
+        }
       }
+    }
 
-      // no match
-      return nullptr;
+    return nullptr;
   }
 
   //-----------------------------------------------------------
@@ -292,36 +286,28 @@ namespace drosim::physics {
   //   - Return all colliders overlapping the input region
   //-----------------------------------------------------------
   void AABBTree::Query(const AABB &region, ColliderList &output) const {
-      output.clear();
-      if (!m_root) return;
+    output.clear();
+    if (!m_root) return;
 
-      std::queue<AABBTreeNode*> queue;
-      queue.push(m_root);
+    std::queue<AABBTreeNode*> queue;
+    queue.push(m_root);
 
-      while (!queue.empty())
-      {
-          AABBTreeNode *node = queue.front();
-          queue.pop();
+    while (!queue.empty()) {
+      AABBTreeNode* node = queue.front();
+      queue.pop();
 
-          // If the region intersects the node's bounding box
-          if (region.Collides(node->fatAABB))
-          {
-              if (node->IsLeaf())
-              {
-                  // Check the leaf’s *real* bounding box
-                  if (region.Collides(*node->data))
-                  {
-                      output.push_back(node->data->Collider());
-                  }
-              }
-              else
-              {
-                  // push children to check further
-                  queue.push(node->children[0]);
-                  queue.push(node->children[1]);
-              }
+      if (region.Intersects(node->fatAABB)) {
+        if (node->IsLeaf()) {
+          if (region.Intersects(*node->data)) {
+            // userData of the node points to the Collider
+            output.push_back(static_cast<Collider*>(node->userData));
           }
+        } else {
+          queue.push(node->children[0]);
+          queue.push(node->children[1]);
+        }
       }
+    }
   }
 
   //-----------------------------------------------------------
@@ -330,61 +316,48 @@ namespace drosim::physics {
   //     yield a better intersection
   //-----------------------------------------------------------
   RayCastResult AABBTree::RayCast(const Ray3 &ray) const {
-      RayCastResult result;
-      result.hit      = false;
-      result.t        = 0.f;
-      result.collider = nullptr;
-      result.position = glm::vec3(0);
-      result.normal   = glm::vec3(0);
+    RayCastResult result;
+    result.hit = false;
+    result.t = std::numeric_limits<float>::max();
+    result.collider = nullptr;
+    result.position = glm::vec3(0);
+    result.normal = glm::vec3(0);
 
-      if (!m_root)
-          return result;
+    if (!m_root) return result;
 
-      // We do BFS
-      std::queue<AABBTreeNode*> queue;
-      queue.push(m_root);
+    std::queue<AABBTreeNode*> queue;
+    queue.push(m_root);
 
-      // In a more optimized approach, you’d keep track
-      // of the nearest t so far, then skip entire branches
-      // whose intersection parameter > that t
-      // but let's keep it simple:
+    while (!queue.empty()) {
+      AABBTreeNode* node = queue.front();
+      queue.pop();
 
-      while (!queue.empty())
-      {
-          AABBTreeNode *node = queue.front();
-          queue.pop();
+      float tminOut = 0.0f, tmaxOut = 0.0f;
+      if (RayAABB(ray.pos, ray.dir, node->fatAABB, tminOut, tmaxOut)) {
+        if (node->IsLeaf()) {
+          // Get the collider from node's userData
+          Collider* col = static_cast<Collider*>(node->userData);
+          if (col) {
+            float tCandidate = 0.0f;
+            glm::vec3 nCandidate(0);
 
-          // Does the ray intersect the node's bounding box at all?
-          float tminOut = 0.f, tmaxOut = 0.f;
-          if (RayAABB(ray.pos, ray.dir, node->fatAABB, tminOut, tmaxOut)) {
-              // if leaf => do precise collider-level ray cast
-              if (node->IsLeaf() && node->data) {
-                  // We'll assume your collider can do ray-cast
-                  // returning intersection info in a local struct or so
-                  Collider *col = node->data->colliderPtr;
-                  if (col) {
-                    float tCandidate = 0.f;
-                    glm::vec3 nCandidate(0);
-
-                    if (col->RayCast(ray, tCandidate, nCandidate)) {
-                        // If first hit or if tCandidate is better (closer)
-                        if (!result.hit || tCandidate < result.t) {
-                            result.hit      = true;
-                            result.collider = node->data->Collider();
-                            result.normal   = nCandidate;
-                            result.t        = tCandidate;
-                            result.position = ray.pos + (ray.dir * tCandidate);
-                        }
-                    }
-                  }
-              } else {
-                // branch => check children
-                queue.push(node->children[0]);
-                queue.push(node->children[1]);
+            if (col->RayCast(ray, tCandidate, nCandidate)) {
+              if (!result.hit || tCandidate < result.t) {
+                result.hit = true;
+                result.collider = col;
+                result.normal = nCandidate;
+                result.t = tCandidate;
+                result.position = ray.pos + (ray.dir * tCandidate);
               }
+            }
           }
+        } else {
+          queue.push(node->children[0]);
+          queue.push(node->children[1]);
+        }
       }
+    }
 
-      return result;
+    return result;
   }
 }
