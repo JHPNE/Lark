@@ -1,9 +1,12 @@
 #pragma once
-#include "PhysicsStructures.h"       // your bounding box class/struct
+#include "Broadphase.h"
+#include "Colliders/BoxCollider.h"
+#include "PhysicsStructures.h" // your bounding box class/struct
+#include "RigidBody.h"
+
+#include <glm/glm.hpp>         // for glm::vec3, etc., if you need it
 #include <list>
 #include <vector>
-#include <glm/glm.hpp> // for glm::vec3, etc., if you need it
-#include "Broadphase.h"
 
 namespace drosim::physics {
   struct AABBTreeNode;
@@ -54,23 +57,59 @@ namespace drosim::physics {
           n1->parent = this;
         }
 
-        void SetLeaf(AABB *aabb, Collider* collider) {
+        void SetLeaf(AABB* aabb, Collider* collider) {
+          std::cout << "SetLeaf called\n";
+          std::cout << "AABB: " << (aabb ? "Valid" : "Null") << "\n";
+          std::cout << "Collider: " << (collider ? "Valid" : "Null") << "\n";
+
           data = aabb;
           userData = collider;
           if (data) {
+            // Store the AABBTreeNode pointer in the AABB
             data->userData = this;
+            // Copy bounds to fatAABB with margin
+            const float margin = 0.1f;
+            const glm::vec3 marginVec(margin);
+            fatAABB.minPoint = data->minPoint - marginVec;
+            fatAABB.maxPoint = data->maxPoint + marginVec;
+
+            std::cout << "Leaf node bounds set to Y=["
+                      << fatAABB.minPoint.y << ", "
+                      << fatAABB.maxPoint.y << "]\n";
           }
         }
 
         void UpdateAABB(float margin) {
           if (IsLeaf()) {
             if (data) {
-              const glm::vec3 marginVec(margin);
-              fatAABB.minPoint = data->minPoint - marginVec;
-              fatAABB.maxPoint = data->maxPoint + marginVec;
+              Collider* collider = static_cast<Collider*>(userData);
+              if (collider && collider->GetRigidBody()) {
+                // Get current body position
+                glm::vec3 pos = collider->GetRigidBody()->GetPosition();
+                const BoxCollider* boxCollider = dynamic_cast<const BoxCollider*>(collider);
+                if (boxCollider) {
+                  glm::vec3 halfExtents = boxCollider->m_shape.m_halfExtents;
+                  // Update actual AABB
+                  data->minPoint = pos - halfExtents;
+                  data->maxPoint = pos + halfExtents;
+                  // Update fat AABB
+                  fatAABB.minPoint = data->minPoint - glm::vec3(margin);
+                  fatAABB.maxPoint = data->maxPoint + glm::vec3(margin);
+
+                  std::cout << "Updated leaf node at Y=" << pos.y
+                          << " AABB=[" << data->minPoint.y << ", " << data->maxPoint.y
+                          << "] Fat=[" << fatAABB.minPoint.y << ", " << fatAABB.maxPoint.y << "]\n";
+                }
+              }
             }
           } else {
-            fatAABB = children[0]->fatAABB.Union(children[1]->fatAABB);
+            if (children[0] && children[1]) {
+              // Update children first
+              children[0]->UpdateAABB(margin);
+              children[1]->UpdateAABB(margin);
+              // Then update this node's bounds
+              fatAABB = children[0]->fatAABB.Union(children[1]->fatAABB);
+            }
           }
         }
 

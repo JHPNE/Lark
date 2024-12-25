@@ -32,14 +32,14 @@ namespace drosim::physics {
           return;
         }
 
-        // Set up debug info
-        Collider* collider = static_cast<Collider*>(aabb->userData);
-        if (collider) {
-          RigidBody* body = collider->GetRigidBody();
-          if (body) {
-            std::cout << "Adding to AABB tree - Body position: "
-                     << body->GetPosition().y << "\n";
-          }
+        // Debug the AABB we're adding
+        std::cout << "Adding AABB with bounds Y=[" << aabb->minPoint.y
+                  << ", " << aabb->maxPoint.y << "]\n";
+
+        // Make sure AABB has proper userData
+        if (!aabb->userData) {
+          std::cout << "Error: AABB has no userData!\n";
+          return;
         }
 
         m_broadphase->Add(aabb);

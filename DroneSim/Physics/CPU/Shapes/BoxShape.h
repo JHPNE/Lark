@@ -7,7 +7,7 @@ namespace drosim::physics {
     explicit BoxShape(const glm::vec3& halfExtents) : m_halfExtents(halfExtents) {}
 
     float ComputeMass() const override {
-      return 8.0f * m_halfExtents.x * m_halfExtents.y * m_halfExtents.z;
+      return 0.0f;
     }
 
     glm::mat3 ComputeLocalInertiaTensor() const override {

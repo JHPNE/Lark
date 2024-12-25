@@ -1,8 +1,10 @@
 #include "AABBTree.h"
 #include "Collider.h"
+#include "Colliders/BoxCollider.h"
 #include "RigidBody.h"
 
 #include <queue>
+#include <unordered_map>
 
 namespace drosim::physics {
   AABBTree::~AABBTree() {
@@ -26,35 +28,38 @@ namespace drosim::physics {
   }
 
 void AABBTree::Add(AABB* aabb) {
+    std::cout << "AABBTree::Add called\n";
+
     if (!aabb) {
       std::cout << "Warning: Attempting to add null AABB\n";
       return;
     }
 
-    // Get the Collider that owns this AABB
-    Collider* collider = static_cast<Collider*>(aabb->userData);
-    if (!collider) {
-      std::cout << "Warning: AABB has no associated collider\n";
-      return;
-    }
-
-    std::cout << "Adding AABB to tree for collider at position Y: "
-              << collider->GetRigidBody()->GetPosition().y << "\n";
+    // Debug the AABB state
+    std::cout << "AABB bounds: Y=[" << aabb->minPoint.y
+              << ", " << aabb->maxPoint.y << "]\n";
+    std::cout << "AABB userData: " << (aabb->userData ? "Set" : "Null") << "\n";
 
     if (!m_root) {
       std::cout << "Creating root node\n";
       m_root = new AABBTreeNode();
-      m_root->SetLeaf(aabb, collider);
+      m_root->SetLeaf(aabb, static_cast<Collider*>(aabb->userData));
       m_root->UpdateAABB(m_margin);
+      std::cout << "Root node created with bounds Y=["
+                << m_root->fatAABB.minPoint.y << ", "
+                << m_root->fatAABB.maxPoint.y << "]\n";
       return;
     }
 
     // Create new leaf
     AABBTreeNode* leaf = new AABBTreeNode();
-    leaf->SetLeaf(aabb, collider);
+    leaf->SetLeaf(aabb, static_cast<Collider*>(aabb->userData));
     leaf->UpdateAABB(m_margin);
 
-    std::cout << "Inserting new leaf node\n";
+    std::cout << "Inserting new leaf node with bounds Y=["
+              << leaf->fatAABB.minPoint.y << ", "
+              << leaf->fatAABB.maxPoint.y << "]\n";
+
     InsertNode(leaf, &m_root);
   }
 
@@ -133,73 +138,93 @@ void AABBTree::Add(AABB* aabb) {
   }
 
   void AABBTree::Update() {
-    std::cout << "Updating AABB tree\n";
-
     if (!m_root) {
-      std::cout << "Warning: Empty AABB tree\n";
-      return;
+        std::cout << "Warning: Empty AABB tree\n";
+        return;
     }
 
-    // Count nodes before update
-    int nodeCount = 0;
-    std::queue<AABBTreeNode*> countQueue;
-    countQueue.push(m_root);
-    while (!countQueue.empty()) {
-      AABBTreeNode* node = countQueue.front();
-      countQueue.pop();
-      nodeCount++;
-      if (!node->IsLeaf()) {
-        if (node->children[0]) countQueue.push(node->children[0]);
-        if (node->children[1]) countQueue.push(node->children[1]);
-      }
-    }
-    std::cout << "Tree contains " << nodeCount << " nodes before update\n";
-
-    // Clear invalid node buffer
-    m_invalidNodes.clear();
-
-    // Gather all invalid nodes
-    UpdateNodeHelper(m_root);
-
-    std::cout << "Found " << m_invalidNodes.size() << " invalid nodes\n";
-
-    // Re-insert them
-    for (auto* node : m_invalidNodes) {
-      // Output node info
-      Collider* collider = static_cast<Collider*>(node->userData);
-      if (collider && collider->GetRigidBody()) {
-        std::cout << "Re-inserting node for body at Y: "
-                 << collider->GetRigidBody()->GetPosition().y << "\n";
-      }
-
-      // Remove from current location
-      RemoveNode(node);
-
-      // Re-insert
-      node->UpdateAABB(m_margin);
-      InsertNode(node, &m_root);
-    }
+    // Print tree state
+    std::cout << "Updating AABB tree structure\n";
+    std::cout << "Root is " << (m_root->IsLeaf() ? "leaf" : "branch") << "\n";
 
     m_invalidNodes.clear();
+    std::unordered_map<AABBTreeNode *, bool> processedNodes;
+
+    // Start with leaves
+    std::queue<AABBTreeNode*> nodeQueue;
+    nodeQueue.push(m_root);
+
+    while (!nodeQueue.empty()) {
+        AABBTreeNode* node = nodeQueue.front();
+        nodeQueue.pop();
+
+        if (node->IsLeaf()) {
+            // Update leaf node's fat AABB based on actual AABB
+            if (node->data) {
+                glm::vec3 oldMin = node->fatAABB.minPoint;
+                glm::vec3 oldMax = node->fatAABB.maxPoint;
+
+                // Expand by margin
+                node->fatAABB.minPoint = node->data->minPoint - glm::vec3(m_margin);
+                node->fatAABB.maxPoint = node->data->maxPoint + glm::vec3(m_margin);
+
+                std::cout << "Leaf node AABB moved from Y=[" << oldMin.y << ", " << oldMax.y
+                         << "] to Y=[" << node->fatAABB.minPoint.y
+                         << ", " << node->fatAABB.maxPoint.y << "]\n";
+            }
+        } else {
+            if (node->children[0]) nodeQueue.push(node->children[0]);
+            if (node->children[1]) nodeQueue.push(node->children[1]);
+
+            // Update branch node's AABB to contain children
+            if (node->children[0] && node->children[1] && !processedNodes[node]) {
+                node->fatAABB = node->children[0]->fatAABB.Union(
+                    node->children[1]->fatAABB);
+                processedNodes[node] = true;
+
+                std::cout << "Branch node AABB updated to Y=["
+                         << node->fatAABB.minPoint.y << ", "
+                         << node->fatAABB.maxPoint.y << "]\n";
+            }
+        }
+    }
   }
 
   void AABBTree::UpdateNodeHelper(AABBTreeNode *node) {
     if (!node) return;
 
-    if (node->IsLeaf())
-    {
-      AABB realBox(node->data->minPoint, node->data->maxPoint);
-      if (!node->fatAABB.Contains(realBox))
-      {
-        m_invalidNodes.push_back(node);
+    if (node->IsLeaf()) {
+      // Get the actual AABB from the body
+      AABB realBox;
+      Collider* collider = static_cast<Collider*>(node->userData);
+      if (collider && collider->GetRigidBody()) {
+        glm::vec3 pos = collider->GetRigidBody()->GetPosition();
+        glm::vec3 halfExtents;
+        const BoxCollider* boxCollider = dynamic_cast<const BoxCollider*>(collider);
+        if (boxCollider) {
+          halfExtents = boxCollider->m_shape.m_halfExtents;
+        }
+
+        // Update the actual AABB
+        node->data->minPoint = pos - halfExtents;
+        node->data->maxPoint = pos + halfExtents;
+
+        std::cout << "Updated leaf node AABB at Y=" << pos.y
+                 << " Bounds: [" << node->data->minPoint.y
+                 << ", " << node->data->maxPoint.y << "]\n";
+
+        // Update the fat AABB
+        realBox = *node->data;
+        if (!node->fatAABB.Contains(realBox)) {
+          m_invalidNodes.push_back(node);
+        }
       }
-    }
-    else
-    {
+    } else {
       UpdateNodeHelper(node->children[0]);
       UpdateNodeHelper(node->children[1]);
-      // Also re-update the branch node’s union
-      node->UpdateAABB(m_margin);
+      if (node->children[0] && node->children[1]) {
+        node->fatAABB = node->children[0]->fatAABB.Union(node->children[1]->fatAABB);
+      }
     }
   }
 

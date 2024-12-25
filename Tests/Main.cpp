@@ -11,7 +11,7 @@ int main() {
 
   printf("Physics Tests \n");
   try {
-    PhysicsTests test;
+    physics::PhysicsTests test;
     test.collisionTest(true);
   }
   catch (const std::exception& e) {

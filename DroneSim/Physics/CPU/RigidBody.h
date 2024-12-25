@@ -14,7 +14,7 @@ namespace drosim::physics {
       RigidBody();
       ~RigidBody() = default;
 
-      void AddCollider(const Collider& collider);
+      void AddCollider(std::unique_ptr<Collider> collider);
 
       void ApplyForce(const glm::vec3 &force, const glm::vec3 &worldPoint);
 
@@ -44,8 +44,9 @@ namespace drosim::physics {
 
       glm::mat3 GetLocalInverseInertiaTensor() const { return m_localInverseInertiaTensor; }
 
-      const std::vector<Collider>& GetColliders() const { return m_colliders; }
-      std::vector<Collider>& GetColliders() { return m_colliders; }
+      // Access the colliders
+      const std::vector<std::unique_ptr<Collider>>& GetColliders() const { return m_colliders; }
+      std::vector<std::unique_ptr<Collider>>& GetColliders() { return m_colliders; }
 
       const glm::mat3& GetOrientation() const { return m_orientation; }
 
@@ -116,7 +117,7 @@ namespace drosim::physics {
       glm::vec3 m_torqueAccumulator = glm::vec3(0.0f);
 
       // --- Colliders (each body can contain multiple colliders) ---
-      std::vector<Collider> m_colliders;
+      std::vector<std::unique_ptr<Collider>> m_colliders;
 
       std::vector<std::unique_ptr<AABB>> m_aabbs;
 
