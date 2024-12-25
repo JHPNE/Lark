@@ -1,6 +1,7 @@
 #include "GJK.h"
 #include "EPA.h"
-#include "../RigidBody.h"
+
+#include <iostream>
 
 namespace drosim::physics {
 
@@ -139,33 +140,64 @@ namespace drosim::physics {
   bool GJKAlgorithm::DetectCollision(const Collider* colliderA, const Collider* colliderB, ContactInfo& contact) {
     GJKSimplex simplex;
 
-    // init searach dir
-    glm::vec3 direction(1.0f, 0.0f, 0.0f);
+    // Debug current positions
+    const auto* bodyA = colliderA->GetRigidBody();
+    const auto* bodyB = colliderB->GetRigidBody();
+    std::cout << "GJK Check - BodyA pos: " << bodyA->GetPosition().x
+              << " BodyB pos: " << bodyB->GetPosition().y << "\n";
 
-    // get first support point
+    // Initial search direction (use vector between centroids)
+    glm::vec3 direction = bodyB->GetPosition() - bodyA->GetPosition();
+    if (glm::length2(direction) < 1e-6f) {
+        direction = glm::vec3(1.0f, 0.0f, 0.0f);
+    } else {
+        direction = glm::normalize(direction);
+    }
+
+    // Get first support point
     auto support = ComputeSupport(colliderA, colliderB, direction);
     simplex.AddPoint(support);
+    std::cout << "Initial support point: " << support.csoPoint.y << "\n";
 
-    // new direction towards the origin
+    // New direction towards origin
     direction = -support.csoPoint;
 
-    while (true) {
-      support = ComputeSupport(colliderA, colliderB, direction);
+    int iterCount = 0;
+    const int MAX_ITERATIONS = 32;
 
-      // no collision if e cant find a point past the origin
-      float proj = glm::dot(support.csoPoint, direction);
-      if (proj < 0.0f) {
-        return false;
-      }
+    while (iterCount++ < MAX_ITERATIONS) {
+        if (glm::length2(direction) < 1e-6f) {
+            direction = glm::vec3(1.0f, 0.0f, 0.0f);
+        } else {
+            direction = glm::normalize(direction);
+        }
 
-      simplex.AddPoint(support);
+        support = ComputeSupport(colliderA, colliderB, direction);
 
-      if (simplex.DoSimpexCheck(direction)) {
-        // Collision detected!
-        EPAAlgorithm::GenerateContact(simplex, colliderA, colliderB, contact);
-        return true;
-      }
+        // Debug support point
+        std::cout << "GJK Iteration " << iterCount << " Support: " << support.csoPoint.y << "\n";
+
+        float proj = glm::dot(support.csoPoint, direction);
+        if (proj < 0.0f) {
+            std::cout << "GJK: No collision (separating axis found)\n";
+            return false;
+        }
+
+        simplex.AddPoint(support);
+
+        if (simplex.DoSimpexCheck(direction)) {
+            std::cout << "GJK: Collision detected! Generating contact info...\n";
+            EPAAlgorithm::GenerateContact(simplex, colliderA, colliderB, contact);
+            std::cout << "Contact generated - PointA: " << contact.pointA.y
+                     << " PointB: " << contact.pointB.y
+                     << " Normal: " << contact.normal.y
+                     << " Depth: " << contact.penetrationDepth << "\n";
+            return true;
+        }
     }
+
+    std::cout << "GJK: Max iterations reached\n";
+    return false;
   }
 
 

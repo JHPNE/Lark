@@ -1,5 +1,7 @@
 #include "PhysicsWorld.h"
 
+#include "Colliders/BoxCollider.h"
+
 #include <iostream>
 
 namespace drosim::physics {
@@ -11,7 +13,6 @@ namespace drosim::physics {
   }
 
  void PhysicsWorld::UpdateRigidBodyAABBs() {
-    // For each rigid body
     for (const auto& body : m_rigidBodies) {
         // Skip static bodies as their AABBs don't change
         if (body->GetInverseMass() == 0.0f) {
@@ -21,46 +22,42 @@ namespace drosim::physics {
         // Update AABBs for each collider
         for (auto& collider : body->GetColliders()) {
             AABB* aabb = collider.GetAABB();
-            if (!aabb) continue;
-
-            // Reset AABB to empty
-            aabb->minPoint = glm::vec3(std::numeric_limits<float>::max());
-            aabb->maxPoint = glm::vec3(-std::numeric_limits<float>::max());
-
-            // Sample support points along principal axes
-            const glm::vec3 axes[6] = {
-                glm::vec3(1, 0, 0), glm::vec3(-1, 0, 0),
-                glm::vec3(0, 1, 0), glm::vec3(0, -1, 0),
-                glm::vec3(0, 0, 1), glm::vec3(0, 0, -1)
-            };
-
-            // Find support points in all 6 principal directions
-            for (const auto& dir : axes) {
-                // Convert direction to local space
-                glm::vec3 localDir = body->GlobalToLocalVec(dir);
-
-                // Get support point in local space
-                glm::vec3 support = collider.Support(localDir);
-
-                // Transform to world space
-                glm::vec3 worldSupport = body->LocalToGlobal(support);
-
-                // Expand AABB
-                aabb->Expand(worldSupport);
+            if (!aabb) {
+                std::cout << "Warning: Null AABB found!\n";
+                continue;
             }
 
-            // Add a small margin to prevent tunneling
-            const float margin = 0.01f;
-            glm::vec3 marginVec(margin);
-            aabb->minPoint -= marginVec;
-            aabb->maxPoint += marginVec;
+            // Store old bounds for debug
+            glm::vec3 oldMin = aabb->minPoint;
+            glm::vec3 oldMax = aabb->maxPoint;
 
-            // Ensure AABB is valid after computation
-            if (!aabb->IsValid()) {
-                // Reset to a small valid AABB around the body's position
+            // Get collider bounds in local space
+            const BoxCollider* boxCollider = dynamic_cast<const BoxCollider*>(&collider);
+            if (boxCollider) {
+                glm::vec3 halfExtents = boxCollider->m_shape.m_halfExtents;
                 glm::vec3 pos = body->GetPosition();
-                aabb->minPoint = pos - glm::vec3(0.1f);
-                aabb->maxPoint = pos + glm::vec3(0.1f);
+
+                // Transform to world space
+                glm::mat3 orientation = body->GetOrientation();
+                glm::vec3 worldHalfExtents;
+                for (int i = 0; i < 3; i++) {
+                    worldHalfExtents[i] = std::abs(orientation[0][i] * halfExtents.x) +
+                                        std::abs(orientation[1][i] * halfExtents.y) +
+                                        std::abs(orientation[2][i] * halfExtents.z);
+                }
+
+                // Set new AABB bounds
+                aabb->minPoint = pos - worldHalfExtents;
+                aabb->maxPoint = pos + worldHalfExtents;
+
+                // Add small margin to prevent tunneling
+                const float margin = 0.01f;
+                aabb->minPoint -= glm::vec3(margin);
+                aabb->maxPoint += glm::vec3(margin);
+
+                std::cout << "Updated AABB for body at Y=" << pos.y
+                         << " Old bounds: [" << oldMin.y << ", " << oldMax.y
+                         << "] New bounds: [" << aabb->minPoint.y << ", " << aabb->maxPoint.y << "]\n";
             }
         }
     }
@@ -69,12 +66,10 @@ namespace drosim::physics {
 
   void PhysicsWorld::StepSimulation(float dt) {
 
-    std::cout << "Step begin - Bodies: " << m_rigidBodies.size() << "\n";
     for (const auto& body : m_rigidBodies) {
       if (body->GetInverseMass() > 0.0f) { // Only dynamic bodies
         glm::vec3 pos = body->GetPosition();
         glm::vec3 vel = body->GetVelocity();
-        std::cout << "Body state - Pos: " << pos.y << " Vel: " << vel.y << "\n";
       }
     }
 
@@ -82,7 +77,6 @@ namespace drosim::physics {
     for (auto& rigidBody : m_rigidBodies) {
       if (rigidBody->GetInverseMass() > 0.0f) {
         glm::vec3 force = glm::vec3(0.0f, -9.81f * rigidBody->GetMass(), 0.0f);
-        std::cout << "Applying gravity force: " << force.y << "\n";
         rigidBody->ApplyForce(force, rigidBody->GetPosition());
       }
     }
@@ -97,11 +91,6 @@ namespace drosim::physics {
 
         glm::vec3 afterPos = rigidBody->GetPosition();
         glm::vec3 afterVel = rigidBody->GetVelocity();
-
-        std::cout << "Integration - Before pos: " << beforePos.y
-                 << " After pos: " << afterPos.y
-                 << " Before vel: " << beforeVel.y
-                 << " After vel: " << afterVel.y << "\n";
       }
     }
 
@@ -120,6 +109,12 @@ namespace drosim::physics {
       RigidBody* bodyA = colliderA->GetRigidBody();
       RigidBody* bodyB = colliderB->GetRigidBody();
 
+      std::cout << "\nChecking collision between bodies at:\n"
+                << "BodyA: y=" << bodyA->GetPosition().y
+                << " (half-height=" << dynamic_cast<const BoxCollider*>(colliderA)->m_shape.m_halfExtents.y << ")\n"
+                << "BodyB: y=" << bodyB->GetPosition().y
+                << " (half-height=" << dynamic_cast<const BoxCollider*>(colliderB)->m_shape.m_halfExtents.y << ")\n";
+
       // Skip if both bodies are static
       if (bodyA->GetInverseMass() == 0.0f && bodyB->GetInverseMass() == 0.0f) {
         continue;
@@ -127,6 +122,7 @@ namespace drosim::physics {
 
       ContactInfo contact;
       if (GJKAlgorithm::DetectCollision(colliderA, colliderB, contact)) {
+        std::cout << "Collision detected! Adding contact.\n";
         contact.bodyA = bodyA;
         contact.bodyB = bodyB;
         contacts.push_back(contact);
@@ -210,6 +206,12 @@ namespace drosim::physics {
           glm::vec3 Pt = tangent * frictionImpulse;
           bodyA->ApplyImpulse(-Pt, rA);
           bodyB->ApplyImpulse(Pt, rB);
+
+          std::cout << "Applying collision impulse. Bodies at:\n"
+                      << "BodyA: y=" << contact.bodyA->GetPosition().y
+                      << " vel=" << contact.bodyA->GetVelocity().y << "\n"
+                      << "BodyB: y=" << contact.bodyB->GetPosition().y
+                      << " vel=" << contact.bodyB->GetVelocity().y << "\n";
         }
       }
     }

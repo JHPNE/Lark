@@ -2,7 +2,6 @@
 
 #include "AABBTree.h"
 #include "RigidBody.h"
-#include "collision/ContactSolver.h"
 #include "collision/GJK.h"
 #include <memory>
 #include <vector>
@@ -25,11 +24,24 @@ namespace drosim::physics {
 
       void AddToAABBTree(AABB* aabb) {
         if (!m_broadphase) {
-          throw std::runtime_error("Broadphase not initialized!");
+          std::cout << "Error: Broadphase not initialized!\n";
+          return;
         }
         if (!aabb) {
-          throw std::runtime_error("Null AABB pointer!");
+          std::cout << "Error: Null AABB pointer!\n";
+          return;
         }
+
+        // Set up debug info
+        Collider* collider = static_cast<Collider*>(aabb->userData);
+        if (collider) {
+          RigidBody* body = collider->GetRigidBody();
+          if (body) {
+            std::cout << "Adding to AABB tree - Body position: "
+                     << body->GetPosition().y << "\n";
+          }
+        }
+
         m_broadphase->Add(aabb);
       }
 

@@ -1,6 +1,7 @@
 #pragma once
-#include <glm/glm.hpp>
 #include <algorithm>
+#include <glm/glm.hpp>
+#include <iostream>
 #include <limits>
 #include <vector>
 
@@ -8,7 +9,6 @@ namespace drosim::physics {
   // Forward declaration
   class Collider;
   class RigidBody;
-  struct AABB;
   struct Ray3;
   struct ContactInfo;
 
@@ -169,6 +169,14 @@ namespace drosim::physics {
          */
         bool Intersects(const AABB &other) const
         {
+            // Debug AABB overlap test
+            std::cout << "AABB Intersection Test:\n"
+                      << "This AABB: Y=[" << minPoint.y << ", " << maxPoint.y << "]\n"
+                      << "Other AABB: Y=[" << other.minPoint.y << ", " << other.maxPoint.y << "]\n";
+
+            bool overlapY = !(maxPoint.y < other.minPoint.y || minPoint.y > other.maxPoint.y);
+            std::cout << "Y-axis overlap: " << (overlapY ? "YES" : "NO") << "\n";
+
             // Overlap along X?
             if (maxPoint.x < other.minPoint.x || minPoint.x > other.maxPoint.x)
                 return false;

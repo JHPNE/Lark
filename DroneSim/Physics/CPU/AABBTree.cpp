@@ -1,5 +1,7 @@
 #include "AABBTree.h"
 #include "Collider.h"
+#include "RigidBody.h"
+
 #include <queue>
 
 namespace drosim::physics {
@@ -23,24 +25,36 @@ namespace drosim::physics {
     m_root = nullptr;
   }
 
-  void AABBTree::Add(AABB *aabb) {
-    if (!aabb) return;
+void AABBTree::Add(AABB* aabb) {
+    if (!aabb) {
+      std::cout << "Warning: Attempting to add null AABB\n";
+      return;
+    }
 
     // Get the Collider that owns this AABB
     Collider* collider = static_cast<Collider*>(aabb->userData);
-    if (!collider) return;
+    if (!collider) {
+      std::cout << "Warning: AABB has no associated collider\n";
+      return;
+    }
+
+    std::cout << "Adding AABB to tree for collider at position Y: "
+              << collider->GetRigidBody()->GetPosition().y << "\n";
 
     if (!m_root) {
+      std::cout << "Creating root node\n";
       m_root = new AABBTreeNode();
       m_root->SetLeaf(aabb, collider);
       m_root->UpdateAABB(m_margin);
       return;
     }
 
-    AABBTreeNode *leaf = new AABBTreeNode();
+    // Create new leaf
+    AABBTreeNode* leaf = new AABBTreeNode();
     leaf->SetLeaf(aabb, collider);
     leaf->UpdateAABB(m_margin);
 
+    std::cout << "Inserting new leaf node\n";
     InsertNode(leaf, &m_root);
   }
 
@@ -119,27 +133,53 @@ namespace drosim::physics {
   }
 
   void AABBTree::Update() {
-    if (!m_root)
+    std::cout << "Updating AABB tree\n";
+
+    if (!m_root) {
+      std::cout << "Warning: Empty AABB tree\n";
       return;
+    }
+
+    // Count nodes before update
+    int nodeCount = 0;
+    std::queue<AABBTreeNode*> countQueue;
+    countQueue.push(m_root);
+    while (!countQueue.empty()) {
+      AABBTreeNode* node = countQueue.front();
+      countQueue.pop();
+      nodeCount++;
+      if (!node->IsLeaf()) {
+        if (node->children[0]) countQueue.push(node->children[0]);
+        if (node->children[1]) countQueue.push(node->children[1]);
+      }
+    }
+    std::cout << "Tree contains " << nodeCount << " nodes before update\n";
 
     // Clear invalid node buffer
     m_invalidNodes.clear();
 
-    // gather all invalid nodes
+    // Gather all invalid nodes
     UpdateNodeHelper(m_root);
 
+    std::cout << "Found " << m_invalidNodes.size() << " invalid nodes\n";
+
     // Re-insert them
-    for (auto *node : m_invalidNodes)
-    {
-      // remove from current location in tree
+    for (auto* node : m_invalidNodes) {
+      // Output node info
+      Collider* collider = static_cast<Collider*>(node->userData);
+      if (collider && collider->GetRigidBody()) {
+        std::cout << "Re-inserting node for body at Y: "
+                 << collider->GetRigidBody()->GetPosition().y << "\n";
+      }
+
+      // Remove from current location
       RemoveNode(node);
 
-      // re-insert
+      // Re-insert
       node->UpdateAABB(m_margin);
       InsertNode(node, &m_root);
     }
 
-    // done
     m_invalidNodes.clear();
   }
 
@@ -165,10 +205,13 @@ namespace drosim::physics {
 
   const ColliderPairList &AABBTree::ComputePairs() {
     m_pairs.clear();
+    std::cout << "\nComputing collision pairs...\n";
 
     // Early-out if empty or single leaf
-    if (!m_root || m_root->IsLeaf())
+    if (!m_root || m_root->IsLeaf()) {
+        std::cout << "No pairs possible (empty or single leaf)\n";
         return m_pairs;
+    }
 
     // Clear flags
     ClearChildrenCrossFlagHelper(m_root);
@@ -176,6 +219,7 @@ namespace drosim::physics {
     // Recurse
     ComputePairsHelper(m_root->children[0], m_root->children[1]);
 
+    std::cout << "Found " << m_pairs.size() << " potential collision pairs\n";
     return m_pairs;
   }
 

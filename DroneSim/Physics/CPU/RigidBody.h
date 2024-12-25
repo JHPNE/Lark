@@ -29,7 +29,7 @@ namespace drosim::physics {
         m_position = pos;
         UpdateGlobalCentroidFromPosition();
       };
-      glm::vec3 GetPosition() { return m_position; };
+      glm::vec3 GetPosition() const { return m_position; };
 
       void SetVelocity(const glm::vec3 &vel) { m_linearVelocity = vel;};
       glm::vec3 GetVelocity() { return m_linearVelocity;};

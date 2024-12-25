@@ -34,7 +34,7 @@ namespace drosim::physics {
       );
     }
 
-  private:
     glm::vec3 m_halfExtents;
+  private:
   };
 }

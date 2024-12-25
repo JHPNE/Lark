@@ -1,11 +1,28 @@
 #include "RigidBody.h"
 
+#include "Colliders/BoxCollider.h"
+
 namespace drosim::physics {
   RigidBody::RigidBody() {};
 
   void RigidBody::AddCollider(const Collider &collider) {
     m_colliders.push_back(collider);
     m_colliders.back().SetRigidBody(this);
+
+    // Ensure AABB is initialized and connected to collider
+    AABB* aabb = m_colliders.back().GetAABB();
+    if (aabb) {
+      aabb->userData = &m_colliders.back();
+
+      // Initialize AABB bounds based on collider type and body position
+      const BoxCollider* boxCollider = dynamic_cast<const BoxCollider*>(&collider);
+      if (boxCollider) {
+        glm::vec3 halfExtents = boxCollider->m_shape.m_halfExtents;
+        glm::vec3 pos = GetPosition();
+        aabb->minPoint = pos - halfExtents;
+        aabb->maxPoint = pos + halfExtents;
+      }
+    }
 
     // Update mass properties
     UpdateMassProperties();
