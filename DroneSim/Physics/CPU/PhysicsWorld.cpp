@@ -12,92 +12,57 @@ namespace drosim::physics {
     return body;
   }
 
- void PhysicsWorld::UpdateRigidBodyAABBs() {
+void PhysicsWorld::UpdateRigidBodyAABBs() {
+    // For each rigid body,
     for (const auto& body : m_rigidBodies) {
-        // Skip static bodies as their AABBs don't change
-        if (body->GetInverseMass() == 0.0f) {
-            continue;
+      // For each Collider in that body
+      for (auto& colliderPtr : body->GetColliders()) {
+        // Check if it’s a BoxCollider (or you can do Sphere, etc.)
+        if (auto* boxCollider = dynamic_cast<BoxCollider*>(colliderPtr.get())) {
+          AABB* aabb = boxCollider->GetAABB();
+          if (!aabb) continue;
+
+          // Debug old bounds
+          glm::vec3 oldMin = aabb->minPoint;
+          glm::vec3 oldMax = aabb->maxPoint;
+
+          // Update the AABB
+          boxCollider->UpdateAABBBounds();
+
+          // Optional: print debug info
+          std::cout << "AABB for body at Y=" << body->GetPosition().y
+                    << " moved from [" << oldMin.y << ", " << oldMax.y
+                    << "] to [" << aabb->minPoint.y << ", " << aabb->maxPoint.y << "]\n";
         }
-
-        // Update AABBs for each collider
-        for (auto& collider : body->GetColliders()) {
-            AABB* aabb = collider.GetAABB();
-            if (!aabb) {
-                std::cout << "Warning: Null AABB found!\n";
-                continue;
-            }
-
-            // Store old bounds for debug
-            glm::vec3 oldMin = aabb->minPoint;
-            glm::vec3 oldMax = aabb->maxPoint;
-
-            // Get collider bounds in local space
-            const BoxCollider* boxCollider = dynamic_cast<const BoxCollider*>(&collider);
-            if (boxCollider) {
-                glm::vec3 halfExtents = boxCollider->m_shape.m_halfExtents;
-                glm::vec3 pos = body->GetPosition();
-
-                // Transform to world space
-                glm::mat3 orientation = body->GetOrientation();
-                glm::vec3 worldHalfExtents;
-                for (int i = 0; i < 3; i++) {
-                    worldHalfExtents[i] = std::abs(orientation[0][i] * halfExtents.x) +
-                                        std::abs(orientation[1][i] * halfExtents.y) +
-                                        std::abs(orientation[2][i] * halfExtents.z);
-                }
-
-                // Set new AABB bounds
-                aabb->minPoint = pos - worldHalfExtents;
-                aabb->maxPoint = pos + worldHalfExtents;
-
-                // Add small margin to prevent tunneling
-                const float margin = 0.01f;
-                aabb->minPoint -= glm::vec3(margin);
-                aabb->maxPoint += glm::vec3(margin);
-
-                std::cout << "Updated AABB for body at Y=" << pos.y
-                         << " Old bounds: [" << oldMin.y << ", " << oldMax.y
-                         << "] New bounds: [" << aabb->minPoint.y << ", " << aabb->maxPoint.y << "]\n";
-            }
-        }
+      }
     }
-}
+
+    // Finally, tell the broadphase to update its structure
+    if (m_broadphase) {
+      m_broadphase->Update();
+    }
+  }
 
 
   void PhysicsWorld::StepSimulation(float dt) {
 
-    for (const auto& body : m_rigidBodies) {
-      if (body->GetInverseMass() > 0.0f) { // Only dynamic bodies
-        glm::vec3 pos = body->GetPosition();
-        glm::vec3 vel = body->GetVelocity();
-      }
-    }
-
-    // Apply forces (gravity etc.)
+    // 1. Integrate each body
     for (auto& rigidBody : m_rigidBodies) {
-      if (rigidBody->GetInverseMass() > 0.0f) {
-        glm::vec3 force = glm::vec3(0.0f, -9.81f * rigidBody->GetMass(), 0.0f);
-        rigidBody->ApplyForce(force, rigidBody->GetPosition());
+      if (rigidBody->GetInverseMass() == 0.0f) {
+        continue;
       }
+
+      // For simplicity, apply gravity to dynamic bodies
+
+      glm::vec3 force(0.0f, -9.81f * rigidBody->GetMass(), 0.0f);
+      rigidBody->ApplyForce(force, rigidBody->GetPosition());
+      rigidBody->Integrate(dt);
     }
 
-    // Integrate velocities and positions
-    for (auto& rigidBody : m_rigidBodies) {
-      if (rigidBody->GetInverseMass() > 0.0f) {
-        glm::vec3 beforePos = rigidBody->GetPosition();
-        glm::vec3 beforeVel = rigidBody->GetVelocity();
-
-        rigidBody->Integrate(dt);
-
-        glm::vec3 afterPos = rigidBody->GetPosition();
-        glm::vec3 afterVel = rigidBody->GetVelocity();
-      }
-    }
-
+    // 2. Update AABBs in the broadphase
     UpdateRigidBodyAABBs();
-    m_broadphase->Update();
 
-    // 4. collision detection
+    // 3. Narrowphase collision detection
     const auto& potentialPairs = m_broadphase->ComputePairs();
     std::vector<ContactInfo> contacts;
     contacts.reserve(potentialPairs.size());
@@ -106,25 +71,14 @@ namespace drosim::physics {
       Collider* colliderA = pair.first;
       Collider* colliderB = pair.second;
 
-      RigidBody* bodyA = colliderA->GetRigidBody();
-      RigidBody* bodyB = colliderB->GetRigidBody();
-
-      std::cout << "\nChecking collision between bodies at:\n"
-                << "BodyA: y=" << bodyA->GetPosition().y
-                << " (half-height=" << dynamic_cast<const BoxCollider*>(colliderA)->m_shape.m_halfExtents.y << ")\n"
-                << "BodyB: y=" << bodyB->GetPosition().y
-                << " (half-height=" << dynamic_cast<const BoxCollider*>(colliderB)->m_shape.m_halfExtents.y << ")\n";
-
-      // Skip if both bodies are static
-      if (bodyA->GetInverseMass() == 0.0f && bodyB->GetInverseMass() == 0.0f) {
+      // Skip static-static
+      if (colliderA->GetRigidBody()->GetInverseMass() == 0.0f &&
+          colliderB->GetRigidBody()->GetInverseMass() == 0.0f) {
         continue;
-      }
+          }
 
       ContactInfo contact;
       if (GJKAlgorithm::DetectCollision(colliderA, colliderB, contact)) {
-        std::cout << "Collision detected! Adding contact.\n";
-        contact.bodyA = bodyA;
-        contact.bodyB = bodyB;
         contacts.push_back(contact);
       }
     }
