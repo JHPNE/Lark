@@ -140,24 +140,21 @@ namespace drosim::physics {
   bool GJKAlgorithm::DetectCollision(const Collider* colliderA, const Collider* colliderB, ContactInfo& contact) {
     GJKSimplex simplex;
 
-    // Debug current positions
     const auto* bodyA = colliderA->GetRigidBody();
     const auto* bodyB = colliderB->GetRigidBody();
-    std::cout << "GJK Check - BodyA pos: " << bodyA->GetPosition().x
-              << " BodyB pos: " << bodyB->GetPosition().y << "\n";
 
-    // Initial search direction (use vector between centroids)
+    // Initial direction from center of A to center of B
     glm::vec3 direction = bodyB->GetPosition() - bodyA->GetPosition();
+
+    // If centers are too close, use a fallback direction
     if (glm::length2(direction) < 1e-6f) {
-        direction = glm::vec3(1.0f, 0.0f, 0.0f);
-    } else {
-        direction = glm::normalize(direction);
+        direction = glm::vec3(0.0f, 1.0f, 0.0f);
     }
+    direction = glm::normalize(direction);
 
     // Get first support point
     auto support = ComputeSupport(colliderA, colliderB, direction);
     simplex.AddPoint(support);
-    std::cout << "Initial support point: " << support.csoPoint.y << "\n";
 
     // New direction towards origin
     direction = -support.csoPoint;
@@ -166,38 +163,37 @@ namespace drosim::physics {
     const int MAX_ITERATIONS = 32;
 
     while (iterCount++ < MAX_ITERATIONS) {
-        if (glm::length2(direction) < 1e-6f) {
-            direction = glm::vec3(1.0f, 0.0f, 0.0f);
-        } else {
-            direction = glm::normalize(direction);
+        float dirLength = glm::length(direction);
+        if (dirLength < 1e-6f) {
+            // If direction is zero, we're likely at the origin
+            // This usually means we have a collision
+            EPAAlgorithm::GenerateContact(simplex, colliderA, colliderB, contact);
+            return true;
         }
+
+        direction /= dirLength;  // Normalize
 
         support = ComputeSupport(colliderA, colliderB, direction);
 
-        // Debug support point
-        std::cout << "GJK Iteration " << iterCount << " Support: " << support.csoPoint.y << "\n";
-
         float proj = glm::dot(support.csoPoint, direction);
-        if (proj < 0.0f) {
-            std::cout << "GJK: No collision (separating axis found)\n";
+        if (proj <= 0.0f) {
+            // Found separating axis
             return false;
         }
 
         simplex.AddPoint(support);
 
         if (simplex.DoSimpexCheck(direction)) {
-            std::cout << "GJK: Collision detected! Generating contact info...\n";
+            // Found intersection
             EPAAlgorithm::GenerateContact(simplex, colliderA, colliderB, contact);
-            std::cout << "Contact generated - PointA: " << contact.pointA.y
-                     << " PointB: " << contact.pointB.y
-                     << " Normal: " << contact.normal.y
-                     << " Depth: " << contact.penetrationDepth << "\n";
             return true;
         }
     }
 
-    std::cout << "GJK: Max iterations reached\n";
-    return false;
+    // If we reach here, consider it a collision but warn about max iterations
+    std::cout << "Warning: GJK reached maximum iterations\n";
+    EPAAlgorithm::GenerateContact(simplex, colliderA, colliderB, contact);
+    return true;
   }
 
 
@@ -205,21 +201,23 @@ namespace drosim::physics {
     const auto* bodyA = colliderA->GetRigidBody();
     const auto* bodyB = colliderB->GetRigidBody();
 
-    // convert search direction to model space
-    const glm::vec3 localDirA = bodyA->GlobalToLocalVec(direction);
-    const glm::vec3 localDirB = bodyB->GlobalToLocalVec(direction);
+    // Transform direction to local space of each body
+    glm::vec3 localDirA = bodyA->GlobalToLocalVec(direction);
+    glm::vec3 localDirB = bodyB->GlobalToLocalVec(-direction);  // Note the negation for B
 
-    // compute support poitns
+    // Get support points in local space
     glm::vec3 supportA = colliderA->Support(localDirA);
     glm::vec3 supportB = colliderB->Support(localDirB);
 
-    supportA = bodyA->LocalToGlobal(supportA);
-    supportB = bodyB->LocalToGlobal(supportB);
+    // Transform support points to world space
+    glm::vec3 worldA = bodyA->LocalToGlobal(supportA);
+    glm::vec3 worldB = bodyB->LocalToGlobal(supportB);
 
+    // Return the Minkowski difference point
     return {
-      supportA - supportB, // CSO point
-      supportA, // World space point on A
-      supportB
+      worldA - worldB,  // CSO point
+      worldA,           // World space point on A
+      worldB            // World space point on B
     };
   }
 };

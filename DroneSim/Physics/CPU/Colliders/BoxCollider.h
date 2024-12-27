@@ -22,19 +22,37 @@ public:
     AABB* aabb = GetAABB();
     if (!aabb) return;
 
-    // Get current body position and extents
     RigidBody* body = GetRigidBody();
     if (!body) {
-      // If no body yet, just use local coordinates
       aabb->minPoint = -m_shape.m_halfExtents;
-      aabb->maxPoint =  m_shape.m_halfExtents;
+      aabb->maxPoint = m_shape.m_halfExtents;
       return;
     }
 
-    // Update AABB bounds relative to body position
+    // Transform the box corners by the body's orientation
+    glm::mat3 orientation = body->GetOrientation();
     glm::vec3 pos = body->GetPosition();
-    aabb->minPoint = pos - m_shape.m_halfExtents;
-    aabb->maxPoint = pos + m_shape.m_halfExtents;
+
+    // Compute oriented extents
+    glm::vec3 orientedExtents;
+    for (int i = 0; i < 3; ++i) {
+      orientedExtents[i] =
+          std::abs(orientation[0][i] * m_shape.m_halfExtents.x) +
+          std::abs(orientation[1][i] * m_shape.m_halfExtents.y) +
+          std::abs(orientation[2][i] * m_shape.m_halfExtents.z);
+    }
+
+    aabb->minPoint = pos - orientedExtents;
+    aabb->maxPoint = pos + orientedExtents;
+  }
+
+  glm::vec3 Support(const glm::vec3& direction) const override {
+    // For a box, return the vertex most extreme in the given direction
+    return glm::vec3(
+        direction.x > 0.0f ? m_shape.m_halfExtents.x : -m_shape.m_halfExtents.x,
+        direction.y > 0.0f ? m_shape.m_halfExtents.y : -m_shape.m_halfExtents.y,
+        direction.z > 0.0f ? m_shape.m_halfExtents.z : -m_shape.m_halfExtents.z
+    );
   }
 
   BoxShape m_shape;
