@@ -18,14 +18,14 @@ public:
     }
   }
 
-  void UpdateAABBBounds() {
+  void UpdateAABBBounds() override {
     AABB* aabb = GetAABB();
     if (!aabb) return;
 
     RigidBody* body = GetRigidBody();
     if (!body) {
-      aabb->minPoint = -m_shape.m_halfExtents;
-      aabb->maxPoint = m_shape.m_halfExtents;
+      aabb->minPoint = -m_shape.GetSize();
+      aabb->maxPoint = m_shape.GetSize();
       return;
     }
 
@@ -37,9 +37,9 @@ public:
     glm::vec3 orientedExtents;
     for (int i = 0; i < 3; ++i) {
       orientedExtents[i] =
-          std::abs(orientation[0][i] * m_shape.m_halfExtents.x) +
-          std::abs(orientation[1][i] * m_shape.m_halfExtents.y) +
-          std::abs(orientation[2][i] * m_shape.m_halfExtents.z);
+          std::abs(orientation[0][i] * m_shape.GetSize().x) +
+          std::abs(orientation[1][i] * m_shape.GetSize().y) +
+          std::abs(orientation[2][i] * m_shape.GetSize().z);
     }
 
     aabb->minPoint = pos - orientedExtents;
@@ -49,12 +49,17 @@ public:
   glm::vec3 Support(const glm::vec3& direction) const override {
     // For a box, return the vertex most extreme in the given direction
     return glm::vec3(
-        direction.x > 0.0f ? m_shape.m_halfExtents.x : -m_shape.m_halfExtents.x,
-        direction.y > 0.0f ? m_shape.m_halfExtents.y : -m_shape.m_halfExtents.y,
-        direction.z > 0.0f ? m_shape.m_halfExtents.z : -m_shape.m_halfExtents.z
+        direction.x > 0.0f ? m_shape.GetSize().x : -m_shape.GetSize().x,
+        direction.y > 0.0f ? m_shape.GetSize().y : -m_shape.GetSize().y,
+        direction.z > 0.0f ? m_shape.GetSize().z : -m_shape.GetSize().z
     );
   }
 
-  BoxShape m_shape;
+  const Shape &GetShape() const override {
+    return m_shape;
+  }
+
+  private:
+    BoxShape m_shape;
 };
 }

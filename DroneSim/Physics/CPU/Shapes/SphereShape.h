@@ -27,6 +27,10 @@ namespace drosim::physics {
       return glm::normalize(direction) * m_radius;
     }
 
+    glm::vec3 GetSize() const override {
+      return glm::vec3(m_radius);
+    }
+
   private:
     float m_radius;
   };

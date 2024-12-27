@@ -86,20 +86,17 @@ namespace drosim::physics {
               if (collider && collider->GetRigidBody()) {
                 // Get current body position
                 glm::vec3 pos = collider->GetRigidBody()->GetPosition();
-                const BoxCollider* boxCollider = dynamic_cast<const BoxCollider*>(collider);
-                if (boxCollider) {
-                  glm::vec3 halfExtents = boxCollider->m_shape.m_halfExtents;
-                  // Update actual AABB
-                  data->minPoint = pos - halfExtents;
-                  data->maxPoint = pos + halfExtents;
-                  // Update fat AABB
-                  fatAABB.minPoint = data->minPoint - glm::vec3(margin);
-                  fatAABB.maxPoint = data->maxPoint + glm::vec3(margin);
+                glm::vec3 distance = collider->GetShape().GetSize();
+                // Update actual AABB
+                data->minPoint = pos - distance;
+                data->maxPoint = pos + distance;
+                // Update fat AABB
+                fatAABB.minPoint = data->minPoint - glm::vec3(margin);
+                fatAABB.maxPoint = data->maxPoint + glm::vec3(margin);
 
-                  std::cout << "Updated leaf node at Y=" << pos.y
-                          << " AABB=[" << data->minPoint.y << ", " << data->maxPoint.y
-                          << "] Fat=[" << fatAABB.minPoint.y << ", " << fatAABB.maxPoint.y << "]\n";
-                }
+                std::cout << "Updated leaf node at Y=" << pos.y
+                        << " AABB=[" << data->minPoint.y << ", " << data->maxPoint.y
+                        << "] Fat=[" << fatAABB.minPoint.y << ", " << fatAABB.maxPoint.y << "]\n";
               }
             }
           } else {
@@ -130,7 +127,7 @@ namespace drosim::physics {
 
     // Utilities to allocate a new pair
     // (you might do this differently in your own code)
-    inline ColliderPair AllocatePair(Collider *c0, Collider *c1) const
+    ColliderPair AllocatePair(Collider *c0, Collider *c1) const
     {
       return std::make_pair(c0, c1);
     }

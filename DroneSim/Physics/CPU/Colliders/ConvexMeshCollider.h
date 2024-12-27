@@ -12,6 +12,14 @@ namespace drosim::physics {
       return m_shape.Support(direction);
     }
 
+    void UpdateAABBBounds() override {
+
+    }
+
+    const Shape &GetShape() const override {
+      return m_shape;
+    }
+
   private:
     ConvexMeshShape m_shape;
   };

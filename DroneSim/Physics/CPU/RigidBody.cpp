@@ -10,10 +10,9 @@ void RigidBody::AddCollider(std::unique_ptr<Collider> collider) {
   collider->SetRigidBody(this);
 
   // If it's a BoxCollider, we can do an initial AABB update, for debugging:
-  if (auto* boxCollider = dynamic_cast<BoxCollider*>(collider.get())) {
-    boxCollider->UpdateAABBBounds();
-    AABB* aabb = boxCollider->GetAABB();
-    if (aabb) {
+  if (auto* collider2 = collider.get()) {
+    collider2->UpdateAABBBounds();
+    if (AABB *aabb = collider2->GetAABB()) {
       std::cout << "Initial AABB bounds for body at Y=" << GetPosition().y
                 << ": [" << aabb->minPoint.y << ", " << aabb->maxPoint.y << "]\n";
     }

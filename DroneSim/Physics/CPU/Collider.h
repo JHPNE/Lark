@@ -25,9 +25,9 @@ public:
   float GetMass() const { return m_mass; }
   const glm::mat3& GetLocalInertiaTensor() const { return m_localInertiaTensor; }
   const glm::vec3& GetLocalCentroid() const { return m_localCentroid; }
-  const Shape* GetShape() const { return m_shape; }
+  virtual const Shape& GetShape() const = 0;
 
-  RigidBody* GetRigidBody() const { return m_owningBody; }
+  RigidBody * GetRigidBody() const { return m_owningBody; }
   void SetRigidBody(RigidBody* body) { m_owningBody = body; }
 
   AABB* GetAABB() const { return m_aabb.get(); }
@@ -40,6 +40,8 @@ public:
   virtual glm::vec3 Support(const glm::vec3& /*direction*/) const {
     return glm::vec3(0.0f);
   }
+
+  virtual void UpdateAABBBounds() {};
 
 protected:
   float m_mass             = 0.0f;

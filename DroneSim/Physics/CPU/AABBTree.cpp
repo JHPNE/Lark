@@ -199,15 +199,11 @@ void AABBTree::Add(AABB* aabb) {
       Collider* collider = static_cast<Collider*>(node->userData);
       if (collider && collider->GetRigidBody()) {
         glm::vec3 pos = collider->GetRigidBody()->GetPosition();
-        glm::vec3 halfExtents;
-        const BoxCollider* boxCollider = dynamic_cast<const BoxCollider*>(collider);
-        if (boxCollider) {
-          halfExtents = boxCollider->m_shape.m_halfExtents;
-        }
+        glm::vec3 distance = collider->GetShape().GetSize();
 
         // Update the actual AABB
-        node->data->minPoint = pos - halfExtents;
-        node->data->maxPoint = pos + halfExtents;
+        node->data->minPoint = pos - distance;
+        node->data->maxPoint = pos + distance;
 
         std::cout << "Updated leaf node AABB at Y=" << pos.y
                  << " Bounds: [" << node->data->minPoint.y

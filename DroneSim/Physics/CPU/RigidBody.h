@@ -66,6 +66,7 @@ namespace drosim::physics {
         glm::vec3 relativePoint = worldPoint - m_position;
         glm::vec3 angularImpulse = glm::cross(relativePoint, impulse);
         m_angularVelocity += m_globalInverseInertiaTensor * angularImpulse;
+        printf("APPLYING IMPULSE ");
       }
 
       // Utility methods for impulse application

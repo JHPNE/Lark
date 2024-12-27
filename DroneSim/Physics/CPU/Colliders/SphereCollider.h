@@ -13,6 +13,21 @@ namespace drosim::physics {
       return m_shape.Support(direction);
     }
 
+    void UpdateAABBBounds() override {
+      AABB* aabb = GetAABB();
+      if (!aabb) return;
+
+      RigidBody* body = GetRigidBody();
+      if (!body) {
+        aabb->minPoint = -m_shape.GetSize();
+      }
+
+    }
+
+    const Shape &GetShape() const override {
+      return m_shape;
+    }
+
   private:
     SphereShape m_shape;
   };

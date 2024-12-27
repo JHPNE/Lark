@@ -14,6 +14,10 @@ namespace drosim::physics {
 
       glm::vec3 Support(const glm::vec3& direction) const;
 
+      glm::vec3 GetSize() const override {
+        return glm::vec3(1.0f);
+      }
+
     private:
       std::vector<glm::vec3> m_vertices;
       // Possibly store volume, etc., once computed

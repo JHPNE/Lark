@@ -11,5 +11,6 @@ namespace drosim::physics {
     virtual float ComputeMass() const = 0;
     virtual glm::mat3 ComputeLocalInertiaTensor() const = 0;
     virtual glm::vec3 ComputeLocalCentroid() const = 0;
+    virtual glm::vec3 GetSize() const = 0;
   };
 }
