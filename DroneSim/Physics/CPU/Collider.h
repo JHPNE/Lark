@@ -5,51 +5,40 @@
 #include <memory>
 
 namespace drosim::physics {
+  class Collider {
+    public:
+      Collider();
+      Collider(const Shape& shape);
+      Collider(const Collider& other);
+      Collider& operator=(const Collider& other);
+      virtual ~Collider();
 
-class RigidBody; // Forward declaration
+      float GetMass() const { return m_mass; }
+      const glm::mat3& GetLocalInertiaTensor() const { return m_localInertiaTensor; }
+      const glm::vec3& GetLocalCentroid() const { return m_localCentroid; }
+      const Shape* GetShape() const { return m_shape; }
 
-class Collider {
-public:
-  // Default constructor
-  Collider();
-  // Construct from a shape (BoxShape, SphereShape, etc.)
-  explicit Collider(const Shape& shape);
+      RigidBody* GetRigidBody() const { return m_owningBody; }
+      void SetRigidBody(RigidBody* body) { m_owningBody = body; }
 
-  // Delete copy constructor/assignment to prevent accidental copying
-  Collider(const Collider&) = delete;
-  Collider& operator=(const Collider&) = delete;
+      AABB* GetAABB() const { return m_aabb.get(); }
 
-  // Virtual destructor
-  ~Collider() = default;
+      virtual bool RayCast(const Ray3& ray,
+                         float &tOut,
+                         glm::vec3 &nOut) const {
+        return false;
+      }
 
-  float GetMass() const { return m_mass; }
-  const glm::mat3& GetLocalInertiaTensor() const { return m_localInertiaTensor; }
-  const glm::vec3& GetLocalCentroid() const { return m_localCentroid; }
-  const Shape* GetShape() const { return m_shape; }
+      virtual glm::vec3 Support(const glm::vec3& direction) const {
+        return glm::vec3(0.0f);
+      }
 
-  RigidBody* GetRigidBody() const { return m_owningBody; }
-  void SetRigidBody(RigidBody* body) { m_owningBody = body; }
-
-  AABB* GetAABB() const { return m_aabb.get(); }
-
-  // Optional raycast and support functions
-  virtual bool RayCast(const Ray3& /*ray*/, float &/*tOut*/, glm::vec3 &/*nOut*/) const {
-    return false;
-  }
-
-  virtual glm::vec3 Support(const glm::vec3& /*direction*/) const {
-    return glm::vec3(0.0f);
-  }
-
-protected:
-  float m_mass             = 0.0f;
-  glm::mat3 m_localInertiaTensor = glm::mat3(0.0f);
-  glm::vec3 m_localCentroid = glm::vec3(0.0f);
-  const Shape* m_shape     = nullptr;
-  RigidBody* m_owningBody  = nullptr;
-
-  // Each Collider owns its AABB
-  std::unique_ptr<AABB> m_aabb;
-};
-
-} // namespace drosim::physics
+    private:
+      float m_mass = 0.0f;
+      glm::mat3 m_localInertiaTensor = glm::mat3(0.0f);
+      glm::vec3 m_localCentroid = glm::vec3(0.0f);
+      const Shape* m_shape = nullptr;
+      RigidBody* m_owningBody = nullptr;
+      std::unique_ptr<AABB> m_aabb;
+  };
+}
