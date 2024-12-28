@@ -26,7 +26,7 @@ public:
 
         for (int i = 0; i < 5; i++) {
             float x = (i - 2) * 1.5f;
-            float y = 5.f + i * 0.5f;
+            float y = 5.f;
             uint32_t bodyIdx = cpu::CreateBody(world, glm::vec3(x, y, 0), 1.f);
             cpu::CreateSphereCollider(world, bodyIdx, 0.5f);
         }

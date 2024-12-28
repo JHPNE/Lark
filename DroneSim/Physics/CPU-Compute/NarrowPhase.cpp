@@ -7,49 +7,62 @@
 namespace drosim::physics::cpu {
 
     namespace {
-        glm::mat3 GetRotationMatrix(const RigidBody& body) {
-            return glm::mat3_cast(body.motion.orientation);
+        uint32_t GetBodyIndex(const PhysicsWorld& world, ColliderType type, uint32_t colliderIndex) {
+            return (type == ColliderType::Box)
+                   ? world.boxPool[colliderIndex].bodyIndex
+                   : world.spherePool[colliderIndex].bodyIndex;
         }
 
-        glm::mat3 GetInvRotationMatrix(const RigidBody& body) {
-            return glm::transpose(glm::mat3_cast(body.motion.orientation));
+        void AddEdgeToLoop(const EPAEdge& edge, std::vector<EPAEdge>& edgeLoop) {
+            auto it = std::find(edgeLoop.begin(), edgeLoop.end(), edge);
+            if (it != edgeLoop.end()) {
+                edgeLoop.erase(it);
+            } else {
+                edgeLoop.push_back(edge);
+            }
         }
 
-        static glm::vec3 GetBoxSupport(const PhysicsWorld& world, uint32_t colliderIndex, const glm::vec3& dirWorld) {
+        glm::vec3 ComputeBarycentric(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3) {
+            glm::vec3 normal = glm::normalize(glm::cross(p2 - p1, p3 - p1));
+
+            // Areas of triangles using normal and cross product
+            float areaABC = glm::dot(normal, glm::cross(p2 - p1, p3 - p1));
+            float areaABP = glm::dot(normal, glm::cross(p2 - p1, -p1));
+            float areaBCP = glm::dot(normal, glm::cross(p3 - p2, -p2));
+
+            float u = areaABP / areaABC;
+            float v = areaBCP / areaABC;
+            float w = 1.0f - u - v;
+
+            return glm::vec3(w, u, v);
+        }
+
+        glm::vec3 GetBoxSupport(const PhysicsWorld& world, uint32_t colliderIndex, const glm::vec3& dirWorld) {
             const auto& box = world.boxPool[colliderIndex];
             const auto& body = world.bodyPool[box.bodyIndex];
 
-            glm::mat3 irot = GetInvRotationMatrix(body);
-            glm::mat3 rot = GetRotationMatrix(body);
+            glm::mat3 rot = glm::mat3_cast(body.motion.orientation);
+            glm::vec3 localDir = glm::transpose(rot) * dirWorld;
 
-            glm::vec3 localDir = irot * dirWorld;
-            glm::vec3 sign(
-                localDir.x >= 0.f ? 1.f : -1.f,
-                localDir.y >= 0.f ? 1.f : -1.f,
-                localDir.z >= 0.f ? 1.f : -1.f
+            glm::vec3 localSupport = box.localCenter + glm::vec3(
+                localDir.x >= 0.0f ? box.halfExtents.x : -box.halfExtents.x,
+                localDir.y >= 0.0f ? box.halfExtents.y : -box.halfExtents.y,
+                localDir.z >= 0.0f ? box.halfExtents.z : -box.halfExtents.z
             );
 
-            glm::vec3 localSupport = box.localCenter + sign * box.halfExtents;
-
-            glm::vec3 sup = body.motion.position + (body.motion.orientation * localSupport);
-            return sup;
+            return body.motion.position + (rot * localSupport);
         }
 
-        static glm::vec3 GetSphereSupport(const PhysicsWorld& world, uint32_t colliderIndex, const glm::vec3& dirWorld)
-        {
+        glm::vec3 GetSphereSupport(const PhysicsWorld& world, uint32_t colliderIndex, const glm::vec3& dirWorld) {
             const auto& sphere = world.spherePool[colliderIndex];
             const auto& body = world.bodyPool[sphere.bodyIndex];
 
-            glm::mat3 rot = GetRotationMatrix(body);
+            glm::mat3 rot = glm::mat3_cast(body.motion.orientation);
+            float len = glm::length(dirWorld);
+            if (len < 1e-6f) return body.motion.position + rot * sphere.localCenter;
 
-            float len2 = glm::dot(dirWorld, dirWorld);
-            glm::vec3 dir = (len2 < 1e-8f)
-                ? glm::vec3(1.f, 0.f, 0.f)
-                : dirWorld / std::sqrt(len2);
-
-            glm::vec3 localSupport = sphere.localCenter + dir * sphere.radius;
-            glm::vec3 sup = body.motion.position + (rot * localSupport);
-            return sup;
+            glm::vec3 normalized = dirWorld / len;
+            return body.motion.position + rot * (sphere.localCenter + normalized * sphere.radius);
         }
 
         static glm::vec3 GetColliderSupport(const PhysicsWorld& world,
@@ -69,529 +82,410 @@ namespace drosim::physics::cpu {
             }
         }
 
-        static SupportPoint GetSupport(const PhysicsWorld& world,
-                                       ColliderType typeA, uint32_t idxA,
-                                       ColliderType typeB, uint32_t idxB,
-                                       const glm::vec3& dir) {
-            glm::vec3 pA = GetColliderSupport(world, typeA, idxA, dir);
-            glm::vec3 pB = GetColliderSupport(world, typeB, idxB, -dir);
+        SupportPoint ComputeDirectSupport(const PhysicsWorld& world,
+                       ColliderType typeA, uint32_t idxA,
+                       ColliderType typeB, uint32_t idxB,
+                       const glm::vec3& direction) {
+            glm::vec3 pA = (typeA == ColliderType::Box) ?
+                GetBoxSupport(world, idxA, direction) :
+                GetSphereSupport(world, idxA, direction);
 
-            SupportPoint sp;
-            sp.pointA = pA;
-            sp.pointB = pB;
-            sp.minkowskiPoint = pA - pB;
-            return sp;
+            glm::vec3 pB = (typeB == ColliderType::Box) ?
+                GetBoxSupport(world, idxB, -direction) :
+                GetSphereSupport(world, idxB, -direction);
+
+            return {pA - pB, pA, pB};
         }
 
         // Simplex helper functions:
-        static void SetSimplex(Simplex& simplex, const SupportPoint& a)
-        {
-            simplex.pts[0] = a;
-            simplex.size = 1;
-        }
-        static void SetSimplex(Simplex& simplex, const SupportPoint& a, const SupportPoint& b)
-        {
-            simplex.pts[0] = a;
-            simplex.pts[1] = b;
-            simplex.size = 2;
-        }
-        static void SetSimplex(Simplex& simplex, const SupportPoint& a, const SupportPoint& b, const SupportPoint& c)
-        {
-            simplex.pts[0] = a;
-            simplex.pts[1] = b;
-            simplex.pts[2] = c;
-            simplex.size = 3;
-        }
-        static void SetSimplex(Simplex& simplex,
-                           const SupportPoint& a,
-                           const SupportPoint& b,
-                           const SupportPoint& c,
-                           const SupportPoint& d)
-        {
-            simplex.pts[0] = a;
-            simplex.pts[1] = b;
-            simplex.pts[2] = c;
-            simplex.pts[3] = d;
-            simplex.size = 4;
+        bool DoSimplex1(const Simplex& simplex, glm::vec3& direction) {
+            direction = -simplex.points[0].csoPoint;
+            return false;
         }
 
-        static bool DoSimplex(Simplex& simplex, glm::vec3& direction) {
+        bool DoSimplex2(Simplex& simplex, glm::vec3& direction) {
+            const glm::vec3& a = simplex.points[1].csoPoint;
+            const glm::vec3& b = simplex.points[0].csoPoint;
+            const glm::vec3 ab = b - a;
+            const glm::vec3 ao = -a;
+
+            if (glm::dot(ab, ao) > 0.0f) {
+                direction = glm::cross(glm::cross(ab, ao), ab);
+                if (glm::length2(direction) < 1e-6f) {
+                    direction = glm::cross(ab, glm::vec3(0, 1, 0));
+                    if (glm::length2(direction) < 1e-6f)
+                        direction = glm::cross(ab, glm::vec3(1, 0, 0));
+                    direction = glm::normalize(direction);
+                }
+            } else {
+                simplex.points[0] = simplex.points[1];
+                simplex.size = 1;
+                direction = ao;
+            }
+            return false;
+        }
+
+        bool DoSimplex3(Simplex& simplex, glm::vec3& direction) {
+            const glm::vec3& a = simplex.points[2].csoPoint;
+            const glm::vec3& b = simplex.points[1].csoPoint;
+            const glm::vec3& c = simplex.points[0].csoPoint;
+
+            const glm::vec3 ab = b - a;
+            const glm::vec3 ac = c - a;
+            const glm::vec3 abc = glm::cross(ab, ac);
+            const glm::vec3 ao = -a;
+
+            const glm::vec3 abPerp = glm::cross(abc, ab);
+            if (glm::dot(abPerp, ao) > 0.0f) {
+                simplex.size = 2;
+                simplex.points[0] = simplex.points[1];
+                simplex.points[1] = simplex.points[2];
+                direction = glm::cross(glm::cross(ab, ao), ab);
+                return false;
+            }
+
+            const glm::vec3 acPerp = glm::cross(ac, abc);
+            if (glm::dot(acPerp, ao) > 0.0f) {
+                simplex.size = 2;
+                simplex.points[0] = simplex.points[2];
+                direction = glm::cross(glm::cross(ac, ao), ac);
+                return false;
+            }
+
+            if (glm::dot(abc, ao) > 0.0f) {
+                direction = abc;
+            } else {
+                SupportPoint temp = simplex.points[0];
+                simplex.points[0] = simplex.points[1];
+                simplex.points[1] = temp;
+                direction = -abc;
+            }
+            return false;
+        }
+
+        bool DoSimplex4(Simplex& simplex, glm::vec3& direction) {
+            const glm::vec3& a = simplex.points[3].csoPoint;
+            const glm::vec3& b = simplex.points[2].csoPoint;
+            const glm::vec3& c = simplex.points[1].csoPoint;
+            const glm::vec3& d = simplex.points[0].csoPoint;
+
+            const glm::vec3 ab = b - a;
+            const glm::vec3 ac = c - a;
+            const glm::vec3 ad = d - a;
+            const glm::vec3 ao = -a;
+
+            const glm::vec3 abc = glm::cross(ab, ac);
+            const glm::vec3 acd = glm::cross(ac, ad);
+            const glm::vec3 adb = glm::cross(ad, ab);
+
+            if (glm::dot(abc, ao) > 0.0f) {
+                simplex.size = 3;
+                simplex.points[0] = simplex.points[1];
+                simplex.points[1] = simplex.points[2];
+                simplex.points[2] = simplex.points[3];
+                return DoSimplex3(simplex, direction);
+            }
+
+            if (glm::dot(acd, ao) > 0.0f) {
+                simplex.size = 3;
+                simplex.points[0] = simplex.points[3];
+                return DoSimplex3(simplex, direction);
+            }
+
+            if (glm::dot(adb, ao) > 0.0f) {
+                simplex.size = 3;
+                simplex.points[0] = simplex.points[2];
+                simplex.points[2] = simplex.points[3];
+                return DoSimplex3(simplex, direction);
+            }
+
+            return true;
+        }
+
+        bool UpdateSimplex(Simplex& simplex, glm::vec3& direction) {
             switch (simplex.size) {
-            case 1:
-                // Single point
-                direction = -simplex.pts[0].minkowskiPoint;
-                break;
-            case 2:
-            {
-                // Line segment
-                auto& A = simplex.pts[1];
-                auto& B = simplex.pts[0];
-                glm::vec3 AB = B.minkowskiPoint - A.minkowskiPoint;
-                glm::vec3 AO = -A.minkowskiPoint;
-                direction = glm::cross(glm::cross(AB, AO), AB);
-
-                // Handle degenerate case
-                if (glm::length2(direction) < 1e-8f) {
-                    direction = -A.minkowskiPoint;
-                }
+            case 1: return DoSimplex1(simplex, direction);
+            case 2: return DoSimplex2(simplex, direction);
+            case 3: return DoSimplex3(simplex, direction);
+            case 4: return DoSimplex4(simplex, direction);
+            default: return false;
             }
-                break;
-            case 3:
-            {
-                // Triangle
-                auto& A = simplex.pts[2];
-                auto& B = simplex.pts[1];
-                auto& C = simplex.pts[0];
-                glm::vec3 AB = B.minkowskiPoint - A.minkowskiPoint;
-                glm::vec3 AC = C.minkowskiPoint - A.minkowskiPoint;
-                glm::vec3 AO = -A.minkowskiPoint;
-                glm::vec3 ABC = glm::cross(AB, AC);
-
-                // Determine if origin is in regions AB or AC
-                glm::vec3 ABperp = glm::cross(ABC, AB);
-                if (glm::dot(ABperp, AO) > 0.f) {
-                    // Remove C
-                    simplex.pts[0] = A;
-                    simplex.pts[1] = B;
-                    simplex.size = 2;
-                    direction = glm::cross(glm::cross(AB, AO), AB);
-                    return false;
-                }
-
-                glm::vec3 ACperp = glm::cross(AC, ABC);
-                if (glm::dot(ACperp, AO) > 0.f) {
-                    // Remove B
-                    simplex.pts[0] = A;
-                    simplex.pts[1] = C;
-                    simplex.size = 2;
-                    direction = glm::cross(glm::cross(AC, AO), AC);
-                    return false;
-                }
-
-                // Origin is within the triangle
-                if (glm::dot(ABC, AO) > 0.f) {
-                    direction = ABC;
-                }
-                else {
-                    // Ensure the normal points towards the origin
-                    simplex.pts[0] = A;
-                    simplex.pts[1] = C;
-                    simplex.pts[2] = B;
-                    simplex.size = 3;
-                    direction = -ABC;
-                }
-            } break;
-            case 4:
-                // Tetrahedron
-                return true;
-            default:
-                // Invalid simplex size
-                direction = glm::vec3(1.f, 0.f, 0.f);
-                return false;
-            }
-            return false;
         }
 
-        static bool GJK(const PhysicsWorld& world,
-             ColliderType typeA, uint32_t idxA,
-             ColliderType typeB, uint32_t idxB,
-             Simplex& outSimplex)
-        {
-            glm::vec3 posA, posB;
-            {
-                if (typeA == ColliderType::Box) posA = world.bodyPool[world.boxPool[idxA].bodyIndex].motion.position;
-                else                            posA = world.bodyPool[world.spherePool[idxA].bodyIndex].motion.position;
-                if (typeB == ColliderType::Box) posB = world.bodyPool[world.boxPool[idxB].bodyIndex].motion.position;
-                else                            posB = world.bodyPool[world.spherePool[idxB].bodyIndex].motion.position;
-            }
-            glm::vec3 dir = posB - posA;
-            if (glm::length2(dir) < 1e-6f) {
-                dir = glm::vec3(1.f, 0.f, 0.f); // fallback
+        void BuildInitialEPAPolytope(const Simplex& simplex, EPAPolytopeData& polytope) {
+            // Copy vertices from simplex
+            polytope.vertexCount = simplex.size;
+            for (int i = 0; i < simplex.size; ++i) {
+                polytope.vertices[i] = simplex.points[i];
             }
 
-            // 2) get first support
-            SupportPoint initial = GetSupport(world, typeA, idxA, typeB, idxB, dir);
-            SetSimplex(outSimplex, initial);
-
-            // direction from new point to origin
-            dir = -initial.minkowskiPoint;
-            const int MAX_ITER = 32;
-            for (int i = 0; i < MAX_ITER; i++) {
-                // 3) get new support in 'dir'
-                SupportPoint sp = GetSupport(world, typeA, idxA, typeB, idxB, dir);
-                // if dot(sp.minkowskiPoint, dir) <= 0 => no collision
-                float d = glm::dot(sp.minkowskiPoint, dir);
-                if (d <= 0.f) {
-                    return false; // no intersection
-                }
-
-                // add sp to simplex
-                if (outSimplex.size < 4) {
-                    outSimplex.pts[outSimplex.size++] = sp;
-                } else {
-                    // Replace the furthest point
-                    // Find the point with the maximum dot product with direction
-                    float maxDot = glm::dot(outSimplex.pts[0].minkowskiPoint, dir);
-                    int index = 0;
-                    for (int j = 1; j < 4; j++) {
-                        float dotProd = glm::dot(outSimplex.pts[j].minkowskiPoint, dir);
-                        if (dotProd > maxDot) {
-                            maxDot = dotProd;
-                            index = j;
-                        }
-                    }
-                    outSimplex.pts[index] = sp;
-                }
-
-
-                // 4) reduce simplex
-                if (DoSimplex(outSimplex, dir)) {
-                    // Check for coplanarity
-                    if (outSimplex.size == 4) {
-                        glm::vec3 A = outSimplex.pts[3].minkowskiPoint;
-                        glm::vec3 B = outSimplex.pts[2].minkowskiPoint;
-                        glm::vec3 C = outSimplex.pts[1].minkowskiPoint;
-                        glm::vec3 D = outSimplex.pts[0].minkowskiPoint;
-
-                        glm::vec3 AB = B - A;
-                        glm::vec3 AC = C - A;
-                        glm::vec3 AD = D - A;
-                        glm::vec3 normal = glm::cross(AB, AC);
-                        float volume = glm::dot(normal, AD);
-
-                        if (std::abs(volume) < 1e-6f) {
-                            // Coplanar simplex, treat as no collision
-                            return false;
-                        }
-
-                        return true;
-                    }
-                    return false;
-                }
-            }
-            // if we never enclosed origin, treat as no collision
-            return false;
-        }
-
-        // Build a polytope from the final GJK simplex.
-        // For a tetrahedron, we have up to 4 points.
-        static void BuildInitialPolytope(const Simplex& simplex, EPAPoly& poly)
-        {
-            poly.vertices.clear();
-            poly.faces.clear();
-
-            if (simplex.size < 4) {
-                return; // or throw error
-            }
-
-            for (int i = 0; i < simplex.size; i++) {
-                poly.vertices.push_back(simplex.pts[i]);
-            }
-
-            static const int tetraIndices[4][3] = {
-                {0,1,2},{0,1,3},{0,2,3},{1,2,3}
+            // Create initial faces
+            static const uint32_t tetraIndices[4][3] = {
+                {0,1,2}, {0,2,3}, {0,3,1}, {1,3,2}
             };
 
-            for (int f = 0; f < 4; f++) {
-                EPAFace face;
-                face.a = tetraIndices[f][0];
-                face.b = tetraIndices[f][1];
-                face.c = tetraIndices[f][2];
+            polytope.faceCount = 0;
+            for (int i = 0; i < 4; ++i) {
+                EPAFace& face = polytope.faces[polytope.faceCount];
+                face.indices[0] = tetraIndices[i][0];
+                face.indices[1] = tetraIndices[i][1];
+                face.indices[2] = tetraIndices[i][2];
 
-                glm::vec3 A = poly.vertices[face.a].minkowskiPoint;
-                glm::vec3 B = poly.vertices[face.b].minkowskiPoint;
-                glm::vec3 C = poly.vertices[face.c].minkowskiPoint;
+                const glm::vec3& a = polytope.vertices[face.indices[0]].csoPoint;
+                const glm::vec3& b = polytope.vertices[face.indices[1]].csoPoint;
+                const glm::vec3& c = polytope.vertices[face.indices[2]].csoPoint;
 
-                glm::vec3 AB = B - A;
-                glm::vec3 AC = C - A;
-                glm::vec3 N = glm::cross(AB, AC);
-                float len2 = glm::length2(N);
+                face.normal = glm::normalize(glm::cross(b - a, c - a));
+                face.distance = glm::dot(face.normal, a);
 
-                if (len2 > 1e-6f) { // Lowered threshold from 1e-12f to 1e-6f
-                    N = glm::normalize(N);  // Normalize
-
-                    // Calculate distance from origin to face plane
-                    float dist = glm::dot(N, A);
-
-                    // Ensure normal points outward from origin
-                    if (dist < 0.0f) {
-                        N = -N;
-                        dist = -dist;
-
-                        // Maintain CCW winding
-                        std::swap(face.b, face.c);
-                    }
-
-                    face.normal = N;
-                    face.distance = dist;
-                    poly.faces.push_back(face);
+                if (face.distance < 0.0f) {
+                    face.normal = -face.normal;
+                    face.distance = -face.distance;
+                    std::swap(face.indices[1], face.indices[2]);
                 }
-                else {
-                    // Handle nearly degenerate face
-                    // Optionally, add logging or alternative handling
-                    std::cerr << "Warning: Degenerate face detected in initial polytope.\n";
-                }
+
+                polytope.faceCount++;
             }
         }
 
-        static void AddPointToPolytope(EPAPoly& poly, int closestFaceIdx, const SupportPoint& newPt) {
-            // We remove the faces that face the newPt (where dot(face.normal, newPt - faceVertex) > 0)
-            // Then add new faces linking newPt to the "hole" boundary. This is a simplified version.
+        bool RunEPAAlgorithm(const PhysicsWorld& world,
+            const Simplex& simplex,
+            ColliderType typeA, uint32_t idxA,
+            ColliderType typeB, uint32_t idxB,
+            glm::vec3& outNormal,
+            float& outPenetration,
+            glm::vec3& outPointA,
+            glm::vec3& outPointB) {
+            EPAPolytopeData polytope;
+            BuildInitialEPAPolytope(simplex, polytope);
 
-            std::vector<int> toRemove;
-            std::vector<std::array<int,2>> edges; // store boundary edges
+            const float TOLERANCE = 0.0001f;
+            const int MAX_ITERATIONS = 64;
 
-            // Step 1: Mark all faces that we can see from newPt
-            for (int i = 0; i < (int)poly.faces.size(); i++) {
-                auto& f = poly.faces[i];
-                glm::vec3 A = poly.vertices[f.a].minkowskiPoint;
-                glm::vec3 N = f.normal;
-
-                if (glm::dot(N, newPt.minkowskiPoint - A) > 0.f) {
-                    toRemove.push_back(i);
-                }
-            }
-
-
-            auto AddEdge = [&](int a, int b) {
-                if (a > b) std::swap(a, b);
-                edges.push_back({a, b});
-            };
-
-            std::vector<EPAFace> kept;
-            kept.reserve(poly.faces.size());
-            for (int i = 0; i < (int)poly.faces.size(); i++) {
-                if (std::find(toRemove.begin(), toRemove.end(), i) == toRemove.end()) {
-                    kept.push_back(poly.faces[i]);
-                } else {
-                    auto& ff = poly.faces[i];
-                    AddEdge(ff.a, ff.b);
-                    AddEdge(ff.b, ff.c);
-                    AddEdge(ff.c, ff.a);
-                }
-            }
-
-            poly.faces = kept;
-
-            auto edgeCount = [&](std::array<int,2> e) {
-                int count = 0;
-                for (int r : toRemove) {
-                    auto& ff = poly.faces[r];
-                }
-                return count;
-            };
-
-            std::vector<bool> removed(edges.size(), false);
-            for (int i = 0; i < (int)edges.size(); i++) {
-                for (int j = i + 1; j < (int)edges.size(); j++) {
-                    if (edges[i] == edges[j]) {
-                        removed[i] = true;
-                        removed[j] = true;
-                    }
-                }
-            }
-
-            std::vector<std::array<int,2>> border;
-            for (int i = 0; i < (int)edges.size(); i++) {
-                if (!removed[i]) {
-                    border.push_back(edges[i]);
-                }
-            }
-
-            int newIndex = (int)poly.vertices.size();
-            poly.vertices.push_back(newPt);
-
-            // create new faces
-            for (auto& e : border) {
-                EPAFace face;
-                face.a = newIndex;
-                face.b = e[0];
-                face.c = e[1];
-
-                glm::vec3 A = poly.vertices[face.a].minkowskiPoint;
-                glm::vec3 B = poly.vertices[face.b].minkowskiPoint;
-                glm::vec3 C = poly.vertices[face.c].minkowskiPoint;
-
-
-                glm::vec3 AB = B - A;
-                glm::vec3 AC = C - A;
-                glm::vec3 N = glm::cross(AB, AC);
-                float len2 = glm::length2(N);
-
-                if (len2 > 1e-12f) {
-                    N = glm::normalize(N);
-                }
-                float dist = glm::dot(N, A);
-                if (dist > 0.f) {
-                    N = -N;
-                    dist = -dist;
-
-                    std::swap(face.b, face.c);
-                }
-                face.normal = N;
-                face.distance = dist;
-                poly.faces.push_back(face);
-            }
-        }
-
-        // EPA main function
-        static bool EPA(const PhysicsWorld& world,
-                       ColliderType typeA, uint32_t idxA,
-                       ColliderType typeB, uint32_t idxB,
-                       Simplex& simplex,
-                       glm::vec3& outNormal,
-                       float& outPenetration)
-        {
-            EPAPoly poly;
-            BuildInitialPolytope(simplex, poly);
-
-            // If we don't have enough faces, try to recover using simplex
-            if (poly.faces.size() < 4) {
-                // Fallback: Unable to form a valid tetrahedron
-                std::cout << "EPA Error: Initial polytope has less than 4 faces.\n";
-                return false;
-            }
-
-            const int MAX_ITER = 64;
-            const float TOL = 1e-4f;
-            float prevDist = FLT_MAX;
-
-            for (int iter = 0; iter < MAX_ITER; iter++) {
-                int closestFaceIdx = -1;
+            for (int iteration = 0; iteration < MAX_ITERATIONS; ++iteration) {
+                // Find closest face to origin
                 float minDist = FLT_MAX;
+                int closestFace = -1;
 
-                for (size_t i = 0; i < (int)poly.faces.size(); i++) {
-                    auto& face = poly.faces[i];
-                    if (face.distance < minDist) {
-                        minDist = face.distance;
-                        closestFaceIdx = i;
+                for (uint32_t i = 0; i < polytope.faceCount; ++i) {
+                    if (polytope.faces[i].distance < minDist) {
+                        minDist = polytope.faces[i].distance;
+                        closestFace = i;
                     }
                 }
-                if (closestFaceIdx < 0) {
-                    return false;
-                }
 
-                auto& closestFace = poly.faces[closestFaceIdx];
-                outNormal = closestFace.normal;
-                outPenetration = closestFace.distance; // distance is negative
+                if (closestFace < 0) return false;
 
-                // see if we can expand
-                SupportPoint sp = GetSupport(world, typeA, idxA, typeB, idxB, outNormal);
-                float d = glm::dot(sp.minkowskiPoint, outNormal);
+                const EPAFace& face = polytope.faces[closestFace];
+                SupportPoint support = ComputeDirectSupport(world, typeA, idxA, typeB, idxB, face.normal);
 
-                if (std::abs(d - minDist) < TOL) {
+                float supportDist = glm::dot(support.csoPoint, face.normal);
+
+                // Check if we've reached the edge of the Minkowski sum
+                if (std::abs(supportDist - minDist) < TOLERANCE) {
+                    outNormal = face.normal;
+                    outPenetration = minDist;
+
+                    // Compute closest points
+                    glm::vec3 barycentric = ComputeBarycentric(polytope.vertices[face.indices[0]].csoPoint,
+                                                              polytope.vertices[face.indices[1]].csoPoint,
+                                                              polytope.vertices[face.indices[2]].csoPoint);
+
+                    outPointA = barycentric.x * polytope.vertices[face.indices[0]].pointA +
+                               barycentric.y * polytope.vertices[face.indices[1]].pointA +
+                               barycentric.z * polytope.vertices[face.indices[2]].pointA;
+
+                    outPointB = barycentric.x * polytope.vertices[face.indices[0]].pointB +
+                               barycentric.y * polytope.vertices[face.indices[1]].pointB +
+                               barycentric.z * polytope.vertices[face.indices[2]].pointB;
+
                     return true;
                 }
 
-                // Expand polytope
-                AddPointToPolytope(poly, closestFaceIdx, sp);
-                prevDist = minDist;
-            }
+                // Otherwise expand polytope
+                std::vector<EPAEdge> edgeLoop;
 
-            // If we reach here, use best result found
-            if (!poly.faces.empty()) {
-                float minDist = FLT_MAX;
-                for (const auto& face : poly.faces) {
-                    if (face.distance < minDist) {
-                        minDist = face.distance;
+                // Remove faces that can see the new point
+                for (uint32_t i = 0; i < polytope.faceCount;) {
+                    const EPAFace& checkFace = polytope.faces[i];
+                    if (glm::dot(support.csoPoint - polytope.vertices[checkFace.indices[0]].csoPoint,
+                                checkFace.normal) > 0.0f) {
+                        // Face can see point - add edges to loop and remove face
+                        AddEdgeToLoop(EPAEdge{checkFace.indices[0], checkFace.indices[1]}, edgeLoop);
+                        AddEdgeToLoop(EPAEdge{checkFace.indices[1], checkFace.indices[2]}, edgeLoop);
+                        AddEdgeToLoop(EPAEdge{checkFace.indices[2], checkFace.indices[0]}, edgeLoop);
+
+                        polytope.faces[i] = polytope.faces[polytope.faceCount - 1];
+                        polytope.faceCount--;
+                                } else {
+                                    i++;
+                                }
+                }
+
+                // Add new vertex
+                if (polytope.vertexCount >= EPAPolytopeData::MAX_VERTICES) {
+                    // If we run out of space, just return current best result
+                    outNormal = face.normal;
+                    outPenetration = minDist;
+                    return true;
+                }
+
+                uint32_t newVertexIdx = polytope.vertexCount++;
+                polytope.vertices[newVertexIdx] = support;
+
+                // Create new faces using edge loop
+                for (const EPAEdge& edge : edgeLoop) {
+                    if (polytope.faceCount >= EPAPolytopeData::MAX_FACES) {
                         outNormal = face.normal;
-                        outPenetration = face.distance;
+                        outPenetration = minDist;
+                        return true;
+                    }
+
+                    EPAFace& newFace = polytope.faces[polytope.faceCount++];
+                    newFace.indices[0] = edge.a;
+                    newFace.indices[1] = edge.b;
+                    newFace.indices[2] = newVertexIdx;
+
+                    const glm::vec3& a = polytope.vertices[newFace.indices[0]].csoPoint;
+                    const glm::vec3& b = polytope.vertices[newFace.indices[1]].csoPoint;
+                    const glm::vec3& c = polytope.vertices[newFace.indices[2]].csoPoint;
+
+                    newFace.normal = glm::normalize(glm::cross(b - a, c - a));
+                    newFace.distance = glm::dot(newFace.normal, a);
+
+                    if (newFace.distance < 0.0f) {
+                        newFace.normal = -newFace.normal;
+                        newFace.distance = -newFace.distance;
+                        std::swap(newFace.indices[1], newFace.indices[2]);
                     }
                 }
-                return true;
             }
 
-            return false;
+            // If we reach max iterations, return best result found
+            const EPAFace& bestFace = *std::min_element(polytope.faces.begin(),
+                                                       polytope.faces.begin() + polytope.faceCount,
+                                                       [](const EPAFace& a, const EPAFace& b) {
+                                                           return a.distance < b.distance;
+                                                       });
+
+            outNormal = bestFace.normal;
+            outPenetration = bestFace.distance;
+            return true;
         }
-    } // anonymous namespace
+    }
 
+    bool GJKIntersect(const PhysicsWorld& world,
+                  ColliderType typeA, uint32_t idxA,
+                  ColliderType typeB, uint32_t idxB,
+                  glm::vec3& outNormal,
+                  float& outPenetration,
+                  glm::vec3& outPointA,
+                  glm::vec3& outPointB) {
 
-bool GJKIntersect(const PhysicsWorld& world,
-               ColliderType typeA, uint32_t idxA,
-               ColliderType typeB, uint32_t idxB,
-               glm::vec3& outNormal,
-               float& outPenetration,
-               glm::vec3& outPointA,
-               glm::vec3& outPointB)
-    {
         Simplex simplex;
-        if (!GJK(world, typeA, idxA, typeB, idxB, simplex)) {
-            return false;
+
+        // Get initial search direction from centers
+        glm::vec3 centerA = world.bodyPool[GetBodyIndex(world, typeA, idxA)].motion.position;
+        glm::vec3 centerB = world.bodyPool[GetBodyIndex(world, typeB, idxB)].motion.position;
+        glm::vec3 direction = centerB - centerA;
+
+        if (glm::length2(direction) < 1e-6f) {
+            direction = glm::vec3(0.0f, 1.0f, 0.0f);
+        }
+        direction = glm::normalize(direction);
+
+        // Get first support point
+        simplex.points[0] = ComputeDirectSupport(world, typeA, idxA, typeB, idxB, direction);
+        simplex.size = 1;
+
+        // New direction is towards origin
+        direction = -simplex.points[0].csoPoint;
+
+        const int MAX_ITERATIONS = 32;
+        for (int iteration = 0; iteration < MAX_ITERATIONS; ++iteration) {
+            float dirLength = glm::length(direction);
+            if (dirLength < 1e-6f) {
+                return RunEPAAlgorithm(world, simplex, typeA, idxA, typeB, idxB,
+                          outNormal, outPenetration, outPointA, outPointB);
+            }
+
+            direction /= dirLength;
+
+            SupportPoint newPoint = ComputeDirectSupport(world, typeA, idxA, typeB, idxB, direction);
+
+            // Check if we've passed the origin
+            float projection = glm::dot(newPoint.csoPoint, direction);
+            if (projection <= 0.0f) {
+                return false;  // No intersection
+            }
+
+            // Add new point to simplex
+            simplex.points[simplex.size++] = newPoint;
+
+            // Process simplex
+            bool containsOrigin = UpdateSimplex(simplex, direction);
+            if (containsOrigin) {
+                return RunEPAAlgorithm(world, simplex, typeA, idxA, typeB, idxB,
+                                    outNormal, outPenetration, outPointA, outPointB);
+            }
+
+            // If we have a degenerate simplex, adjust the direction
+            if (glm::length2(direction) < 1e-10f) {
+                // Try a fall-back direction
+                direction = glm::cross(simplex.points[1].csoPoint - simplex.points[0].csoPoint,
+                                     glm::vec3(1.0f, 0.0f, 0.0f));
+                if (glm::length2(direction) < 1e-10f) {
+                    direction = glm::cross(simplex.points[1].csoPoint - simplex.points[0].csoPoint,
+                                         glm::vec3(0.0f, 1.0f, 0.0f));
+                }
+            }
         }
 
-        if (!EPA(world, typeA, idxA, typeB, idxB, simplex, outNormal, outPenetration)) {
-            return false;
-        }
-
-        // Get body positions
-        uint32_t bodyA = (typeA == ColliderType::Box)
-            ? world.boxPool[idxA].bodyIndex
-            : world.spherePool[idxA].bodyIndex;
-        uint32_t bodyB = (typeB == ColliderType::Box)
-            ? world.boxPool[idxB].bodyIndex
-            : world.spherePool[idxB].bodyIndex;
-
-        const auto& posA = world.bodyPool[bodyA].motion.position;
-        const auto& posB = world.bodyPool[bodyB].motion.position;
-
-        // Ensure normal points from A to B
-        glm::vec3 AB = posB - posA;
-        if (glm::dot(outNormal, AB) < 0.0f) {
-            outNormal = -outNormal;
-        }
-
-        float halfPen = 0.5f * outPenetration;
-        outPointA = posA + outNormal * halfPen;
-        outPointB = posB - outNormal * halfPen;
-
-        return true;
+        // If we reach max iterations, consider it a separation
+        return RunEPAAlgorithm(world, simplex, typeA, idxA, typeB, idxB,
+                        outNormal, outPenetration, outPointA, outPointB);
     }
 
     void NarrowPhase(PhysicsWorld& world,
-                     const std::vector<std::pair<uint32_t, uint32_t>>& pairs)
-    {
+                     const std::vector<std::pair<uint32_t, uint32_t>>& pairs) {
         world.contacts.clear();
 
-        for (auto& p : pairs) {
-            auto& nA = world.aabbTree.nodes[p.first];
-            auto& nB = world.aabbTree.nodes[p.second];
-            if (!nA.isLeaf || !nB.isLeaf) continue; // skipping non-leaf nodes
+        for (const auto& pair : pairs) {
+            const auto& nodeA = world.aabbTree.nodes[pair.first];
+            const auto& nodeB = world.aabbTree.nodes[pair.second];
 
-            uint32_t idxA = nA.colliderIndex;
-            uint32_t idxB = nB.colliderIndex;
-            ColliderType typeA = nA.type;
-            ColliderType typeB = nB.type;
+            if (!nodeA.isLeaf || !nodeB.isLeaf) continue;
 
-            // Find actual body indices
-            uint32_t bodyA = (typeA == ColliderType::Box)
-                                ? world.boxPool[idxA].bodyIndex
-                                : world.spherePool[idxA].bodyIndex;
-            uint32_t bodyB = (typeB == ColliderType::Box)
-                                ? world.boxPool[idxB].bodyIndex
-                                : world.spherePool[idxB].bodyIndex;
+            uint32_t idxA = nodeA.colliderIndex;
+            uint32_t idxB = nodeB.colliderIndex;
+            ColliderType typeA = nodeA.type;
+            ColliderType typeB = nodeB.type;
 
-            // skip if same body or both inactive
+            uint32_t bodyA = GetBodyIndex(world, typeA, idxA);
+            uint32_t bodyB = GetBodyIndex(world, typeB, idxB);
+
             if (bodyA == bodyB) continue;
-            if (!world.bodyPool[bodyA].flags.active && !world.bodyPool[bodyB].flags.active)
-                continue;
+            if (!world.bodyPool[bodyA].flags.active && !world.bodyPool[bodyB].flags.active) continue;
 
             glm::vec3 normal;
             float penetration;
             glm::vec3 pointA, pointB;
-            bool hit = GJKIntersect(world, typeA, idxA, typeB, idxB, normal, penetration, pointA, pointB);
 
-            // TODO precision settings
-            if (hit && penetration > 1e-5f) {
-                ContactPoint cp{};
-                cp.normal = glm::normalize(normal);
-                cp.penetration = penetration;
-                cp.pointA = pointA;
-                cp.pointB = pointB;
-                cp.bodyAIndex = bodyA;
-                cp.bodyBIndex = bodyB;
+            if (GJKIntersect(world, typeA, idxA, typeB, idxB,
+                             normal, penetration, pointA, pointB)) {
 
-                world.contacts.push_back(cp);
+                ContactPoint contact;
+                contact.normal = normal;
+                contact.penetration = penetration;
+                contact.pointA = pointA;
+                contact.pointB = pointB;
+                contact.bodyAIndex = bodyA;
+                contact.bodyBIndex = bodyB;
+
+                world.contacts.push_back(contact);
             }
         }
     }
+
+
 }

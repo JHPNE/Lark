@@ -1,7 +1,6 @@
 #include "ColliderSystem.h"
 #include <algorithm>
 #include <iostream>
-#include <omp.h>
 #include <ostream>
 
 namespace drosim::physics::cpu {
@@ -82,10 +81,9 @@ namespace drosim::physics::cpu {
                     }
                 }
 
-                // expand by margin
-                glm::vec3 expand(tree.margin);
-                minPt -= expand;
-                maxPt += expand;
+                // Comment out margin expansion:
+                // minPt -= expand;
+                // maxPt += expand;
 
                 UpdateLeafNode(tree, (uint32_t)i, minPt, maxPt);
             }
