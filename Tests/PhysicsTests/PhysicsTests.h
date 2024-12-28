@@ -1,14 +1,17 @@
 #pragma once
-#include <memory>
-#include <string>
+#include "Physics/CPU-Compute/BodySystem.h"
+#include "Physics/CPU-Compute/ColliderSystem.h"
+#include "Physics/CPU-Compute/ConstraintSystem.h"
+#include "Physics/CPU-Compute/PhysicsSystem.h"
 #include <ctime>
 #include <iostream>
-#include "Physics/CPU/PhysicsStructures.h"  // Add this explicit include
-#include "Physics/CPU/PhysicsWorld.h"
-#include "Physics/CPU/Colliders/BoxCollider.h"
-#include "Physics/CPU/Colliders/SphereCollider.h"
+#include <memory>
+#include <string>
+
+#include <iomanip>
 
 namespace drosim::physics {
+
 
 class PhysicsTests {
 public:
@@ -17,74 +20,48 @@ public:
     }
 
     void collisionTest(bool gpu) {
-        PhysicsWorld world;
+        cpu::PhysicsWorld world;
+        uint32_t groundBody = cpu::CreateBody(world, glm::vec3(0, 0, 0), 0.f);
+        cpu::CreateBoxCollider(world, groundBody, glm::vec3(10.f, 0.5, 10.f));
 
-        // -----------------------------------------------------
-        // 1) Create ground body + collider
-        // -----------------------------------------------------
-        auto groundBody = world.CreateRigidBody();
-        groundBody->SetPosition(glm::vec3(0.0f, -0.1f, 0.0f));
-        groundBody->SetMass(0.0f);
-        groundBody->SetRestitution(0.3f);
-        groundBody->SetFriction(0.5f);
-
-        // Make BoxCollider for ground, half-extents = (10,0.1,10)
-        auto groundCollider = std::make_unique<BoxCollider>(glm::vec3(10.0f, 0.1f, 10.0f));
-        // Grab a pointer to the raw collider *before* we move it
-        Collider* groundColliderPtr = groundCollider.get();
-
-        // Move it into the ground body
-        groundBody->AddCollider(std::move(groundCollider));
-
-        // Now we can register its AABB with the broadphase
-        if (auto* aabb = groundColliderPtr->GetAABB()) {
-            aabb->userData = groundColliderPtr; // ensure userData is set
-            glm::vec3 groundPos = groundBody->GetPosition();
-            glm::vec3 ext = glm::vec3(10.0f, 0.1f, 10.0f);
-            aabb->minPoint = groundPos - ext;
-            aabb->maxPoint = groundPos + ext;
-            world.AddToAABBTree(aabb);
+        for (int i = 0; i < 5; i++) {
+            float x = (i - 2) * 1.5f;
+            float y = 5.f + i * 0.5f;
+            uint32_t bodyIdx = cpu::CreateBody(world, glm::vec3(x, y, 0), 1.f);
+            cpu::CreateSphereCollider(world, bodyIdx, 0.5f);
         }
 
-        // -----------------------------------------------------
-        // 2) Create falling box
-        // -----------------------------------------------------
-        auto boxBody = world.CreateRigidBody();
-        boxBody->SetPosition(glm::vec3(0.0f, 2.0f, 0.0f));
-        boxBody->SetVelocity(glm::vec3(1.0f, 0.0f, 0.0f));
-        boxBody->SetMass(1.0f);
-        boxBody->SetRestitution(0.3f);
-        boxBody->SetFriction(0.5f);
-
-        auto boxCollider = std::make_unique<BoxCollider>(glm::vec3(0.5f));
-        Collider* boxColliderPtr = boxCollider.get();
-        boxBody->AddCollider(std::move(boxCollider));
-
-        // Register box AABB
-        if (auto* aabb = boxColliderPtr->GetAABB()) {
-            aabb->userData = boxColliderPtr;
-            glm::vec3 pos = boxBody->GetPosition();
-            glm::vec3 he = glm::vec3(0.5f);
-            aabb->minPoint = pos - he;
-            aabb->maxPoint = pos + he;
-            world.AddToAABBTree(aabb);
+        if (world.bodyPool.Size() > 2) {
+            cpu::CreateDistanceConstraint(
+                world,
+                1,
+                2,
+                glm::vec3(0.f),
+                glm::vec3(0.f),
+                1.5f
+            );
         }
 
-        // Now run your simulation
-        std::cout << "Starting physics simulation...\n";
-        float dt = 1.0f/60.0f;
-        for (int step = 0; step < 100; step++) {
-            world.StepSimulation(dt);
+        float dt = 1.f / 60.f;
+        float totalTime = 0.f;
 
-            glm::vec3 pos = boxBody->GetPosition();
-            glm::vec3 vel = boxBody->GetVelocity();
+        while (totalTime < 3.f) {
+            StepSimulation(world, dt, 10);
+            totalTime += dt;
 
-            // Print state every 10 frames
-            if (step % 10 == 0) {
-                std::cout << "Step " << step << " - PosY=" << pos.y
-                          << ", VelY=" << vel.y << "\n";
+            // Print position of sphere #1 every 0.5s
+            if (std::fmod(totalTime, 0.5f) < dt) {
+                if (world.bodyPool.Size() > 1) {
+                    for (int i = 0; i < world.bodyPool.Size() - 1; i++) {
+                        glm::vec3 pos = GetBodyPosition(world, i);
+                        std::cout << std::fixed << std::setprecision(2)
+                              << "Time: " << totalTime << " s, Sphere #" << i <<" Pos: "
+                              << "(" << pos.x << ", " << pos.y << ", " << pos.z << ")\n";
+                    }
+                }
             }
         }
     }
+
 };
 };;

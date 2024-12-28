@@ -1,6 +1,6 @@
 #pragma once
 #include "Collider.h"
-#include "Physics/PhysicsStructures.h"
+#include "Physics/CPU/PhysicsStructures.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <vector>
