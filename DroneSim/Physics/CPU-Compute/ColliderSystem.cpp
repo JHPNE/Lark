@@ -1,10 +1,14 @@
 #include "ColliderSystem.h"
-#include <omp.h>
 #include <algorithm>
+#include <iostream>
+#include <omp.h>
+#include <ostream>
 
 namespace drosim::physics::cpu {
 
-
+    inline glm::mat3 GetRotationMatrix(const RigidBody& rb) {
+        return glm::mat3_cast(rb.motion.orientation);
+    }
 
     uint32_t CreateBoxCollider(PhysicsWorld& world, uint32_t bodyIndex,
                                  const glm::vec3& halfExtents,
@@ -46,20 +50,17 @@ namespace drosim::physics::cpu {
                 uint32_t cIndex = node.colliderIndex;
                 ColliderType cType = node.type;
 
-                glm::vec3 minPt, maxPt;
-                minPt = glm::vec3(99999.f);
-                maxPt = glm::vec3(-99999.f);
+                glm::vec3 minPt(99999.f), maxPt(-99999.f);
 
                 if (cType == ColliderType::Box) {
                     auto& box = world.boxPool[cIndex];
                     auto& body = world.bodyPool[box.bodyIndex];
                     if (body.flags.active || body.flags.isStatic) {
-                        glm::vec3 pos = body.motion.position
-                            + body.motion.orientation * box.localCenter;
-                        glm::mat3 M = body.motion.orientation;
-                        glm::vec3 x = M[0] * box.halfExtents.x;
-                        glm::vec3 y = M[1] * box.halfExtents.y;
-                        glm::vec3 z = M[2] * box.halfExtents.z;
+                        glm::mat3 rot = GetRotationMatrix(body);
+                        glm::vec3 pos = body.motion.position + rot * box.localCenter;
+                        glm::vec3 x = rot[0] * box.halfExtents.x;
+                        glm::vec3 y = rot[1] * box.halfExtents.y;
+                        glm::vec3 z = rot[2] * box.halfExtents.z;
                         glm::vec3 r(
                             std::abs(x.x) + std::abs(y.x) + std::abs(z.x),
                             std::abs(x.y) + std::abs(y.y) + std::abs(z.y),
@@ -73,20 +74,20 @@ namespace drosim::physics::cpu {
                     auto& sph = world.spherePool[cIndex];
                     auto& body = world.bodyPool[sph.bodyIndex];
                     if (body.flags.active || body.flags.isStatic) {
-                        glm::vec3 pos = body.motion.position
-                            + body.motion.orientation * sph.localCenter;
+                        glm::mat3 rot = GetRotationMatrix(body); // not used for radius, but for local center
+                        glm::vec3 pos = body.motion.position + rot * sph.localCenter;
                         glm::vec3 r(sph.radius);
                         minPt = pos - r;
                         maxPt = pos + r;
                     }
                 }
 
-                // Expand by margin
+                // expand by margin
                 glm::vec3 expand(tree.margin);
                 minPt -= expand;
                 maxPt += expand;
 
-                UpdateLeafNode(tree, static_cast<uint32_t>(i), minPt, maxPt);
+                UpdateLeafNode(tree, (uint32_t)i, minPt, maxPt);
             }
         }
         RebalanceAABB(tree);
@@ -115,20 +116,27 @@ namespace drosim::physics::cpu {
             while (!stack.empty()) {
                 uint32_t index = stack.back();
                 stack.pop_back();
+
                 if (index == UINT32_MAX) continue;
                 auto& nodeB = tree.nodes[index];
 
-                // AABB overlap test
-                if (!(nodeB.maxPoint.x < nodeA.minPoint.x || nodeB.minPoint.x > nodeA.maxPoint.x ||
-                      nodeB.maxPoint.y < nodeA.minPoint.y || nodeB.minPoint.y > nodeA.maxPoint.y ||
-                      nodeB.maxPoint.z < nodeA.minPoint.z || nodeB.minPoint.z > nodeA.maxPoint.z)) {
+                if (!( nodeB.maxPoint.x < nodeA.minPoint.x
+                 || nodeB.minPoint.x > nodeA.maxPoint.x
+                 || nodeB.maxPoint.y < nodeA.minPoint.y
+                 || nodeB.minPoint.y > nodeA.maxPoint.y
+                 || nodeB.maxPoint.z < nodeA.minPoint.z
+                 || nodeB.minPoint.z > nodeA.maxPoint.z ))
+                {
+                    // So we DO overlap
                     if (nodeB.isLeaf && index != leaf) {
-                        outPairs.emplace_back(leaf, index);
+                        // record pair
+                        outPairs.push_back({ leaf, index });
                     } else {
+                        // descend
                         stack.push_back(nodeB.children[0]);
                         stack.push_back(nodeB.children[1]);
                     }
-                      }
+                }
             }
         }
     }
@@ -140,6 +148,10 @@ namespace drosim::physics::cpu {
         if (!tree.freeList.empty()) {
             nodeIdx = tree.freeList.back();
             tree.freeList.pop_back();
+            if (nodeIdx >= tree.nodes.size()) {
+                nodeIdx = (uint32_t)tree.nodes.size();
+                tree.nodes.emplace_back();
+            }
         } else {
             nodeIdx = (uint32_t)tree.nodes.size();
             tree.nodes.emplace_back();
@@ -159,16 +171,21 @@ namespace drosim::physics::cpu {
         if (tree.root == UINT32_MAX) {
             tree.root = nodeIdx;
         } else {
-            // naive approach: create a new parent with current root
+            // naive approach
             uint32_t oldRoot = tree.root;
             uint32_t newParentIdx;
             if (!tree.freeList.empty()) {
                 newParentIdx = tree.freeList.back();
                 tree.freeList.pop_back();
+                if (newParentIdx >= tree.nodes.size()) {
+                    newParentIdx = (uint32_t)tree.nodes.size();
+                    tree.nodes.emplace_back();
+                }
             } else {
                 newParentIdx = (uint32_t)tree.nodes.size();
                 tree.nodes.emplace_back();
             }
+
             auto& newParent = tree.nodes[newParentIdx];
             newParent.isLeaf = false;
             newParent.parent = UINT32_MAX;
@@ -176,10 +193,10 @@ namespace drosim::physics::cpu {
             newParent.children[1] = nodeIdx;
             tree.root = newParentIdx;
 
-            // fix parents
             tree.nodes[oldRoot].parent = newParentIdx;
             node.parent = newParentIdx;
         }
+
         return nodeIdx;
     }
 

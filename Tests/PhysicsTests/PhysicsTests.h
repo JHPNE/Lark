@@ -22,7 +22,7 @@ public:
     void collisionTest(bool gpu) {
         cpu::PhysicsWorld world;
         uint32_t groundBody = cpu::CreateBody(world, glm::vec3(0, 0, 0), 0.f);
-        cpu::CreateBoxCollider(world, groundBody, glm::vec3(10.f, 0.5, 10.f));
+        cpu::CreateBoxCollider(world, groundBody, glm::vec3(20.f, 2, 20.f), glm::vec3(0, 0, 0));
 
         for (int i = 0; i < 5; i++) {
             float x = (i - 2) * 1.5f;
@@ -46,17 +46,23 @@ public:
         float totalTime = 0.f;
 
         while (totalTime < 3.f) {
-            StepSimulation(world, dt, 10);
+            StepSimulation(world, dt, 30);
             totalTime += dt;
 
             // Print position of sphere #1 every 0.5s
-            if (std::fmod(totalTime, 0.5f) < dt) {
+            if (std::fmod(totalTime, 0.1f) < dt) {
                 if (world.bodyPool.Size() > 1) {
                     for (int i = 0; i < world.bodyPool.Size() - 1; i++) {
                         glm::vec3 pos = GetBodyPosition(world, i);
-                        std::cout << std::fixed << std::setprecision(2)
-                              << "Time: " << totalTime << " s, Sphere #" << i <<" Pos: "
-                              << "(" << pos.x << ", " << pos.y << ", " << pos.z << ")\n";
+                        if (i == 0) {
+                            std::cout << std::fixed << std::setprecision(2)
+                                  << "Time: " << totalTime << " s, Box #" << i <<" Pos: "
+                                  << "(" << pos.x << ", " << pos.y << ", " << pos.z << ")\n";
+                        } else {
+                            std::cout << std::fixed << std::setprecision(2)
+                                  << "Time: " << totalTime << " s, Sphere #" << i <<" Pos: "
+                                  << "(" << pos.x << ", " << pos.y << ", " << pos.z << ")\n";
+                        }
                     }
                 }
             }

@@ -1,8 +1,10 @@
 #include "PhysicsSystem.h"
 #include "BodySystem.h"
 #include "ColliderSystem.h"
-#include "NarrowPhase.h"
 #include "ConstraintSystem.h"
+#include "NarrowPhase.h"
+
+#include <iostream>
 
 namespace drosim::physics::cpu {
 

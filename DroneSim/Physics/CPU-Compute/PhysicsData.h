@@ -52,8 +52,7 @@ namespace drosim::physics::cpu {
     glm::vec3 position;
     glm::vec3 velocity;
     glm::vec3 angularVelocity;
-    glm::mat3 orientation;
-    glm::mat3 invOrientation;
+    glm::quat orientation;
   };
 
   struct BodyInertiaData{
