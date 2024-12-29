@@ -73,9 +73,49 @@ namespace drosim::physics::cpu {
                         bodyB.inertia.globalInvInertia * glm::cross(relPosB, impulse);
                 }
 
-                // (Optional) friction, tangential impulses are missing here
+                glm::vec3 newRelVel = (bodyB.motion.velocity + glm::cross(bodyB.motion.angularVelocity, relPosB)) -
+                      (bodyA.motion.velocity + glm::cross(bodyA.motion.angularVelocity, relPosA));
+
+                // Get tangent vector by removing normal component from relative velocity
+                glm::vec3 tangent = newRelVel - (glm::dot(newRelVel, normal) * normal);
+                float tangentLen = glm::length(tangent);
+
+                /*
+                if (tangentLen > 1e-6f) {
+                    tangent /= tangentLen;
+
+                    float frictionDenom = invMassA + invMassB +
+                        glm::dot(tangent, glm::cross(
+                            bodyA.inertia.globalInvInertia * glm::cross(relPosA, tangent), relPosA)) +
+                        glm::dot(tangent, glm::cross(
+                            bodyB.inertia.globalInvInertia * glm::cross(relPosB, tangent), relPosB));
+
+                    if (frictionDenom > 1e-6f) {
+                        float mu = 0.5f * (bodyA.material.friction + bodyB.material.friction);
+
+                        float maxFriction = mu * glm::length(impulse);
+
+                        float jt = -glm::dot(newRelVel, tangent) / frictionDenom;
+
+                        jt = glm::clamp(jt,-maxFriction, maxFriction);
+
+                        glm::vec3 frictionImpulse = jt * tangent;
+
+                        if (invMassA > 0.f && bodyA.flags.active) {
+                            bodyA.motion.velocity -= frictionImpulse * invMassA;
+                            bodyA.motion.angularVelocity -= bodyA.inertia.globalInvInertia * glm::cross(relPosA, frictionImpulse);
+                        }
+
+                        if (invMassB > 0.f && bodyB.flags.active) {
+                            bodyB.motion.velocity += frictionImpulse * invMassB;
+                            bodyB.motion.angularVelocity += bodyB.inertia.globalInvInertia * glm::cross(relPosB, frictionImpulse);
+                        }
+                    }
+                }
+                */
             }
 
+            /*
             // 2) Solve user constraints (distance)
             for (auto& c : world.constraints) {
                 auto& bodyA = world.bodyPool[c.bodyA];
@@ -121,6 +161,7 @@ namespace drosim::physics::cpu {
                                                     * glm::cross(rB, impulse);
                 }
             }
+            */
         }
     }
 }

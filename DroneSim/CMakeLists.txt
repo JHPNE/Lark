@@ -15,6 +15,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/Common
     ${Python_INCLUDE_DIRS}
     ${pybind11_INCLUDE_DIRS}
+    ${BULLET_PHYSICS_SOURCE_DIR}/src  # Add Bullet include directory
 )
 
 # OpenMP configuration
@@ -34,6 +35,16 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     glm
     Python::Python
     pybind11::pybind11
+    BulletDynamics
+    BulletCollision
+    LinearMath
+    Bullet3Common
+)
+
+# Add physics-related compile definitions
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    BT_USE_DOUBLE_PRECISION
+    USE_PHYSICS_ENGINE
 )
 
 # Platform-specific configurations

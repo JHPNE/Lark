@@ -123,6 +123,22 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
+# Bullet Physics Configuration
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)  # Changed to OFF for static linking
+set(USE_DOUBLE_PRECISION ON CACHE BOOL "" FORCE)
+set(BUILD_CPU_DEMOS OFF CACHE BOOL "" FORCE)
+set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL "" FORCE)
+set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "" FORCE)
+set(BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
+
+# Fetch and include Bullet
+FetchContent_Declare(
+        bullet
+        GIT_REPOSITORY https://github.com/bulletphysics/bullet3.git
+        GIT_TAG 3.25    # Specify a stable version
+)
+FetchContent_MakeAvailable(bullet)
 
 # ImGui
 FetchContent_Declare(

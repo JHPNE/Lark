@@ -9,8 +9,6 @@
 namespace drosim::physics::cpu {
 
   void StepSimulation(PhysicsWorld& world, float dt, int solverIterations) {
-    static float accumulatedTime = 0.0f;
-    accumulatedTime += dt;
     /*
 
     // Print physics state every second
@@ -39,15 +37,12 @@ namespace drosim::physics::cpu {
     // 3) Broad phase
     std::vector<std::pair<uint32_t, uint32_t>> potentialPairs;
     BroadPhaseCollisions(world, potentialPairs);
-    //std::cout << "Broad phase found " << potentialPairs.size() << " pairs\n";
 
     // 4) Narrow phase
     size_t prevContacts = world.contacts.size();
     NarrowPhase(world, potentialPairs);
-    /*
-    std::cout << "Contacts found: " << world.contacts.size()
-              << " (previous: " << prevContacts << ")\n";
 
+    /*
     for (size_t i = 0; i < std::min(world.contacts.size(), size_t(3)); ++i) {
       const auto& contact = world.contacts[i];
       std::cout << "Contact " << i << ":"

@@ -1,6 +1,7 @@
 #include "ColliderSystem.h"
 #include <algorithm>
 #include <iostream>
+#include <omp.h>
 #include <ostream>
 
 namespace drosim::physics::cpu {
