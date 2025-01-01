@@ -42,7 +42,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 )
 
 # Add physics-related compile definitions
-target_compile_definitions(${PROJECT_NAME} PRIVATE
+target_compile_definitions(${PROJECT_NAME} PUBLIC
     BT_USE_DOUBLE_PRECISION
     USE_PHYSICS_ENGINE
 )
