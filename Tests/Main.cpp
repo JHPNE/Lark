@@ -1,7 +1,6 @@
 #pragma once
 #include "PhysicsTests/PhysicsTests.h"
 #include "ECSTests/EntityTests.h"
-#include "Physics/CPU/PhysicsWorld.h"
 #include <cstdio>
 
 int main() {
@@ -12,7 +11,7 @@ int main() {
   printf("Physics Tests \n");
   try {
     physics::PhysicsTests test;
-    test.collisionTest(true);
+    test.runTests(true);
   }
   catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;
