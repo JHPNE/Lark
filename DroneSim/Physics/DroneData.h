@@ -17,6 +17,7 @@ struct DroneBody{
   btRigidBody* fuselageBody; // primary rigid body for the fuselage
   std::vector<btRigidBody*> childBodies; // for multirotors/hybrids
   std::vector<btTypedConstraint*> constraints; // folding arms, tilt rotors etc
+  float mass;
 
   DroneBody() : fuselageBody(nullptr) {}
 };
