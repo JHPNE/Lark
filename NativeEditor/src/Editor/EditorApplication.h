@@ -43,6 +43,6 @@ namespace editor {
 		bool m_showGeometryCreation = false;
 		char m_geometryNameBuffer[256] = "C:/Users/yeeezy/Documents/monke.obj";
 
-		std::unique_ptr<drosim::editor::Geometry> m_geometry;
+		std::unique_ptr<lark::editor::Geometry> m_geometry;
 	};
 }

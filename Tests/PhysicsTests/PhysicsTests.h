@@ -9,7 +9,7 @@
 
 #include <thread>
 
-namespace drosim::physics {
+namespace lark::physics {
 
 class PhysicsTests {
 public:
@@ -89,7 +89,7 @@ public:
         auto wingShape = std::make_unique<btBoxShape>(btVector3(2.f, 0.1f, 0.5f));
 
         // Create world after shapes
-        drosim::physics::World world;
+        lark::physics::World world;
         auto* dynamicsWorld = world.getDynamicsWorld();
         if (!dynamicsWorld) return;
 
@@ -175,4 +175,4 @@ public:
     }
 };
 
-} // namespace drosim::physics
+} // namespace lark::physics

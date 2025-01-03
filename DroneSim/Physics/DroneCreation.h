@@ -10,13 +10,13 @@ btRigidBody* createRigidBody(btDiscreteDynamicsWorld* bworld,
                              float linDamping = 0.01f,
                              float angDamping = 0.01f);
 
-void createMultirotorDrone(drosim::physics::World& world,
+void createMultirotorDrone(lark::physics::World& world,
                            DroneData& drone,
                            btCollisionShape* fuselageShape,
                            btCollisionShape* rotorShape,
                            const btVector3& spawnPos);
 
-void createFixedWingDrone(drosim::physics::World& world,
+void createFixedWingDrone(lark::physics::World& world,
                           DroneData& drone,
                           btCollisionShape* fuselageShape,
                           btCollisionShape* wingShape,

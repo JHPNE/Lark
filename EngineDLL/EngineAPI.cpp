@@ -4,7 +4,7 @@
 
 #define ENGINEDLL_EXPORTS
 
-using namespace drosim;
+using namespace lark;
 
 namespace {
     std::unique_ptr<GameLoop> g_game_loop;
@@ -40,17 +40,17 @@ namespace {
             return info;
 
         info.is_dynamic = false;
-        info.scene = new drosim::tools::scene();
+        info.scene = new lark::tools::scene();
 
         info.scene->name = geometry.scene->name;
-        util::vector<drosim::tools::lod_group> lod_groups;
+        util::vector<lark::tools::lod_group> lod_groups;
         for (auto comp_lod_group : geometry.scene->lod_groups) {
-            drosim::tools::lod_group lod_group;
+            lark::tools::lod_group lod_group;
             lod_group.name = comp_lod_group.name;
 
-            util::vector<drosim::tools::mesh> meshes;
+            util::vector<lark::tools::mesh> meshes;
             for (auto mesh : comp_lod_group.meshes) {
-                drosim::tools::mesh m;
+                lark::tools::mesh m;
                 m.name = mesh.name;
                 m.positions = mesh.positions;
                 m.normals = mesh.normals;
@@ -58,9 +58,9 @@ namespace {
                 m.uv_sets = mesh.uv_sets;
                 m.raw_indices = mesh.raw_indices;
 
-                util::vector<drosim::tools::vertex> vertices;
+                util::vector<lark::tools::vertex> vertices;
                 for (auto vertex : mesh.vertices) {
-                    drosim::tools::vertex v;
+                    lark::tools::vertex v;
                     v.tangent = vertex.tangent;
                     v.position = vertex.position;
                     v.normal = vertex.normal;
@@ -75,7 +75,7 @@ namespace {
                 m.lod_id = mesh.lod_id;
                 m.is_dynamic = false;
 
-                util::vector<drosim::tools::packed_vertex::vertex_static> packed_vertices_static;
+                util::vector<lark::tools::packed_vertex::vertex_static> packed_vertices_static;
                 m.packed_vertices_static = packed_vertices_static;
 
                 meshes.emplace_back(m);
@@ -119,15 +119,15 @@ namespace {
     }
 
     // Create a concrete script class for each script
-    class PythonScriptWrapper : public drosim::script::entity_script {
+    class PythonScriptWrapper : public lark::script::entity_script {
     public:
-        explicit PythonScriptWrapper(drosim::game_entity::entity entity)
+        explicit PythonScriptWrapper(lark::game_entity::entity entity)
             : entity_script(entity) {}
     };
 
     // Convert from ContentTools types to Engine types
-    drosim::tools::primitive_mesh_type ConvertPrimitiveType(content_tools::PrimitiveMeshType type) {
-        return static_cast<drosim::tools::primitive_mesh_type>(type);
+    lark::tools::primitive_mesh_type ConvertPrimitiveType(content_tools::PrimitiveMeshType type) {
+        return static_cast<lark::tools::primitive_mesh_type>(type);
     }
 }
 
@@ -209,21 +209,21 @@ extern "C" {
     ENGINE_API bool RegisterScript(const char* script_name) {
         if (!script_name) return false;
 
-        size_t tag = drosim::script::detail::string_hash()(script_name);
-        if (drosim::script::detail::script_exists(tag)) {
+        size_t tag = lark::script::detail::string_hash()(script_name);
+        if (lark::script::detail::script_exists(tag)) {
             return false;  // Script already registered
         }
 
-        auto creator = [](drosim::game_entity::entity entity) -> drosim::script::detail::script_ptr {
+        auto creator = [](lark::game_entity::entity entity) -> lark::script::detail::script_ptr {
             return std::make_unique<PythonScriptWrapper>(entity);
         };
 
-        bool success = drosim::script::detail::register_script(
-            drosim::script::detail::string_hash()(script_name),
+        bool success = lark::script::detail::register_script(
+            lark::script::detail::string_hash()(script_name),
             creator);
 
         if (success) {
-            drosim::script::detail::add_script_name(script_name);
+            lark::script::detail::add_script_name(script_name);
         }
 
         return success;
@@ -232,11 +232,11 @@ extern "C" {
     ENGINE_API bool GameLoop_Initialize(u32 target_fps, f32 fixed_timestep) {
         if (g_game_loop) return false;  // Already initialized
 
-        drosim::GameLoop::Config config;
+        lark::GameLoop::Config config;
         config.target_fps = target_fps;
         config.fixed_timestep = fixed_timestep;
 
-        g_game_loop = std::make_unique<drosim::GameLoop>(config);
+        g_game_loop = std::make_unique<lark::GameLoop>(config);
         return g_game_loop->initialize();
     }
 
@@ -268,11 +268,11 @@ extern "C" {
             return false;
         }
 
-        auto engine_data = drosim::tools::scene_data{};
-        auto engine_info = drosim::tools::primitive_init_info{};
+        auto engine_data = lark::tools::scene_data{};
+        auto engine_info = lark::tools::primitive_init_info{};
 
         // Convert info to engine format
-        engine_info.mesh_type = static_cast<drosim::tools::primitive_mesh_type>(info->type);
+        engine_info.mesh_type = static_cast<lark::tools::primitive_mesh_type>(info->type);
         memcpy(engine_info.segments, info->segments, sizeof(info->segments));
         engine_info.size = info->size;
         engine_info.lod = info->lod;
@@ -281,7 +281,7 @@ extern "C" {
 
         // Let the engine create the mesh
         printf("[CreatePrimitiveMesh] Calling engine CreatePrimitiveMesh\n");
-        drosim::api::create_primitive_mesh(&engine_data, &engine_info);
+        lark::api::create_primitive_mesh(&engine_data, &engine_info);
 
         // Just pass through the engine's buffer
         if (engine_data.buffer && engine_data.buffer_size > 0) {
@@ -296,9 +296,9 @@ extern "C" {
     }
 
     ENGINE_API bool LoadObj(const char* path, content_tools::SceneData* data) {
-        auto engine_data = drosim::tools::scene_data{};
+        auto engine_data = lark::tools::scene_data{};
         engine_data.settings = data->import_settings;
-        drosim::api::load_geometry(path, &engine_data);
+        lark::api::load_geometry(path, &engine_data);
 
         if (engine_data.buffer && engine_data.buffer_size > 0) {
             data->buffer = engine_data.buffer;
@@ -309,7 +309,7 @@ extern "C" {
         return false;
     }
 
-    ENGINE_API bool SetEntityTransform(drosim::id::id_type entity_id, const transform_component& transform) {
+    ENGINE_API bool SetEntityTransform(lark::id::id_type entity_id, const transform_component& transform) {
         if (!is_entity_valid(entity_id)) return false;
 
         auto entity = entity_from_id(entity_id);
@@ -326,7 +326,7 @@ extern "C" {
         return true;
     }
 
-    ENGINE_API bool GetEntityTransform(drosim::id::id_type entity_id, transform_component* out_transform) {
+    ENGINE_API bool GetEntityTransform(lark::id::id_type entity_id, transform_component* out_transform) {
         if (!is_entity_valid(entity_id) || !out_transform) return false;
 
         auto entity = entity_from_id(entity_id);
@@ -346,7 +346,7 @@ extern "C" {
         return true;
     }
 
-    ENGINE_API bool ResetEntityTransform(drosim::id::id_type entity_id) {
+    ENGINE_API bool ResetEntityTransform(lark::id::id_type entity_id) {
         if (!is_entity_valid(entity_id)) return false;
 
         auto entity = entity_from_id(entity_id);
@@ -357,7 +357,7 @@ extern "C" {
         return true;
     }
 
-    ENGINE_API glm::mat4 GetEntityTransformMatrix(drosim::id::id_type entity_id) {
+    ENGINE_API glm::mat4 GetEntityTransformMatrix(lark::id::id_type entity_id) {
         if (!is_entity_valid(entity_id)) return glm::mat4(1.0f);
         auto entity = entity_from_id(entity_id);
         auto transform_comp = entity.transform();
@@ -366,21 +366,21 @@ extern "C" {
         return transform_comp.get_transform_matrix();
     }
 
-    ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, std::vector<glm::vec3>& new_positions) {
-        if(drosim::api::update_dynamic_mesh(entity_id, new_positions)) {
+    ENGINE_API bool ModifyEntityVertexPositions(lark::id::id_type entity_id, std::vector<glm::vec3>& new_positions) {
+        if(lark::api::update_dynamic_mesh(entity_id, new_positions)) {
             return true;
         };
         return false;
     }
 
-    ENGINE_API bool GetModifiedMeshData(drosim::id::id_type entity_id, content_tools::SceneData* data) {
+    ENGINE_API bool GetModifiedMeshData(lark::id::id_type entity_id, content_tools::SceneData* data) {
         if (!data) return false;
         
         // Convert content tools scene data to engine scene data
         tools::scene_data engine_data{};
         
         // Get the mesh data from the entity
-        bool success = drosim::api::get_mesh_data(entity_id, &engine_data);
+        bool success = lark::api::get_mesh_data(entity_id, &engine_data);
         if (!success) return false;
 
         // Copy the data to the output buffer

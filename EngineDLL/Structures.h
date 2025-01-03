@@ -28,18 +28,18 @@ struct GeometryImportSettings {
 struct SceneData {
   uint8_t* buffer = nullptr;
   uint32_t buffer_size = 0;
-  drosim::tools::geometry_import_settings import_settings;
+  lark::tools::geometry_import_settings import_settings;
 };
 
 struct PrimitiveInitInfo {
   PrimitiveMeshType type;
   uint32_t segments[3] = {1, 1, 1};
-  drosim::math::v3 size{1, 1, 1};
+  lark::math::v3 size{1, 1, 1};
   uint32_t lod = 0;
 };
 }
 
-namespace drosim::editor {
+namespace lark::editor {
 struct vertex_static {
   math::v3 position;     ///< Vertex position in 3D space
   u8 reserved[3];        ///< Reserved for alignment
@@ -100,7 +100,7 @@ struct transform_component {
 };
 
 struct script_component {
-  drosim::script::detail::script_creator script_creator;  // Use the actual type instead of void*
+  lark::script::detail::script_creator script_creator;  // Use the actual type instead of void*
 };
 
 enum GeometryType {
@@ -109,7 +109,7 @@ enum GeometryType {
 };
 
 struct geometry_component {
-  drosim::editor::scene* scene;
+  lark::editor::scene* scene;
   bool is_dynamic = false;
   const char *name;
   const char *file_name;

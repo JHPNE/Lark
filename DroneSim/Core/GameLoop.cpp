@@ -5,7 +5,7 @@
 #include <time.h>
 #endif
 
-namespace drosim {
+namespace lark {
 
     namespace {
 #if defined(_WIN32)
@@ -127,4 +127,4 @@ namespace drosim {
         }
     }
 
-} //namespace drosim
+} //namespace lark

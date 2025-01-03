@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace drosim::physics::visualization {
+namespace lark::physics::visualization {
 
 class SimplePhysicsRenderer {
 public:

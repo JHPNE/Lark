@@ -94,7 +94,7 @@ private:
 
     bool GetGeometryTransform(ViewportGeometry* geom, transform_component& transform);
 
-    drosim::editor::scene* GetScene(std::shared_ptr<Project> project, uint32_t id) {
+    lark::editor::scene* GetScene(std::shared_ptr<Project> project, uint32_t id) {
         if (!project) {
             printf("[AddGeometry] No active project.\n");
             return nullptr;
@@ -146,7 +146,7 @@ private:
 
     std::unordered_map<uint32_t, std::unique_ptr<ViewportGeometry>> m_geometries;
     std::unique_ptr<GeometryRenderer::LODGroupBuffers> m_geometryBuffers;
-    std::shared_ptr<drosim::editor::Geometry> m_currentGeometry;
+    std::shared_ptr<lark::editor::Geometry> m_currentGeometry;
     ViewportGeometry* m_selectedGeometry{nullptr};  // Track selected geometry
     ImGuizmo::OPERATION m_guizmoOperation{ImGuizmo::OPERATION::TRANSLATE}; // Guizmo operation
     bool m_isUsingGuizmo{false}; // Is guizmo being used?

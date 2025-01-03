@@ -3,7 +3,7 @@
 #include "Script.h"
 #include "Geometry.h"
 
-namespace drosim::game_entity {
+namespace lark::game_entity {
 	// private alternative to static
 	namespace {
 		util::vector<transform::component> transforms;

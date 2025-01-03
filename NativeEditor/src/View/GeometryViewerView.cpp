@@ -76,7 +76,7 @@ void GeometryViewerView::UpdateGeometry(uint32_t id) {
     }
 
     // Loaded new geometry
-    auto geometry = new drosim::editor::Geometry();
+    auto geometry = new lark::editor::Geometry();
     geometry->FromRawData(sceneData.buffer, sceneData.buffer_size);
     auto scene = geometry->GetScene();
 

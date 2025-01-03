@@ -2,7 +2,7 @@
 #include <memory>
 #include <btBulletDynamicsCommon.h>
 
-namespace drosim::physics {
+namespace lark::physics {
   class World {
     public:
       World() {

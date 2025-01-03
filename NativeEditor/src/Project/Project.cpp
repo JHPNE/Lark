@@ -381,10 +381,10 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
                 float size[3] = {5.0f, 5.0f, 5.0f};
                 uint32_t segments[3] = {32, 16, 1};
 
-                std::shared_ptr<drosim::editor::Geometry> geometry;
+                std::shared_ptr<lark::editor::Geometry> geometry;
                 geometry = geomType == ObjImport
-                            ? drosim::editor::Geometry::LoadGeometry(geometrySourceElement)
-                            : drosim::editor::Geometry::CreatePrimitive(
+                            ? lark::editor::Geometry::LoadGeometry(geometrySourceElement)
+                            : lark::editor::Geometry::CreatePrimitive(
                                     content_tools::PrimitiveMeshType::uv_sphere,
                                     size,
                                     segments

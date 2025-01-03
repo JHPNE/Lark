@@ -13,7 +13,7 @@
 #include "../Components/Transform.h"
 #include "../Components/Script.h"
 
-namespace drosim {
+namespace lark {
 
   /**
    * @class GameLoop
@@ -116,4 +116,4 @@ namespace drosim {
     f32 _fps_time{ 0.0f };         ///< Time accumulated for FPS calculation
   };
 
-} // namespace drosim
+} // namespace lark

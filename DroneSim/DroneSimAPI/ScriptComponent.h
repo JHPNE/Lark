@@ -1,7 +1,7 @@
 #pragma once
 #include "../Components/ComponentCommon.h"
 
-namespace drosim::script {
+namespace lark::script {
 
 	DEFINE_TYPED_ID(script_id);
 

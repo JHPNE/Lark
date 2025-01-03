@@ -2,7 +2,7 @@
 #pragma once
 #include <cassert>
 
-namespace drosim {
+namespace lark {
     namespace editor {
 
         enum class AssetType {
@@ -31,4 +31,4 @@ namespace drosim {
         };
 
     } // namespace editor
-} // namespace drosim
+} // namespace lark

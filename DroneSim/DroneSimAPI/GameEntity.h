@@ -9,7 +9,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/embed.h>
 
-namespace drosim {
+namespace lark {
 	namespace game_entity {
 
 		DEFINE_TYPED_ID(entity_id);
@@ -116,12 +116,12 @@ namespace drosim {
 #define REGISTER_SCRIPT(TYPE) \
                     namespace { \
                         const u8 _reg##TYPE { \
-                            drosim::script::detail::register_script( \
-                                drosim::script::detail::string_hash()(#TYPE), \
-                                &drosim::script::detail::create_script<TYPE>) \
+                            lark::script::detail::register_script( \
+                                lark::script::detail::string_hash()(#TYPE), \
+                                &lark::script::detail::create_script<TYPE>) \
                         }; \
                         const u8 name##TYPE { \
-                            drosim::script::detail::add_script_name(#TYPE) \
+                            lark::script::detail::add_script_name(#TYPE) \
                         }; \
                     }
 		}

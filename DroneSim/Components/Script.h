@@ -10,7 +10,7 @@
 #pragma once
 #include "ComponentCommon.h"
 
-namespace drosim::script {
+namespace lark::script {
 
     /**
      * @struct init_info

@@ -2,7 +2,7 @@
 #include "Entity.h"
 
 
-namespace drosim::script {
+namespace lark::script {
 	namespace {
 		util::vector<detail::script_ptr> entity_scripts;
 		util::vector<id::id_type> id_mapping;
@@ -42,8 +42,8 @@ namespace drosim::script {
 			return result;
 		}
 		script_creator get_script_creator(size_t tag) {
-			auto script = drosim::script::registry().find(tag);
-			assert(script != drosim::script::registry().end() && script->first == tag);
+			auto script = lark::script::registry().find(tag);
+			assert(script != lark::script::registry().end() && script->first == tag);
 			return script->second;
 		}
 
@@ -59,7 +59,7 @@ namespace drosim::script {
 		}
 
 		void get_script_names(const char** names, size_t* count) {
-			auto& script_names = drosim::script::detail::script_name();
+			auto& script_names = lark::script::detail::script_name();
 			*count = script_names.size();
 
 			if (!names) return;
@@ -72,11 +72,11 @@ namespace drosim::script {
 		}
 
 		script_registry& get_script_registry() {
-			return drosim::script::registry();
+			return lark::script::registry();
 		}
 
 		bool script_exists(size_t tag) {
-			return drosim::script::registry().find(tag) != registry().end();
+			return lark::script::registry().find(tag) != registry().end();
 		}
 
 	} // namespace detail

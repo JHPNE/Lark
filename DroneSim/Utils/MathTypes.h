@@ -5,7 +5,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-namespace drosim::math {
+namespace lark::math {
 	constexpr float pi = 3.1415926535897932384626433832795f;
 	constexpr float epsilon = 1e-5f;
 

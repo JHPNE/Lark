@@ -27,19 +27,19 @@ public:
   void SetVisible(bool visible) { this->visible = visible; };
   void SetGeometrySource(const std::string &source) { m_geometrySource = source; };
   void SetGeometryType(GeometryType type) { m_geometryType = type; };
-  void SetScene(drosim::editor::scene scene) {m_scene = scene; };
-  drosim::editor::scene* GetScene() {return &m_scene; };
+  void SetScene(lark::editor::scene scene) {m_scene = scene; };
+  lark::editor::scene* GetScene() {return &m_scene; };
   GeometryType GetGeometryType() const { return m_geometryType; };
 
   void loadGeometry() {
     float size[3] = {5.0f, 5.0f, 5.0f};
     uint32_t segments[3] = {32, 16, 1};
 
-    std::shared_ptr<drosim::editor::Geometry> geometry;
+    std::shared_ptr<lark::editor::Geometry> geometry;
     try {
       geometry = m_geometryType == ObjImport
-                  ? drosim::editor::Geometry::LoadGeometry(m_geometrySource.c_str())
-                  : drosim::editor::Geometry::CreatePrimitive(
+                  ? lark::editor::Geometry::LoadGeometry(m_geometrySource.c_str())
+                  : lark::editor::Geometry::CreatePrimitive(
                           content_tools::PrimitiveMeshType::uv_sphere,
                           size,
                           segments
@@ -111,5 +111,5 @@ private:
   bool visible = true;
   std::string m_geometrySource;
   GeometryType m_geometryType;
-  drosim::editor::scene m_scene;
+  lark::editor::scene m_scene;
 };

@@ -39,7 +39,7 @@ void GeometryRenderer::Shutdown() {
     }
 }
 
-std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffersFromGeometry(drosim::editor::scene* scene) {
+std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffersFromGeometry(lark::editor::scene* scene) {
     if (!scene) {
         printf("[CreateBuffersFromGeometry] Null geometry passed.\n");
         return nullptr;
@@ -77,7 +77,7 @@ std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::CreateBuffe
     return groupBuffers;
 }
 
-std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::UpdateBuffersfromGeometry(drosim::editor::scene* scene, std::unique_ptr<LODGroupBuffers> buffers) {
+std::unique_ptr<GeometryRenderer::LODGroupBuffers> GeometryRenderer::UpdateBuffersfromGeometry(lark::editor::scene* scene, std::unique_ptr<LODGroupBuffers> buffers) {
     if (!scene) {
         printf("[UpdateBuffersfromGeometry] Null geometry passed.\n");
         return nullptr;
@@ -158,7 +158,7 @@ void GeometryRenderer::RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
     }
 };
 
-std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffers(const drosim::editor::mesh& mesh) {
+std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffers(const lark::editor::mesh& mesh) {
     if (mesh.vertices.empty() || mesh.indices.empty()) {
         printf("[CreateMeshBuffers] Empty mesh passed.\n");
         return nullptr;
@@ -171,22 +171,22 @@ std::shared_ptr<GeometryRenderer::MeshBuffers> GeometryRenderer::CreateMeshBuffe
 
     glGenBuffers(1, &buffers->vbo);
     glBindBuffer(GL_ARRAY_BUFFER, buffers->vbo);
-    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(drosim::editor::vertex), mesh.vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(lark::editor::vertex), mesh.vertices.data(), GL_STATIC_DRAW);
 
     glGenBuffers(1, &buffers->ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers->ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data(), GL_STATIC_DRAW);
 
-    size_t stride = sizeof(drosim::editor::vertex);
+    size_t stride = sizeof(lark::editor::vertex);
 
     glEnableVertexAttribArray(0); // Position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(drosim::editor::vertex, position));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(lark::editor::vertex, position));
 
     glEnableVertexAttribArray(1); // Normal
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(drosim::editor::vertex, normal));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(lark::editor::vertex, normal));
 
     glEnableVertexAttribArray(2); // UV
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(drosim::editor::vertex, uv));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(lark::editor::vertex, uv));
 
     glBindVertexArray(0);
 

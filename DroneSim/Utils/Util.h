@@ -6,7 +6,7 @@
 #if USE_STL_VECTOR
 	#include <vector>
 	#include <algorithm>
-namespace drosim::util {
+namespace lark::util {
 	template<typename T>
 	using vector = std::vector<T>;
 
@@ -25,11 +25,11 @@ namespace drosim::util {
 
 #if USE_STL_DEQUE
 #include <deque>
-namespace drosim::util {
+namespace lark::util {
 	template<typename T>
 	using deque = std::deque<T>;
 }
 #endif
 
-namespace drosim::util {
+namespace lark::util {
 }

@@ -7,7 +7,7 @@
 #include <Components/Geometry.h>
 #include "Structures.h"
 
-using namespace drosim;
+using namespace lark;
 
 class EntityTests {
   public:

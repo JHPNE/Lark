@@ -32,19 +32,19 @@
 extern "C" {
 #endif
 
-    ENGINE_API drosim::id::id_type CreateGameEntity(game_entity_descriptor* e);
-    ENGINE_API bool RemoveGameEntity(drosim::id::id_type id);
+    ENGINE_API lark::id::id_type CreateGameEntity(game_entity_descriptor* e);
+    ENGINE_API bool RemoveGameEntity(lark::id::id_type id);
 
     // Function to get script creator by name using engine's registration system
-    ENGINE_API drosim::script::detail::script_creator GetScriptCreator(const char* name);
+    ENGINE_API lark::script::detail::script_creator GetScriptCreator(const char* name);
 
     // Function to get available script names
     ENGINE_API const char** GetScriptNames(size_t* count);
     ENGINE_API bool RegisterScript(const char* script_name);
 
     // Function to add and remove scripts from existing entities
-    ENGINE_API bool AddScriptToEntity(drosim::id::id_type entity_id, const char* script_name);
-    ENGINE_API bool RemoveScriptFromEntity(drosim::id::id_type entity_id);
+    ENGINE_API bool AddScriptToEntity(lark::id::id_type entity_id, const char* script_name);
+    ENGINE_API bool RemoveScriptFromEntity(lark::id::id_type entity_id);
 
     ENGINE_API bool GameLoop_Initialize(u32 target_fps, f32 fixed_timestep);
     ENGINE_API void GameLoop_Tick();  // Process a single frame
@@ -59,14 +59,14 @@ extern "C" {
     ENGINE_API bool LoadObj(const char* path, content_tools::SceneData* data);
 
     // Transform API CALLS
-    ENGINE_API bool SetEntityTransform(drosim::id::id_type entity_id, const transform_component& transform);
-    ENGINE_API bool GetEntityTransform(drosim::id::id_type entity_id, transform_component* out_transform);
-    ENGINE_API bool ResetEntityTransform(drosim::id::id_type entity_id);
-    ENGINE_API glm::mat4 GetEntityTransformMatrix(drosim::id::id_type entity_id);
+    ENGINE_API bool SetEntityTransform(lark::id::id_type entity_id, const transform_component& transform);
+    ENGINE_API bool GetEntityTransform(lark::id::id_type entity_id, transform_component* out_transform);
+    ENGINE_API bool ResetEntityTransform(lark::id::id_type entity_id);
+    ENGINE_API glm::mat4 GetEntityTransformMatrix(lark::id::id_type entity_id);
 
     // Function to modify vertex positions of an entity's geometry
-    ENGINE_API bool ModifyEntityVertexPositions(drosim::id::id_type entity_id, std::vector<glm::vec3>& new_positions);
-    ENGINE_API bool GetModifiedMeshData(drosim::id::id_type entity_id, content_tools::SceneData* data);
+    ENGINE_API bool ModifyEntityVertexPositions(lark::id::id_type entity_id, std::vector<glm::vec3>& new_positions);
+    ENGINE_API bool GetModifiedMeshData(lark::id::id_type entity_id, content_tools::SceneData* data);
 #ifdef __cplusplus
 }
 #endif

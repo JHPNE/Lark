@@ -7,12 +7,12 @@
 #include <glm/gtc/random.hpp>
 #include "EngineAPI.h"
 
-namespace drosim::editor {
+namespace lark::editor {
 class Geometry : public Asset {
 public:
     Geometry() : Asset(AssetType::Mesh) {}
 
-    drosim::editor::scene* GetScene(size_t index = 0) {
+    lark::editor::scene* GetScene(size_t index = 0) {
         if (index < scenes.size()) {
             return &scenes[index];
         }
@@ -44,11 +44,11 @@ public:
 
         printf("[Geometry::FromRawData] Scene: %s, LOD count: %u\n", scene_name.c_str(), lod_count);
 
-        drosim::editor::scene main_scene;
+        lark::editor::scene main_scene;
         main_scene.name = scene_name;
 
         for (u32 lod_idx = 0; lod_idx < lod_count; ++lod_idx) {
-            drosim::editor::lod_group lod_group;
+            lark::editor::lod_group lod_group;
 
             // Read LOD group name length
             u32 group_name_length{0};
@@ -71,7 +71,7 @@ public:
             printf("[Geometry::FromRawData] LOD Group '%s' has %u meshes\n", lod_name.c_str(), mesh_count);
 
             for (u32 mesh_idx = 0; mesh_idx < mesh_count; ++mesh_idx) {
-                drosim::editor::mesh mesh;
+                lark::editor::mesh mesh;
 
                 // Mesh name length
                 u32 mesh_name_length{0};
@@ -125,7 +125,7 @@ public:
 
                 // Read vertices
                 if (vertex_count > 0) {
-                    std::vector<drosim::tools::packed_vertex::vertex_static> packed_verts(vertex_count);
+                    std::vector<lark::tools::packed_vertex::vertex_static> packed_verts(vertex_count);
                     memcpy(packed_verts.data(), &data[at], vertex_count * vertex_size);
                     at += vertex_count * vertex_size;
 
@@ -245,7 +245,7 @@ public:
 
         // Fix the size assignment
         if (size) {
-            init_info.size = drosim::math::v3(size[0], size[1], size[2]);
+            init_info.size = lark::math::v3(size[0], size[1], size[2]);
         }
 
         if (segments) memcpy(init_info.segments, segments, sizeof(init_info.segments));
@@ -295,7 +295,7 @@ public:
         modifyVertexes(id, vertices);
     }
 private:
-    std::vector<drosim::editor::scene> scenes;
+    std::vector<lark::editor::scene> scenes;
 };
 
-} // namespace drosim::editor
+} // namespace lark::editor

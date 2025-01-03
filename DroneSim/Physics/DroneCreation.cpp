@@ -34,7 +34,7 @@ btRigidBody* createRigidBody(btDiscreteDynamicsWorld* bworld,
     return body;
 }
 
-void createMultirotorDrone(drosim::physics::World& bulletWorld,
+void createMultirotorDrone(lark::physics::World& bulletWorld,
                            DroneData& drone,
                            btCollisionShape* fuselageShape,
                            btCollisionShape* rotorShape,
@@ -57,7 +57,7 @@ void createMultirotorDrone(drosim::physics::World& bulletWorld,
     
     if (!drone.body.fuselageBody) return;
 
-    float angleStep = 2.f * float(drosim::math::pi) / (float)drone.rotors.rotorCount;
+    float angleStep = 2.f * float(lark::math::pi) / (float)drone.rotors.rotorCount;
     float radius = 1.0f + 0.1f * drone.rotors.rotorCount;
     
     // Initialize all rotors first
@@ -103,7 +103,7 @@ void createMultirotorDrone(drosim::physics::World& bulletWorld,
     }
 }
 
-void createFixedWingDrone(drosim::physics::World& bulletWorld,
+void createFixedWingDrone(lark::physics::World& bulletWorld,
                           DroneData& drone,
                           btCollisionShape* fuselageShape,
                           btCollisionShape* wingShape,

@@ -11,7 +11,7 @@
 
 #include "ComponentCommon.h"
 
-namespace drosim {
+namespace lark {
 
     #define INIT_INFO(component) namespace component { struct init_info; }
     INIT_INFO(transform);

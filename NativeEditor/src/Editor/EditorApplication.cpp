@@ -265,7 +265,7 @@ namespace editor {
 				if (ImGui::Button("Create Plane")) {
 					float size[3] = {5.0f, 5.0f, 5.0f};
 					uint32_t segments[3] = {32, 16, 1};
-					m_geometry = drosim::editor::Geometry::CreatePrimitive(
+					m_geometry = lark::editor::Geometry::CreatePrimitive(
 						content_tools::PrimitiveMeshType::uv_sphere,
 						size,
 						segments
@@ -348,7 +348,7 @@ namespace editor {
 		    		const char* selectedPath = file_dialog.GetSelectedPathAsChar();
 		    		if (selectedPath && strlen(selectedPath) > 0) {
 		    			// Load geometry using the selected path
-		    			m_geometry = drosim::editor::Geometry::LoadGeometry(selectedPath);
+		    			m_geometry = lark::editor::Geometry::LoadGeometry(selectedPath);
 
 		    			// Create geometry component
 		    			geometry_component test{};
