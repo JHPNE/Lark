@@ -60,6 +60,8 @@ namespace lark::game_entity {
 			geometries[index] = geometry::create(*info.geometry, new_entity);
 		}
 
+		// check if geometry is existing then drone component is available
+
 		if (new_entity.is_valid()) {
 			active_entities.push_back(new_entity.get_id());
 		}

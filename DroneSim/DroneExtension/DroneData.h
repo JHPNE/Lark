@@ -8,8 +8,7 @@
 #include <btBulletDynamicsCommon.h>
 
 
-namespace drosim::drone {
-  DEFINE_TYPED_ID(drone_id);
+namespace lark::drone_data {
 
   enum class DroneType {
     MULTIROTOR,
@@ -27,7 +26,6 @@ namespace drosim::drone {
 
   struct Body {
     virtual ~Body() = default;
-    drone_id id;
     float powerConsumption;
     float mass;
     BodyType type;
