@@ -29,6 +29,7 @@ namespace lark::drone_data {
     float powerConsumption;
     float mass;
     BodyType type;
+    btVector3 position;
     btRigidBody* rigidBody;
     btTriangleMesh* meshInterface{nullptr};
   };

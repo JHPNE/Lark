@@ -48,4 +48,22 @@ namespace lark::drone_entity {
       free_ids.push_back(id);
     }
   }
+
+  void addDroneComponent(drone_id id, drone_components components, entity_info info) {
+    const id::id_type index{ id::index(id) };
+    assert(is_alive(id));
+
+    switch (components) {
+    case drone_components::FUSELAGE:
+      // We only want one fuselage
+      if (!fuselage[index].is_valid()) {
+        fuselage[index] = fuselage::create(*info.fuselage, entity{ id });
+      }
+      break;
+    case drone_components::ROTOR:
+      break;
+    default:
+      break;
+    }
+  }
 };
