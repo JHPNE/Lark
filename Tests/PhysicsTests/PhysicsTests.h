@@ -82,14 +82,16 @@ public:
     }
 
     void droneTest(bool gpu) {
+        // Create fuselage info
+        fuselage::init_info fuselageInfo;
+
+        // Create entity info and set fuselage
         drone_entity::entity_info info{};
-        info.fuselage->mass = 1.0f;
-        info.fuselage->position = btVector3(0.f, 0.f, 0.f);
-        info.fuselage->powerConsumption = 0.1f;
+        info.fuselage = &fuselageInfo;
 
-
-        lark::drone_entity::create(info);
-
+        // Create drone entity
+        auto entity = lark::drone_entity::create(info);
+        assert(entity.is_valid());
     }
 };
 

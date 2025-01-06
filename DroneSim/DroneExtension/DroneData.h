@@ -26,11 +26,11 @@ namespace lark::drone_data {
 
   struct Body {
     virtual ~Body() = default;
-    float powerConsumption;
-    float mass;
-    BodyType type;
-    btVector3 position;
-    btRigidBody* rigidBody;
+    float powerConsumption = 0.f;
+    float mass = 0.f;
+    BodyType type = BodyType::FUSELAGE;
+    btVector3 position = btVector3(0.f, 0.f, 0.f);
+    btRigidBody* rigidBody = nullptr;
     btTriangleMesh* meshInterface{nullptr};
   };
 
@@ -52,6 +52,11 @@ namespace lark::drone_data {
 
   struct BatteryBody : public Body {
     BodyType type = BodyType::BATTERY;
+    float batteryCapacity = 0.f;
+    float batteryVoltage = 0.f;
+    float selfDischargeRate = 0.f;
+    float internalResistance = 0.f;
+    float cRating = 0.f;
   };
 
   struct DroneData {

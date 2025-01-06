@@ -1,7 +1,7 @@
 #pragma once
-
 #include "../Common/CommonHeaders.h"
 #include "Components/FuselageComponent.h"
+#include "Components/BatteryComponent.h"
 
 namespace lark {
   namespace drone_entity {
@@ -25,6 +25,13 @@ namespace lark {
     class fuselage : public drone_entity::entity {
       public:
         virtual ~fuselage() = default;
+    };
+  }
+
+  namespace battery {
+    class battery : public drone_entity::entity {
+      public:
+        virtual ~battery() = default;
     };
   }
 }

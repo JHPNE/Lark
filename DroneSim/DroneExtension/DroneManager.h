@@ -4,11 +4,13 @@
 namespace lark {
   #define INIT_INFO(drone_component) namespace drone_component { struct init_info; }
   INIT_INFO(fuselage);
+  INIT_INFO(battery);
   #undef INIT_INFO
 
   namespace drone_entity {
     struct entity_info {
       fuselage::init_info* fuselage{ nullptr };
+      battery::init_info* battery{ nullptr };
     };
 
     enum class drone_components {
