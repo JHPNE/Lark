@@ -1,5 +1,6 @@
 #pragma once
 #include "DroneExtension/DroneManager.h"
+
 #include <atomic>
 #include <iostream>
 #include <mutex>
@@ -7,6 +8,7 @@
 #include <thread>
 
 #include "DroneExtension/Components/Fuselage.h"
+#include "DroneExtension/Components/Battery.h"
 
 namespace lark::physics {
 
@@ -82,7 +84,7 @@ public:
     }
 
     void droneTest(bool gpu) {
-        // Create fuselage info
+        // Create standard fuselage info
         fuselage::init_info fuselageInfo;
 
         // Create entity info and set fuselage
@@ -92,6 +94,15 @@ public:
         // Create drone entity
         auto entity = lark::drone_entity::create(info);
         assert(entity.is_valid());
+        printf("Drone Entity created!");
+
+        // standard battery info
+        battery::init_info batteryInfo;
+        info.battery = &batteryInfo;
+
+        lark::drone_entity::addDroneComponent(entity.get_id(), drone_data::BodyType::BATTERY, info);
+        assert(entity.is_valid());
+        printf("Added Battery to Drone Entity!");
     }
 };
 

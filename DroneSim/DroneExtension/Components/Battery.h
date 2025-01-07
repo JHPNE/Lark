@@ -1,12 +1,12 @@
 #pragma once
-#include "../DroneCommonHeaders.h"
+#include "Component.h"
 
 namespace lark::battery {
-struct init_info : public lark::drone_data::BatteryBody {};
+  struct init_info : drone_data::BatteryBody {};
 
-drone_component create(init_info info, drone_entity::entity entity);
+  drone_component create(init_info info, drone_entity::entity entity);
 
-void remove(drone_component t);
+  void remove(drone_component t);
 
-void batteryCalculateCharge(drone_component t);
+  void batteryCalculateCharge(drone_component t);
 }

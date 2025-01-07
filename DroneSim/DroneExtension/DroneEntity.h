@@ -15,10 +15,12 @@ namespace lark {
         constexpr bool is_valid() const { return id::is_valid(_id); }
 
         fuselage::drone_component fuselage() const;
+        battery::drone_component battery() const;
 
       private:
         drone_id _id;
     };
+
   }
 
   namespace fuselage {

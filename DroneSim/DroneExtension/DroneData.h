@@ -7,14 +7,7 @@
 #include <glm/glm.hpp>
 #include <btBulletDynamicsCommon.h>
 
-
 namespace lark::drone_data {
-
-  enum class DroneType {
-    MULTIROTOR,
-    FIXED_WING,
-    HYBRID,
-  };
 
   enum class BodyType {
     FUSELAGE,
@@ -22,7 +15,6 @@ namespace lark::drone_data {
     WING,
     BATTERY
   };
-
 
   struct Body {
     virtual ~Body() = default;
@@ -32,25 +24,23 @@ namespace lark::drone_data {
     btVector3 position = btVector3(0.f, 0.f, 0.f);
     btRigidBody* rigidBody = nullptr;
     btTriangleMesh* meshInterface{nullptr};
+    // TODO constraints added here if not found maybe detect closest?
+    util::vector<Body> connections{};
   };
 
-  struct Constraints {
-     std::pair<Body, Body> connection;
-  };
-
-  struct FuselageBody : public Body {
+  struct FuselageBody : Body {
     BodyType type = BodyType::FUSELAGE;
   };
 
-  struct RotorBody : public Body{
+  struct RotorBody : Body{
     BodyType type = BodyType::ROTOR;
   };
 
-  struct WingBody : public Body {
+  struct WingBody : Body {
     BodyType type = BodyType::WING;
   };
 
-  struct BatteryBody : public Body {
+  struct BatteryBody : Body {
     BodyType type = BodyType::BATTERY;
     float batteryCapacity = 0.f;
     float batteryVoltage = 0.f;
@@ -59,9 +49,6 @@ namespace lark::drone_data {
     float cRating = 0.f;
   };
 
-  struct DroneData {
-    DroneType type;
-    std::vector<std::unique_ptr<Body>> bodies;
-    std::vector<Constraints> constraints;
+  struct EmptyBody : Body {
   };
 }

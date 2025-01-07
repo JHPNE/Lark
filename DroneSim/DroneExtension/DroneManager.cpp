@@ -57,6 +57,9 @@ namespace lark::drone_entity {
     fuselage::remove(fuselage[index]);
     fuselage[index] = {};
 
+    battery::remove(battery[index]);
+    battery[index] = {};
+
     if (generations[index] < id::max_generation) {
       free_ids.push_back(id);
     }
@@ -69,19 +72,24 @@ namespace lark::drone_entity {
     return (generations[index] == id::generation(id) && fuselage[index].is_valid());
   }
 
-  void addDroneComponent(const drone_id id, const drone_components component,
+  void addDroneComponent(const drone_id id, const drone_data::BodyType component,
                          const entity_info info) {
     const id::id_type index{ id::index(id) };
     assert(is_alive(id));
 
     switch (component) {
-    case drone_components::FUSELAGE:
+    case drone_data::BodyType::FUSELAGE:
       // We only want one fuselage
       if (!fuselage[index].is_valid()) {
         fuselage[index] = fuselage::create(*info.fuselage, entity{ id });
       }
       break;
-    case drone_components::ROTOR:
+    case drone_data::BodyType::BATTERY:
+      if (!battery[index].is_valid()) {
+        battery[index] = battery::create(*info.battery, entity{ id });
+      }
+      break;
+    case drone_data::BodyType::ROTOR:
       break;
     default:
       break;

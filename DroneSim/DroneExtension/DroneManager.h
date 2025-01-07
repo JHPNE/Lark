@@ -13,18 +13,12 @@ namespace lark {
       battery::init_info* battery{ nullptr };
     };
 
-    enum class drone_components {
-      FUSELAGE,
-      ROTOR,
-      WINGS,
-    };
-
     entity create(entity_info info);
 
     void remove(drone_id id);
 
     bool is_alive(drone_id id);
 
-    void addDroneComponent(drone_id id, drone_components component, entity_info info);
+    void addDroneComponent(drone_id id, drone_data::BodyType component, entity_info info);
   }
 }

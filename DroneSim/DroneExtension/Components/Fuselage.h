@@ -1,8 +1,8 @@
 #pragma once
-#include "../DroneCommonHeaders.h"
+#include "Component.h"
 
 namespace lark::fuselage {
-  struct init_info : public lark::drone_data::FuselageBody{};
+  struct init_info : drone_data::FuselageBody{};
 
   drone_component create(init_info info, drone_entity::entity entity);
 
