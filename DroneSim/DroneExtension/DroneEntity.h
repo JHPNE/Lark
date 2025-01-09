@@ -2,6 +2,7 @@
 #include "../Common/CommonHeaders.h"
 #include "Components/FuselageComponent.h"
 #include "Components/BatteryComponent.h"
+#include "Components/RotorComponent.h"
 
 namespace lark {
   namespace drone_entity {
@@ -16,6 +17,7 @@ namespace lark {
 
         fuselage::drone_component fuselage() const;
         battery::drone_component battery() const;
+        rotor::drone_component drone() const;
 
       private:
         drone_id _id;

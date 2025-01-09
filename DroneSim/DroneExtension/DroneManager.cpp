@@ -1,12 +1,14 @@
 #include "DroneManager.h"
 #include "Components/Fuselage.h"
 #include "Components/Battery.h"
+#include "Components/Rotor.h"
 
 namespace lark::drone_entity {
   namespace {
     //TODO maybe only have one and some other bodies instead
     util::vector<fuselage::drone_component> fuselage;
     util::vector<battery::drone_component> battery;
+    util::vector<rotor::drone_component> rotor;
 
     std::vector<id::generation_type> generations;
     util::deque<drone_id> free_ids;

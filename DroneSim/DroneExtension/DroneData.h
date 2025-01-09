@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <map>
 #include <string>
 #include <tuple>
 #include "../Common/Id.h"
@@ -24,8 +25,8 @@ namespace lark::drone_data {
     btVector3 position = btVector3(0.f, 0.f, 0.f);
     btRigidBody* rigidBody = nullptr;
     btTriangleMesh* meshInterface{nullptr};
-    // TODO constraints added here if not found maybe detect closest?
-    util::vector<Body> connections{};
+    // uses ID -> to find connected IDs
+    std::map<drone_entity::drone_id, util::vector<drone_entity::drone_id>> droneEntityConnections;
   };
 
   struct FuselageBody : Body {
