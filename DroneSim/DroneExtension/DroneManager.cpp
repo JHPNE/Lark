@@ -42,11 +42,18 @@ namespace lark::drone_entity {
     fuselage[index] = fuselage::create(*info.fuselage, new_entity);
     if (!fuselage[index].is_valid()) return {};
 
+    // this will repeat for x components which i dont like
     if (info.battery) {
       assert(!battery[index].is_valid());
       battery[index] = battery::create(*info.battery, new_entity);
       //battery::batteryCalculateCharge(battery[index]);
       assert(battery[index].is_valid());
+    }
+
+    if (info.rotor) {
+      assert(!rotor[index].is_valid());
+      rotor[index] = rotor::create(*info.rotor, new_entity);
+      assert(rotor[index].is_valid());
     }
 
     return new_entity;

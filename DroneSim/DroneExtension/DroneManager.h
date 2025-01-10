@@ -12,7 +12,7 @@ namespace lark {
     struct entity_info {
       fuselage::init_info* fuselage{ nullptr };
       battery::init_info* battery{ nullptr };
-      rotor::init_info* drone{ nullptr };
+      rotor::init_info* rotor{ nullptr };
     };
 
     entity create(entity_info info);
