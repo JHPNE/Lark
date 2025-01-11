@@ -5,6 +5,12 @@ namespace lark::rotor {
     DEFINE_TYPED_ID(rotor_id);
 
     class drone_component final : public base_component<rotor_id> {
-        using base_component<rotor_id>::base_component;
+        public:
+            using base_component<rotor_id>::base_component;
+
+            void calculate_forces(float deltaTime);
+            void set_rpm(float target_rpm);
+            [[nodiscard]] float get_thrust() const;
+            [[nodiscard]] float get_power_consumption() const;
     };
 };

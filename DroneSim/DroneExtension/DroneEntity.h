@@ -17,7 +17,7 @@ namespace lark {
 
         fuselage::drone_component fuselage() const;
         battery::drone_component battery() const;
-        rotor::drone_component drone() const;
+        rotor::drone_component rotor() const;
 
       private:
         drone_id _id;
@@ -36,6 +36,13 @@ namespace lark {
     class battery : public drone_entity::entity {
       public:
         virtual ~battery() = default;
+    };
+  }
+
+  namespace rotor {
+    class rotor: public drone_entity::entity {
+      public:
+        virtual ~rotor() = default;
     };
   }
 }
