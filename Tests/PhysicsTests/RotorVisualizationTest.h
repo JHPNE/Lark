@@ -58,7 +58,14 @@ public:
             }
 
             // Render
+            btTransform trans;
+            m_rotorBody->getMotionState()->getWorldTransform(trans);
+            m_renderer.setObjectTransform(bulletToGlm(trans));
             m_renderer.render();
+
+            std::cout << "Rotor transform: " << trans.getOrigin().getX() << ", "
+                      << trans.getOrigin().getY() << ", "
+                      << trans.getOrigin().getZ() << std::endl;
 
             // Cap frame rate
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
@@ -79,6 +86,12 @@ private:
     btRigidBody* m_rotorBody{nullptr};
     btRigidBody* m_groundBody{nullptr};
     rotor::drone_component m_rotorComponent;
+
+    static glm::mat4 bulletToGlm(const btTransform& t) {
+        btScalar m[16];
+        t.getOpenGLMatrix(m);
+        return glm::make_mat4(m);
+    }
 
     void initializePhysics() {
         // Create physics world
@@ -129,7 +142,7 @@ private:
         rotorInfo.currentRPM = 0.0f;
 
         // Create a simple box shape for the rotor
-        btBoxShape* rotorShape = new btBoxShape(btVector3(rotorInfo.bladeRadius, 0.01f, rotorInfo.bladeRadius));
+        btBoxShape* rotorShape = new btBoxShape(btVector3(rotorInfo.bladeRadius * 5.f, 0.05f, rotorInfo.bladeRadius * 5.f)); // Scale rotor
         btTransform startTransform;
         startTransform.setIdentity();
         startTransform.setOrigin(rotorInfo.position);
@@ -158,7 +171,7 @@ private:
         // Get the rotor component and set initial RPM
         m_rotorComponent = entity.rotor();
         assert(m_rotorComponent.is_valid());
-        m_rotorComponent.set_rpm(5000.0f);
+        m_rotorComponent.set_rpm(2500.0f);
     }
 
     void cleanup() {

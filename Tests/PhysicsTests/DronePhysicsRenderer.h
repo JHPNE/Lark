@@ -32,7 +32,7 @@ public:
         
         // Update view & projection matrices
         glm::mat4 view = glm::lookAt(
-            glm::vec3(0.0f, 5.0f, 10.0f),  // Camera position
+            glm::vec3(4.0f, 6.0f, 12.0f),  // Adjusted camera
             glm::vec3(0.0f, 0.0f, 0.0f),   // Look at point
             glm::vec3(0.0f, 1.0f, 0.0f)    // Up vector
         );
@@ -50,23 +50,25 @@ public:
         glUniformMatrix4fv(m_projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         // Draw ground plane
-        // Draw ground plane with proper scale and position
         glm::mat4 groundModel = glm::mat4(1.0f);
-        groundModel = glm::translate(groundModel, glm::vec3(0.0f, -1.0f, 0.0f));
+        groundModel = glm::translate(groundModel, glm::vec3(0.0f, -0.5f, 0.0f)); // Plane at y=-0.5
         groundModel = glm::scale(groundModel, glm::vec3(20.0f, 0.1f, 20.0f));
         glUniformMatrix4fv(m_modelLoc, 1, GL_FALSE, glm::value_ptr(groundModel));
-        glUniform3f(m_colorLoc, 0.4f, 0.4f, 0.4f);  // Light gray for better visibility
+        glUniform3f(m_colorLoc, 0.2f, 0.2f, 0.2f);  // Gray color for ground
         drawCube();
 
         // Draw test cube (will be replaced with drone components)
-        glm::mat4 cubeModel = glm::mat4(1.0f);
-        cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 2.0f, 0.0f));
+        glm::mat4 cubeModel = m_objectTransform; // Use object transform
         glUniformMatrix4fv(m_modelLoc, 1, GL_FALSE, glm::value_ptr(cubeModel));
         glUniform3f(m_colorLoc, 0.7f, 0.2f, 0.2f);  // Red color for cube
         drawCube();
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
+    }
+
+    void setObjectTransform(const glm::mat4& transform) {
+        m_objectTransform = transform;
     }
 
 private:
@@ -80,6 +82,8 @@ private:
     GLint m_viewLoc;
     GLint m_projLoc;
     GLint m_colorLoc;
+
+    glm::mat4 m_objectTransform = glm::mat4(1.0f);
 
     void initializeOpenGL() {
         if (!glfwInit()) {
@@ -111,47 +115,48 @@ private:
             throw std::runtime_error("Failed to initialize GLAD");
         }
 
-        // Enable depth testing and back face culling
+        // Enable depth testing
         glEnable(GL_DEPTH_TEST);
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glFrontFace(GL_CCW);
-        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);  // Darker background for better contrast
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     }
 
     void createShaders() {
         const char* vertexShaderSource = R"(
-        #version 330 core
-        layout (location = 0) in vec3 aPos;
-        layout (location = 1) in vec3 aNormal;
+            #version 330 core
+            layout (location = 0) in vec3 aPos;
+            layout (location = 1) in vec3 aNormal;
 
-        uniform mat4 model;
-        uniform mat4 view;
-        uniform mat4 projection;
+            uniform mat4 model;
+            uniform mat4 view;
+            uniform mat4 projection;
 
-        out vec3 Normal;
+            out vec3 Normal;
+            out vec3 FragPos;
 
-        void main() {
-            Normal = mat3(transpose(inverse(model))) * aNormal;
-            gl_Position = projection * view * model * vec4(aPos, 1.0);
-        }
-    )";
+            void main() {
+                FragPos = vec3(model * vec4(aPos, 1.0));
+                Normal = mat3(transpose(inverse(model))) * aNormal;
+                gl_Position = projection * view * model * vec4(aPos, 1.0);
+            }
+        )";
 
-    const char* fragmentShaderSource = R"(
-        #version 330 core
-        out vec4 FragColor;
+        const char* fragmentShaderSource = R"(
+            #version 330 core
+            out vec4 FragColor;
 
-        in vec3 Normal;
-        uniform vec3 color;
+            in vec3 Normal;
+            in vec3 FragPos;
 
-        void main() {
-            vec3 lightDir = normalize(vec3(0.0, 1.0, 0.0));  // Global directional light from above
-            float diff = max(dot(normalize(Normal), lightDir), 0.0);
-            float ambient = 0.3;
-            vec3 result = (ambient + diff) * color;
-            FragColor = vec4(result, 1.0);
-        }
-    )";
+            uniform vec3 color;
+
+            void main() {
+                vec3 lightDir = normalize(vec3(0.5, 1.0, 0.2));
+                float diff = max(dot(normalize(Normal), lightDir), 0.0);
+                vec3 diffuse = diff * color;
+                vec3 ambient = 0.3 * color;
+                FragColor = vec4(ambient + diffuse, 1.0);
+            }
+        )";
 
         // Create and compile vertex shader
         GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -181,73 +186,68 @@ private:
     }
 
     void createGeometry() {
+        // Cube vertices with normals
         float vertices[] = {
-            // Front face (+z)
+            // Front face
             -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
              0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
              0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+             0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
             -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
 
-            // Back face (-z)
+            // Back face
             -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-             0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
              0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+             0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+             0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
 
-            // Top face (+y)
-            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-             0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-             0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+            // Left face
+            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
 
-            // Bottom face (-y)
-            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-             0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-             0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-
-            // Right face (+x)
+            // Right face
              0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
              0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
              0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+             0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+             0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
              0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-            // Left face (-x)
-            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+            // Bottom face
+            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+             0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+             0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+             0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+
+            // Top face
+            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+             0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+             0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+             0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
         };
 
-        unsigned int indices[] = {
-            0,  1,  2,  2,  3,  0,  // Front
-            4,  5,  6,  6,  7,  4,  // Back
-            8,  9,  10, 10, 11, 8,  // Top
-            12, 13, 14, 14, 15, 12, // Bottom
-            16, 17, 18, 18, 19, 16, // Right
-            20, 21, 22, 22, 23, 20  // Left
-        };
 
+        // Generate and bind vertex array and buffer
         glGenVertexArrays(1, &m_cubeVAO);
         glGenBuffers(1, &m_cubeVBO);
-        glGenBuffers(1, &m_cubeEBO);
 
         glBindVertexArray(m_cubeVAO);
-
         glBindBuffer(GL_ARRAY_BUFFER, m_cubeVBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_cubeEBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
         // Position attribute
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-
-        // Normal attribute
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-    }), (void*)0);
         glEnableVertexAttribArray(0);
 
         // Normal attribute
@@ -257,7 +257,7 @@ private:
 
     void drawCube() {
         glBindVertexArray(m_cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);  // 6 faces * 2 triangles * 3 vertices = 36 vertices
+        glDrawArrays(GL_TRIANGLES, 0, 36); // Use 36 vertices
     }
 
     void cleanup() {
@@ -269,4 +269,4 @@ private:
     }
 };
 
-} // namespace lark::physics::visualization // namespace lark::physics::visualization
+} // namespace lark::physics::visualization
