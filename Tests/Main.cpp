@@ -1,6 +1,8 @@
 #pragma once
-#include "PhysicsTests/PhysicsTests.h"
 #include "ECSTests/EntityTests.h"
+#include "PhysicsTests/PhysicsTests.h"
+#include "PhysicsTests/RotorVisualizationTest.h"
+
 #include <cstdio>
 
 int main() {
@@ -10,8 +12,8 @@ int main() {
 
   printf("Physics Tests \n");
   try {
-    physics::PhysicsTests test;
-    test.runTests(true);
+    lark::physics::RotorVisualizationTest test;
+    test.run();
   }
   catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;
