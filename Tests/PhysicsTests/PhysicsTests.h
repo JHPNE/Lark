@@ -160,7 +160,7 @@ public:
 
 
         // Set initial RPM
-        rotorComponent.set_rpm(500.0f);
+        rotorComponent.set_rpm(5000.0f);
 
         // Run simulation
         const float timeStep = 1.f / 60.f;
