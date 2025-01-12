@@ -13,5 +13,7 @@ namespace lark::rotor {
             void set_rpm(float target_rpm);
             [[nodiscard]] float get_thrust() const;
             [[nodiscard]] float get_power_consumption() const;
+            [[nodiscard]] float estimate_equilibrium_height(float target_rpm) const;
+            [[nodiscard]] float get_max_theoretical_height(float target_rpm) const;
     };
 };

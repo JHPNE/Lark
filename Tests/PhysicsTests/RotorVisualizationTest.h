@@ -18,9 +18,14 @@ public:
     void run() {
         const float timeStep = 1.0f / 60.0f;
         auto lastTime = std::chrono::high_resolution_clock::now();
+        const float target_rpm = 5000.0f;
+        float predicted_height = m_rotorComponent.estimate_equilibrium_height(target_rpm);
+        float max_theoretical = m_rotorComponent.get_max_theoretical_height(target_rpm);
 
         std::cout << "Starting rotor physics test..." << std::endl;
         std::cout << "Initial RPM: 5000.0" << std::endl;
+        std::cout << "Predicted equilibrium height: " << predicted_height << " meters" << std::endl;
+        std::cout << "Maximum theoretical height: " << max_theoretical << " meters" << std::endl;
 
         while (!m_renderer.shouldClose()) {
             auto currentTime = std::chrono::high_resolution_clock::now();
@@ -135,10 +140,10 @@ private:
         rotorInfo.bladeCount = 2;        // Standard dual-blade propeller
         rotorInfo.airDensity = 1.225f;   // Sea level air density
         rotorInfo.discArea = glm::pi<float>() * rotorInfo.bladeRadius * rotorInfo.bladeRadius;
-        rotorInfo.liftCoefficient = 0.4f;
-        rotorInfo.mass = 0.025f;         // 25g
+        rotorInfo.liftCoefficient = 0.12f;
+        rotorInfo.mass = 0.05f;         // 50g
         rotorInfo.rotorNormal = btVector3(0, 1, 0); // Upward thrust
-        rotorInfo.position = btVector3(0, 5, 0);    // Starting position
+        rotorInfo.position = btVector3(0, 0.5, 0);    // Starting position
         rotorInfo.powerConsumption = 0.0f;
         rotorInfo.currentRPM = 0.0f;
 
@@ -157,6 +162,9 @@ private:
         m_rotorBody->setDamping(0.1f, 0.3f);
         m_rotorBody->setAngularFactor(btVector3(0, 1, 0));
 
+        rotorShape->calculateLocalInertia(rotorInfo.mass, localInertia);
+        m_rotorBody->setMassProps(rotorInfo.mass, localInertia);
+
         m_dynamicsWorld->addRigidBody(m_rotorBody);
         rotorInfo.rigidBody = m_rotorBody;
 
@@ -172,7 +180,7 @@ private:
         // Get the rotor component and set initial RPM
         m_rotorComponent = entity.rotor();
         assert(m_rotorComponent.is_valid());
-        m_rotorComponent.set_rpm(2000.0f);
+        m_rotorComponent.set_rpm(5000.0f);
         m_rotorComponent.initialize();
     }
 
