@@ -8,6 +8,7 @@ namespace lark::rotor {
         public:
             using base_component<rotor_id>::base_component;
 
+            void initialize();
             void calculate_forces(float deltaTime);
             void set_rpm(float target_rpm);
             [[nodiscard]] float get_thrust() const;

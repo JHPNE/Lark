@@ -32,9 +32,9 @@ public:
         
         // Update view & projection matrices
         glm::mat4 view = glm::lookAt(
-            glm::vec3(4.0f, 6.0f, 12.0f),  // Adjusted camera
-            glm::vec3(0.0f, 0.0f, 0.0f),   // Look at point
-            glm::vec3(0.0f, 1.0f, 0.0f)    // Up vector
+            m_cameraTarget + glm::vec3(4.0f, 6.0f, 12.0f),
+            m_cameraTarget,
+            glm::vec3(0.0f, 1.0f, 0.0f)
         );
         
         glm::mat4 projection = glm::perspective(
@@ -71,6 +71,10 @@ public:
         m_objectTransform = transform;
     }
 
+    void setCameraTarget(const glm::vec3& target) {
+        m_cameraTarget = target;
+    }
+
 private:
     GLFWwindow* m_window;
     int m_width, m_height;
@@ -84,6 +88,7 @@ private:
     GLint m_colorLoc;
 
     glm::mat4 m_objectTransform = glm::mat4(1.0f);
+    glm::vec3 m_cameraTarget = glm::vec3(0.f);
 
     void initializeOpenGL() {
         if (!glfwInit()) {

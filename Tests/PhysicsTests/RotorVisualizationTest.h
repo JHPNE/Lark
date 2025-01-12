@@ -61,11 +61,12 @@ public:
             btTransform trans;
             m_rotorBody->getMotionState()->getWorldTransform(trans);
             m_renderer.setObjectTransform(bulletToGlm(trans));
+            m_renderer.setCameraTarget(glm::vec3(
+                trans.getOrigin().getX(),
+                trans.getOrigin().getY(),
+                trans.getOrigin().getZ()
+            ));
             m_renderer.render();
-
-            std::cout << "Rotor transform: " << trans.getOrigin().getX() << ", "
-                      << trans.getOrigin().getY() << ", "
-                      << trans.getOrigin().getZ() << std::endl;
 
             // Cap frame rate
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
@@ -171,7 +172,8 @@ private:
         // Get the rotor component and set initial RPM
         m_rotorComponent = entity.rotor();
         assert(m_rotorComponent.is_valid());
-        m_rotorComponent.set_rpm(2500.0f);
+        m_rotorComponent.set_rpm(2000.0f);
+        m_rotorComponent.initialize();
     }
 
     void cleanup() {

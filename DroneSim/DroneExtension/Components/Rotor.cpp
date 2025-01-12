@@ -9,10 +9,21 @@ namespace lark::rotor {
         struct rotor_data : drone_components::component_data<drone_data::RotorBody> {
             float current_thrust{0.0f};
             static constexpr int NUM_BLADE_ELEMENTS = 10;
+            mutable float hover_thrust{0.0f};  // Thrust required for hover
+            mutable float max_thrust{0.0f};    // Maximum achievable thrust
+            mutable float air_density_ratio{1.0f}; // Current air density relative to sea level
+
+            // Temperature effects
+            float temperature{288.15f}; // Kelvin (15°C default)
+            float density_altitude{0.0f}; // Effective altitude considering temperature
         };
 
         drone_components::component_pool<rotor_id, rotor_data> pool;
+
         constexpr float MAX_RPM = 15000.0f;
+        constexpr float SPEED_OF_SOUND = 340.29f;  // m/s at sea level
+        constexpr float SEA_LEVEL_DENSITY = 1.225f; // kg/m³
+        constexpr float LAPSE_RATE = 0.0065f;      // Temperature lapse rate K/m
 
         struct BladeElement {
             float radius;      // Local radius (m)
@@ -27,6 +38,30 @@ namespace lark::rotor {
             if (phi <= 0.0f) return 1.0f; // Prevent division by zero
             const float f = (B / 2.0f) * ((R - r) / (r * std::sin(phi)));
             return (2.0f / glm::pi<float>()) * std::acos(std::exp(-f));
+        }
+
+        float calculate_air_density(float altitude, float temperature) {
+            // Using the international standard atmosphere model
+            float temperature_ratio = temperature / 288.15f;
+            float pressure_ratio = std::pow(1.0f - (LAPSE_RATE * altitude / 288.15f), 5.2561f);
+            return SEA_LEVEL_DENSITY * pressure_ratio / temperature_ratio;
+        }
+
+        // Mach effects on lift coefficient
+        float apply_mach_effects(float cl, float tip_speed) {
+            float mach_number = tip_speed / SPEED_OF_SOUND;
+
+            // Prandtl-Glauert compressibility correction
+            if (mach_number < 0.3f) {
+                return cl; // No correction needed for low speeds
+            } else if (mach_number < 0.8f) {
+                // Subsonic compressibility correction
+                return cl / std::sqrt(1.0f - mach_number * mach_number);
+            } else {
+                // Transonic/supersonic regime - rapid lift deterioration
+                float deterioration = std::exp(-(mach_number - 0.8f) * 5.0f);
+                return cl * deterioration;
+            }
         }
 
         std::pair<float, float> get_airfoil_coefficients(float alpha, float reynolds) {
@@ -97,6 +132,10 @@ namespace lark::rotor {
             if (!data || data->currentRPM <= 0.0f) return {0.0f, 0.0f};
 
             const float omega = (data->currentRPM * 2.0f * glm::pi<float>()) / 60.0f;
+
+            // calculate tip speed and mach number
+            float tip_speed = omega * data->bladeRadius;
+
             std::vector<BladeElement> elements(rotor_data::NUM_BLADE_ELEMENTS);
 
             // Initialize blade elements with realistic geometry
@@ -125,14 +164,25 @@ namespace lark::rotor {
                 float phi = std::atan2(local_velocity.dot(data->rotorNormal), omega * element.radius);
                 float F = calculate_tip_loss(element.radius, data->bladeRadius, data->bladeCount, phi);
 
+                // base forces
                 auto [dN, dT] = calculate_element_forces(element, data, F);
 
-                dN *= data->bladeCount;
+                // apply mach effect
+                float element_speed = omega * element.radius;
+                float mach_corrected_dN = apply_mach_effects(dN, element_speed);
+
+                // Apply air density effects
+                mach_corrected_dN *= data->air_density_ratio;
+
+                mach_corrected_dN *= data->bladeCount;
                 dT *= data->bladeCount;
 
-                total_thrust += dN;
+                total_thrust += mach_corrected_dN;
                 total_torque += dT * element.radius;
             }
+
+            float max_theoretical_thrust = data->max_thrust * data->air_density_ratio;
+            total_thrust = std::min(total_thrust, max_theoretical_thrust);
 
             return {total_thrust, total_torque};
         }
@@ -146,27 +196,59 @@ namespace lark::rotor {
         data->rigidBody->getMotionState()->getWorldTransform(trans);
         data->position = trans.getOrigin();
 
+        // Update air density ratio based on altitude
+        float altitude = data->position.y();
+        data->density_altitude = altitude;
+        data->air_density_ratio = calculate_air_density(altitude, data->temperature) / SEA_LEVEL_DENSITY;
+
         btVector3 linear_velocity = data->rigidBody->getLinearVelocity();
         btVector3 angular_velocity = data->rigidBody->getAngularVelocity();
 
-        // BEM force calculation
+        // Calculate drag force with air density correction
+        float velocity_magnitude = linear_velocity.length();
+        constexpr float drag_coefficient = 0.3f;  // Typical drone value
+        float reference_area = data->discArea;    // Use rotor disc area as reference
+        float drag_force_magnitude = 0.5f * data->airDensity * data->air_density_ratio *
+                                   drag_coefficient * reference_area * velocity_magnitude * velocity_magnitude;
+
+        btVector3 drag_force = velocity_magnitude > 0.001f ?
+            -drag_force_magnitude * linear_velocity.normalized() : btVector3(0, 0, 0);
+
+        // BEM force calculation with air density correction
         auto [thrust, torque] = calculate_bem_forces(data, linear_velocity);
         data->current_thrust = thrust;
 
-        // Apply forces and torques
+        // Apply forces and torques with altitude effects
         btVector3 thrust_force = data->rotorNormal * thrust;
         data->rigidBody->applyCentralForce(thrust_force);
+        data->rigidBody->applyCentralForce(drag_force);
 
+        // Calculate induced power loss
+        float induced_velocity = std::sqrt(thrust / (2.0f * data->airDensity * data->air_density_ratio * data->discArea));
+        float induced_power = thrust * induced_velocity;
+
+        // Apply torque with density correction
         btVector3 torque_vector = -data->rotorNormal * torque;
         data->rigidBody->applyTorque(torque_vector);
 
-        // Power calculation
+        // Total power calculation including induced and profile power
         const float omega = (data->currentRPM * 2.0f * glm::pi<float>()) / 60.0f;
-        data->powerConsumption = std::abs(torque * omega);
+        float profile_power = std::abs(torque * omega);
+        data->powerConsumption = profile_power + induced_power;
 
-        // Apply damping for stability
-        data->rigidBody->setDamping(0.2f, 0.7f);
+        // Enhance stability with altitude-dependent damping
+        float altitude_factor = std::max(0.2f, std::min(1.0f, data->air_density_ratio));
+        data->rigidBody->setDamping(0.2f * altitude_factor, 0.7f * altitude_factor);
     }
+
+
+    void drone_component::initialize() {
+        const auto* data = pool.get_data(get_id());
+        data->hover_thrust = data->mass * 9.81f; // Basic hover thrust
+        data->max_thrust = data->hover_thrust * 2.5f; // Typical max thrust ratio
+        data->air_density_ratio = calculate_air_density(data->density_altitude, data->temperature) / SEA_LEVEL_DENSITY;
+    }
+
 
     // Other methods remain the same...
     void drone_component::set_rpm(float target_rpm) {
