@@ -134,21 +134,24 @@ private:
         fuselage::init_info fuselageInfo;
         rotor::init_info rotorInfo;
 
-        // Set up realistic rotor parameters
-        rotorInfo.bladeRadius = 0.127f;  // ~5 inch propeller
-        rotorInfo.bladePitch = 0.175f;   // ~10 degrees in radians
-        rotorInfo.bladeCount = 2;        // Standard dual-blade propeller
-        rotorInfo.airDensity = 1.225f;   // Sea level air density
+        // Set up realistic rotor parameters for a small drone propeller
+        rotorInfo.bladeRadius = 0.127f;     // 5-inch propeller (0.127m)
+        rotorInfo.bladePitch = 0.2f;        // ~11.5 degrees in radians
+        rotorInfo.bladeCount = 2;           // Standard dual-blade propeller
+        rotorInfo.airDensity = 1.225f;      // Sea level air density
         rotorInfo.discArea = glm::pi<float>() * rotorInfo.bladeRadius * rotorInfo.bladeRadius;
-        rotorInfo.liftCoefficient = 0.12f;
-        rotorInfo.mass = 0.05f;         // 50g
-        rotorInfo.rotorNormal = btVector3(0, 1, 0); // Upward thrust
-        rotorInfo.position = btVector3(0, 0.5, 0);    // Starting position
-        rotorInfo.powerConsumption = 0.0f;
-        rotorInfo.currentRPM = 0.0f;
+        rotorInfo.liftCoefficient = 0.12f;  // Typical for drone propellers
+        rotorInfo.mass = 0.05f;             // 50g total mass
+        rotorInfo.rotorNormal = btVector3(0, 1, 0);  // Upward thrust
+        rotorInfo.position = btVector3(0, 0.5f, 0);  // Starting position
 
         // Create a simple box shape for the rotor
-        btBoxShape* rotorShape = new btBoxShape(btVector3(rotorInfo.bladeRadius * 5.f, 0.05f, rotorInfo.bladeRadius * 5.f)); // Scale rotor
+        btBoxShape* rotorShape = new btBoxShape(btVector3(
+            rotorInfo.bladeRadius,
+            0.02f,                          // Thin profile
+            rotorInfo.bladeRadius
+        ));
+
         btTransform startTransform;
         startTransform.setIdentity();
         startTransform.setOrigin(rotorInfo.position);
@@ -157,13 +160,16 @@ private:
         rotorShape->calculateLocalInertia(rotorInfo.mass, localInertia);
 
         btDefaultMotionState* motionState = new btDefaultMotionState(startTransform);
-        btRigidBody::btRigidBodyConstructionInfo rbInfo(rotorInfo.mass, motionState, rotorShape, localInertia);
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(
+            rotorInfo.mass,
+            motionState,
+            rotorShape,
+            localInertia
+        );
+
         m_rotorBody = new btRigidBody(rbInfo);
         m_rotorBody->setDamping(0.1f, 0.3f);
-        m_rotorBody->setAngularFactor(btVector3(0, 1, 0));
-
-        rotorShape->calculateLocalInertia(rotorInfo.mass, localInertia);
-        m_rotorBody->setMassProps(rotorInfo.mass, localInertia);
+        m_rotorBody->setAngularFactor(btVector3(0, 1, 0));  // Only allow rotation around Y axis
 
         m_dynamicsWorld->addRigidBody(m_rotorBody);
         rotorInfo.rigidBody = m_rotorBody;
@@ -173,17 +179,14 @@ private:
         info.fuselage = &fuselageInfo;
         info.rotor = &rotorInfo;
 
-        // Create drone entity
+        // Create drone entity and initialize
         auto entity = drone_entity::create(info);
         assert(entity.is_valid());
 
-        // Get the rotor component and set initial RPM
         m_rotorComponent = entity.rotor();
         assert(m_rotorComponent.is_valid());
-        m_rotorComponent.set_rpm(5000.0f);
         m_rotorComponent.initialize();
     }
-
     void cleanup() {
         if (m_rotorBody) {
             m_dynamicsWorld->removeRigidBody(m_rotorBody);
