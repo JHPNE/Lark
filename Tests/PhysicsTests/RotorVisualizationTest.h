@@ -5,6 +5,7 @@
 #include <chrono>
 #include <memory>
 #include <thread>
+#include <iomanip>
 
 namespace lark::physics {
 
@@ -18,14 +19,19 @@ public:
     void run() {
         const float timeStep = 1.0f / 60.0f;
         auto lastTime = std::chrono::high_resolution_clock::now();
-        const float target_rpm = 5000.0f;
-        float predicted_height = m_rotorComponent.estimate_equilibrium_height(target_rpm);
-        float max_theoretical = m_rotorComponent.get_max_theoretical_height(target_rpm);
 
-        std::cout << "Starting rotor physics test..." << std::endl;
-        std::cout << "Initial RPM: 5000.0" << std::endl;
-        std::cout << "Predicted equilibrium height: " << predicted_height << " meters" << std::endl;
-        std::cout << "Maximum theoretical height: " << max_theoretical << " meters" << std::endl;
+        // Test parameters
+        const float target_rpm = 5000.0f;
+        m_rotorComponent.set_rpm(target_rpm);
+
+        std::cout << std::fixed << std::setprecision(3);
+        std::cout << "Starting rotor physics test...\n"
+                  << "Configuration:\n"
+                  << "- Target RPM: " << target_rpm << "\n"
+                  << "- Blade Count: " << 2 << "\n"
+                  << "- Blade Radius: " << 0.127f << "m\n"
+                  << "- Air Density: " << 1.225f << " kg/m³\n"
+                  << std::endl;
 
         while (!m_renderer.shouldClose()) {
             auto currentTime = std::chrono::high_resolution_clock::now();
@@ -33,47 +39,12 @@ public:
             lastTime = currentTime;
 
             // Update physics
-            m_rotorComponent.calculate_forces(deltaTime);
-            m_dynamicsWorld->stepSimulation(deltaTime, 10);
+            updatePhysics(deltaTime);
 
-            // Log state periodically
-            static float timeSinceLastLog = 0.0f;
-            timeSinceLastLog += deltaTime;
+            // Render current state
+            renderFrame();
 
-            if (timeSinceLastLog >= 1.0f) {
-                btTransform trans;
-                m_rotorBody->getMotionState()->getWorldTransform(trans);
-
-                btVector3 velocity = m_rotorBody->getLinearVelocity();
-                btVector3 angularVel = m_rotorBody->getAngularVelocity();
-
-                std::cout << "Current State:\n"
-                          << "Position = (" << trans.getOrigin().getX() << ", "
-                          << trans.getOrigin().getY() << ", "
-                          << trans.getOrigin().getZ() << ")\n"
-                          << "Linear Velocity = (" << velocity.getX() << ", "
-                          << velocity.getY() << ", " << velocity.getZ() << ")\n"
-                          << "Angular Velocity = (" << angularVel.getX() << ", "
-                          << angularVel.getY() << ", " << angularVel.getZ() << ")\n"
-                          << "Thrust = " << m_rotorComponent.get_thrust() << " N\n"
-                          << "Power = " << m_rotorComponent.get_power_consumption() << " W\n"
-                          << std::endl;
-
-                timeSinceLastLog = 0.0f;
-            }
-
-            // Render
-            btTransform trans;
-            m_rotorBody->getMotionState()->getWorldTransform(trans);
-            m_renderer.setObjectTransform(bulletToGlm(trans));
-            m_renderer.setCameraTarget(glm::vec3(
-                trans.getOrigin().getX(),
-                trans.getOrigin().getY(),
-                trans.getOrigin().getZ()
-            ));
-            m_renderer.render();
-
-            // Cap frame rate
+            // Maintain consistent frame rate
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
     }
@@ -92,11 +63,66 @@ private:
     btRigidBody* m_rotorBody{nullptr};
     btRigidBody* m_groundBody{nullptr};
     rotor::drone_component m_rotorComponent;
+    float m_timeSinceLastLog{0.0f};
 
     static glm::mat4 bulletToGlm(const btTransform& t) {
         btScalar m[16];
         t.getOpenGLMatrix(m);
         return glm::make_mat4(m);
+    }
+
+    void updatePhysics(float deltaTime) {
+        // Calculate rotor forces
+        m_rotorComponent.calculate_forces(deltaTime);
+
+        // Step physics simulation
+        m_dynamicsWorld->stepSimulation(deltaTime, 10);
+
+        // Log state periodically
+        m_timeSinceLastLog += deltaTime;
+        if (m_timeSinceLastLog >= 1.0f) {
+            logState();
+            m_timeSinceLastLog = 0.0f;
+        }
+    }
+
+    void renderFrame() {
+        btTransform trans;
+        m_rotorBody->getMotionState()->getWorldTransform(trans);
+
+        // Update renderer
+        m_renderer.setObjectTransform(bulletToGlm(trans));
+        m_renderer.setCameraTarget(glm::vec3(
+            trans.getOrigin().getX(),
+            trans.getOrigin().getY(),
+            trans.getOrigin().getZ()
+        ));
+        m_renderer.render();
+    }
+
+    void logState() {
+        btTransform trans;
+        m_rotorBody->getMotionState()->getWorldTransform(trans);
+        btVector3 velocity = m_rotorBody->getLinearVelocity();
+        btVector3 angularVel = m_rotorBody->getAngularVelocity();
+
+        std::cout << "Physics State:\n"
+                  << "Position: ("
+                  << trans.getOrigin().getX() << ", "
+                  << trans.getOrigin().getY() << ", "
+                  << trans.getOrigin().getZ() << ") m\n"
+                  << "Velocity: ("
+                  << velocity.getX() << ", "
+                  << velocity.getY() << ", "
+                  << velocity.getZ() << ") m/s\n"
+                  << "Angular Velocity: ("
+                  << angularVel.getX() << ", "
+                  << angularVel.getY() << ", "
+                  << angularVel.getZ() << ") rad/s\n"
+                  << "Thrust: " << m_rotorComponent.get_thrust() << " N\n"
+                  << "Power Consumption: " << m_rotorComponent.get_power_consumption() << " W\n"
+                  << "Height: " << trans.getOrigin().getY() << " m\n"
+                  << std::endl;
     }
 
     void initializePhysics() {
@@ -114,13 +140,17 @@ private:
 
         m_dynamicsWorld->setGravity(btVector3(0, -9.81f, 0));
 
-        // Create ground
+        // Create ground plane
+        createGround();
+    }
+
+    void createGround() {
         btBoxShape* groundShape = new btBoxShape(btVector3(50.0f, 1.0f, 50.0f));
         btTransform groundTransform;
         groundTransform.setIdentity();
         groundTransform.setOrigin(btVector3(0.0f, -1.0f, 0.0f));
 
-        btScalar mass(0.0f);  // Mass = 0 for static ground
+        btScalar mass(0.0f);
         btVector3 localInertia(0, 0, 0);
 
         btDefaultMotionState* groundMotionState = new btDefaultMotionState(groundTransform);
@@ -130,25 +160,41 @@ private:
     }
 
     void setupRotor() {
-        // Create rotor entity
         fuselage::init_info fuselageInfo;
         rotor::init_info rotorInfo;
 
-        // Set up realistic rotor parameters for a small drone propeller
-        rotorInfo.bladeRadius = 0.127f;     // 5-inch propeller (0.127m)
-        rotorInfo.bladePitch = 0.2f;        // ~11.5 degrees in radians
-        rotorInfo.bladeCount = 2;           // Standard dual-blade propeller
-        rotorInfo.airDensity = 1.225f;      // Sea level air density
+        // Configure rotor parameters
+        rotorInfo.bladeRadius = 0.127f;     // 5-inch propeller
+        rotorInfo.bladePitch = 0.2f;        // ~11.5 degrees
+        rotorInfo.bladeCount = 2;           // Dual-blade propeller
+        rotorInfo.airDensity = 1.225f;      // Sea level
         rotorInfo.discArea = glm::pi<float>() * rotorInfo.bladeRadius * rotorInfo.bladeRadius;
-        rotorInfo.liftCoefficient = 0.12f;  // Typical for drone propellers
-        rotorInfo.mass = 0.05f;             // 50g total mass
-        rotorInfo.rotorNormal = btVector3(0, 1, 0);  // Upward thrust
-        rotorInfo.position = btVector3(0, 0.5f, 0);  // Starting position
+        rotorInfo.liftCoefficient = 0.12f;  // Typical value
+        rotorInfo.mass = 0.05f;             // 50g
+        rotorInfo.rotorNormal = btVector3(0, 1, 0);
+        rotorInfo.position = btVector3(0, 0.5f, 0);
 
-        // Create a simple box shape for the rotor
+        // Create physical representation
+        createRotorBody(rotorInfo);
+        rotorInfo.rigidBody = m_rotorBody;
+
+        // Create and initialize drone entity
+        drone_entity::entity_info info{};
+        info.fuselage = &fuselageInfo;
+        info.rotor = &rotorInfo;
+
+        auto entity = drone_entity::create(info);
+        assert(entity.is_valid());
+
+        m_rotorComponent = entity.rotor();
+        assert(m_rotorComponent.is_valid());
+        m_rotorComponent.initialize();
+    }
+
+    void createRotorBody(const rotor::init_info& rotorInfo) {
         btBoxShape* rotorShape = new btBoxShape(btVector3(
             rotorInfo.bladeRadius,
-            0.02f,                          // Thin profile
+            0.02f,
             rotorInfo.bladeRadius
         ));
 
@@ -169,36 +215,24 @@ private:
 
         m_rotorBody = new btRigidBody(rbInfo);
         m_rotorBody->setDamping(0.1f, 0.3f);
-        m_rotorBody->setAngularFactor(btVector3(0, 1, 0));  // Only allow rotation around Y axis
-
+        m_rotorBody->setAngularFactor(btVector3(0, 1, 0));
         m_dynamicsWorld->addRigidBody(m_rotorBody);
-        rotorInfo.rigidBody = m_rotorBody;
-
-        // Create entity info and set components
-        drone_entity::entity_info info{};
-        info.fuselage = &fuselageInfo;
-        info.rotor = &rotorInfo;
-
-        // Create drone entity and initialize
-        auto entity = drone_entity::create(info);
-        assert(entity.is_valid());
-
-        m_rotorComponent = entity.rotor();
-        assert(m_rotorComponent.is_valid());
-        m_rotorComponent.initialize();
     }
+
     void cleanup() {
         if (m_rotorBody) {
             m_dynamicsWorld->removeRigidBody(m_rotorBody);
             delete m_rotorBody->getMotionState();
+            delete m_rotorBody->getCollisionShape();
             delete m_rotorBody;
         }
         if (m_groundBody) {
             m_dynamicsWorld->removeRigidBody(m_groundBody);
             delete m_groundBody->getMotionState();
+            delete m_groundBody->getCollisionShape();
             delete m_groundBody;
         }
     }
 };
 
-} // namespace lark::physics // namespace lark::physics
+} // namespace lark::physics // namespace lark::physics // namespace lark::physics
