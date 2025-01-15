@@ -19,9 +19,10 @@ public:
     void run() {
         const float timeStep = 1.0f / 60.0f;
         auto lastTime = std::chrono::high_resolution_clock::now();
+        float testTime = 0.0f;
 
         // Test parameters
-        const float target_rpm = 5000.0f;
+        const float target_rpm = 7000.0f;
         m_rotorComponent.set_rpm(target_rpm);
 
         std::cout << std::fixed << std::setprecision(3);
@@ -30,16 +31,23 @@ public:
                   << "- Target RPM: " << target_rpm << "\n"
                   << "- Blade Count: " << 2 << "\n"
                   << "- Blade Radius: " << 0.127f << "m\n"
-                  << "- Air Density: " << 1.225f << " kg/m³\n"
                   << std::endl;
 
         while (!m_renderer.shouldClose()) {
             auto currentTime = std::chrono::high_resolution_clock::now();
             float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
             lastTime = currentTime;
+            testTime += deltaTime;
 
             // Update physics
             updatePhysics(deltaTime);
+
+            // Log state every second
+            m_timeSinceLastLog += deltaTime;
+            if (m_timeSinceLastLog >= 1.0f) {
+                logState();
+                m_timeSinceLastLog = 0.0f;
+            }
 
             // Render current state
             renderFrame();
@@ -65,46 +73,10 @@ private:
     rotor::drone_component m_rotorComponent;
     float m_timeSinceLastLog{0.0f};
 
-    static glm::mat4 bulletToGlm(const btTransform& t) {
-        btScalar m[16];
-        t.getOpenGLMatrix(m);
-        return glm::make_mat4(m);
-    }
-
-    void updatePhysics(float deltaTime) {
-        // Calculate rotor forces
-        m_rotorComponent.calculate_forces(deltaTime);
-
-        // Step physics simulation
-        m_dynamicsWorld->stepSimulation(deltaTime, 10);
-
-        // Log state periodically
-        m_timeSinceLastLog += deltaTime;
-        if (m_timeSinceLastLog >= 1.0f) {
-            logState();
-            m_timeSinceLastLog = 0.0f;
-        }
-    }
-
-    void renderFrame() {
-        btTransform trans;
-        m_rotorBody->getMotionState()->getWorldTransform(trans);
-
-        // Update renderer
-        m_renderer.setObjectTransform(bulletToGlm(trans));
-        m_renderer.setCameraTarget(glm::vec3(
-            trans.getOrigin().getX(),
-            trans.getOrigin().getY(),
-            trans.getOrigin().getZ()
-        ));
-        m_renderer.render();
-    }
-
     void logState() {
         btTransform trans;
         m_rotorBody->getMotionState()->getWorldTransform(trans);
         btVector3 velocity = m_rotorBody->getLinearVelocity();
-        btVector3 angularVel = m_rotorBody->getAngularVelocity();
 
         std::cout << "Physics State:\n"
                   << "Position: ("
@@ -115,18 +87,37 @@ private:
                   << velocity.getX() << ", "
                   << velocity.getY() << ", "
                   << velocity.getZ() << ") m/s\n"
-                  << "Angular Velocity: ("
-                  << angularVel.getX() << ", "
-                  << angularVel.getY() << ", "
-                  << angularVel.getZ() << ") rad/s\n"
                   << "Thrust: " << m_rotorComponent.get_thrust() << " N\n"
-                  << "Power Consumption: " << m_rotorComponent.get_power_consumption() << " W\n"
+                  << "Power: " << m_rotorComponent.get_power_consumption() << " W\n"
                   << "Height: " << trans.getOrigin().getY() << " m\n"
                   << std::endl;
     }
 
+    static glm::mat4 bulletToGlm(const btTransform& t) {
+        btScalar m[16];
+        t.getOpenGLMatrix(m);
+        return glm::make_mat4(m);
+    }
+
+    void updatePhysics(float deltaTime) {
+        m_rotorComponent.calculate_forces(deltaTime);
+        m_dynamicsWorld->stepSimulation(deltaTime, 10);
+    }
+
+    void renderFrame() {
+        btTransform trans;
+        m_rotorBody->getMotionState()->getWorldTransform(trans);
+
+        m_renderer.setObjectTransform(bulletToGlm(trans));
+        m_renderer.setCameraTarget(glm::vec3(
+            trans.getOrigin().getX(),
+            trans.getOrigin().getY(),
+            trans.getOrigin().getZ()
+        ));
+        m_renderer.render();
+    }
+
     void initializePhysics() {
-        // Create physics world
         m_collisionConfiguration = std::make_unique<btDefaultCollisionConfiguration>();
         m_dispatcher = std::make_unique<btCollisionDispatcher>(m_collisionConfiguration.get());
         m_broadphase = std::make_unique<btDbvtBroadphase>();
@@ -139,13 +130,11 @@ private:
         );
 
         m_dynamicsWorld->setGravity(btVector3(0, -9.81f, 0));
-
-        // Create ground plane
         createGround();
     }
 
     void createGround() {
-        btBoxShape* groundShape = new btBoxShape(btVector3(50.0f, 1.0f, 50.0f));
+        btCollisionShape* groundShape = new btBoxShape(btVector3(50.0f, 1.0f, 50.0f));
         btTransform groundTransform;
         groundTransform.setIdentity();
         groundTransform.setOrigin(btVector3(0.0f, -1.0f, 0.0f));
@@ -167,18 +156,14 @@ private:
         rotorInfo.bladeRadius = 0.127f;     // 5-inch propeller
         rotorInfo.bladePitch = 0.2f;        // ~11.5 degrees
         rotorInfo.bladeCount = 2;           // Dual-blade propeller
-        rotorInfo.airDensity = 1.225f;      // Sea level
-        rotorInfo.discArea = glm::pi<float>() * rotorInfo.bladeRadius * rotorInfo.bladeRadius;
         rotorInfo.liftCoefficient = 0.12f;  // Typical value
-        rotorInfo.mass = 0.05f;             // 50g
+        rotorInfo.mass = 0.25f;             // 250g
         rotorInfo.rotorNormal = btVector3(0, 1, 0);
         rotorInfo.position = btVector3(0, 0.5f, 0);
 
-        // Create physical representation
         createRotorBody(rotorInfo);
         rotorInfo.rigidBody = m_rotorBody;
 
-        // Create and initialize drone entity
         drone_entity::entity_info info{};
         info.fuselage = &fuselageInfo;
         info.rotor = &rotorInfo;
@@ -192,7 +177,7 @@ private:
     }
 
     void createRotorBody(const rotor::init_info& rotorInfo) {
-        btBoxShape* rotorShape = new btBoxShape(btVector3(
+        btCollisionShape* rotorShape = new btBoxShape(btVector3(
             rotorInfo.bladeRadius,
             0.02f,
             rotorInfo.bladeRadius
@@ -235,4 +220,4 @@ private:
     }
 };
 
-} // namespace lark::physics // namespace lark::physics // namespace lark::physics
+} // namespace lark::physics
