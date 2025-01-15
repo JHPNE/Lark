@@ -22,7 +22,7 @@ public:
         float testTime = 0.0f;
 
         // Test parameters
-        const float target_rpm = 7000.0f;
+        const float target_rpm = 5000.0f;
         m_rotorComponent.set_rpm(target_rpm);
 
         std::cout << std::fixed << std::setprecision(3);
@@ -153,11 +153,11 @@ private:
         rotor::init_info rotorInfo;
 
         // Configure rotor parameters
-        rotorInfo.bladeRadius = 0.127f;     // 5-inch propeller
+        rotorInfo.bladeRadius = 0.2;     // 12.7 cm propelle d
         rotorInfo.bladePitch = 0.2f;        // ~11.5 degrees
-        rotorInfo.bladeCount = 2;           // Dual-blade propeller
+        rotorInfo.bladeCount = 3;           // Dual-blade propeller
         rotorInfo.liftCoefficient = 0.12f;  // Typical value
-        rotorInfo.mass = 0.25f;             // 250g
+        rotorInfo.mass = 0.5f;             // 250g
         rotorInfo.rotorNormal = btVector3(0, 1, 0);
         rotorInfo.position = btVector3(0, 0.5f, 0);
 
