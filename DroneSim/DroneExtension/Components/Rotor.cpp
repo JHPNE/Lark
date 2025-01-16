@@ -78,67 +78,6 @@ namespace lark::rotor {
             return conditions;
         }
 
-        float calculate_density_altitude_factor(const AtmosphericConditions& conditions) {
-            float density_ratio = conditions.density / ISA_SEA_LEVEL_DENSITY;
-            float temp_ratio = conditions.temperature / ISA_SEA_LEVEL_TEMPERATURE;
-            float pressure_ratio = conditions.pressure / ISA_SEA_LEVEL_PRESSURE;
-
-            // Apply non-linear effects of density on thrust
-            float density_effect = std::pow(density_ratio, 1.5f);
-
-            // Temperature correction based on ISA deviation
-            float temp_correction = 1.0f;
-            if (conditions.temperature > ISA_SEA_LEVEL_TEMPERATURE) {
-                float delta_t = conditions.temperature - ISA_SEA_LEVEL_TEMPERATURE;
-                temp_correction = 1.0f - (delta_t / ISA_SEA_LEVEL_TEMPERATURE) * 0.02f;
-            }
-
-            // Pressure effect using standard atmosphere relationship
-            float pressure_effect = std::pow(pressure_ratio, 0.190284f);
-
-            return density_effect * temp_correction * pressure_effect;
-        }
-
-        float calculate_altitude_efficiency(float altitude, const AtmosphericConditions& conditions) {
-            // Calculate ISA standard temperature at this altitude
-            float isa_temp = (altitude <= ISA_TROPOPAUSE_ALTITUDE) ?
-                ISA_SEA_LEVEL_TEMPERATURE + ISA_LAPSE_RATE * altitude :
-                ISA_TROPOPAUSE_TEMPERATURE;
-
-            // Temperature deviation from ISA
-            float temp_deviation = conditions.temperature - isa_temp;
-            float temp_factor = std::exp(-std::abs(temp_deviation) / ISA_SEA_LEVEL_TEMPERATURE);
-
-            // Density ratio effect
-            float density_ratio = conditions.density / ISA_SEA_LEVEL_DENSITY;
-            float density_effect = std::exp(-std::pow(1.0f - density_ratio, 2.0f));
-
-            // Pressure ratio effect
-            float pressure_ratio = conditions.pressure / ISA_SEA_LEVEL_PRESSURE;
-            float pressure_effect = std::pow(pressure_ratio, 0.5f);
-
-            return temp_factor * density_effect * pressure_effect;
-        }
-
-        float calculate_blade_element_thrust(float radius, float chord, float pitch_angle,
-                                           float angular_velocity, float density,
-                                           float local_velocity) {
-            constexpr float LIFT_SLOPE = 2.0f * PI;
-
-            float tangential_velocity = angular_velocity * radius;
-            float resultant_velocity = std::sqrt(tangential_velocity * tangential_velocity +
-                                               local_velocity * local_velocity);
-            float local_aoa = pitch_angle - std::atan2(local_velocity, tangential_velocity);
-
-            float cl = std::clamp(LIFT_SLOPE * local_aoa, -1.5f, 1.5f);
-
-            return 0.5f * density * resultant_velocity * resultant_velocity * chord * cl;
-        }
-
-        float calculate_induced_velocity(float thrust, float air_density, float disc_area) {
-            return std::sqrt(thrust / (2.0f * air_density * disc_area));
-        }
-
         float calculate_thrust(const rotor_data* data, const AtmosphericConditions& conditions) {
             if (!data || !data->is_valid) return 0.0f;
 
@@ -152,7 +91,7 @@ namespace lark::rotor {
                 forward_velocity = velocity.length();
             }
 
-            // Basic thrust calculation using blade element theory
+            // Blade element method for thrust calculation
             constexpr int ELEMENTS_PER_BLADE = 10;
             const float dr = data->bladeRadius / ELEMENTS_PER_BLADE;
             const float blade_chord = 0.1f * data->bladeRadius;
@@ -160,60 +99,34 @@ namespace lark::rotor {
 
             for (int i = 0; i < ELEMENTS_PER_BLADE; ++i) {
                 float r = (i + 0.5f) * dr;
-                float local_pitch = data->bladePitch * (1.0f - r/data->bladeRadius);
+                float local_pitch = data->bladePitch * (1.0f - r / data->bladeRadius);
 
-                float element_thrust = calculate_blade_element_thrust(
-                    r, blade_chord, local_pitch, omega, conditions.density, forward_velocity
-                );
+                // Element thrust
+                float tangential_velocity = omega * r;
+                float resultant_velocity = std::sqrt(tangential_velocity * tangential_velocity + forward_velocity * forward_velocity);
+                float aoa = local_pitch - std::atan2(forward_velocity, tangential_velocity);
+                constexpr float LIFT_SLOPE = 2.0f * PI;
+                float cl = std::clamp(LIFT_SLOPE * aoa, -1.5f, 1.5f);
 
-                total_thrust += element_thrust * dr;
+                total_thrust += 0.5f * conditions.density * resultant_velocity * resultant_velocity * blade_chord * cl * dr;
             }
 
-            total_thrust *= static_cast<float>(data->bladeCount);
-
-            // Calculate efficiency factors based on flight conditions
-            float density_factor = calculate_density_altitude_factor(conditions);
-            float altitude_efficiency = calculate_altitude_efficiency(data->position.getY(), conditions);
-
-            // Reynolds number effects
-            float tip_speed = omega * data->bladeRadius;
-            float chord = 0.1f * data->bladeRadius;  // Approximate chord length
-            float reynolds = (tip_speed * chord * conditions.density) / conditions.viscosity;
-            float reynolds_factor = std::min(1.0f, std::log10(reynolds) / 6.0f);
-
-            // Compressibility effects
-            float compressibility_factor = 1.0f;
-            if (conditions.mach_factor > 0.3f) {
-                float mach_sq = std::min(conditions.mach_factor * conditions.mach_factor, 0.9f);
-                compressibility_factor = 1.0f / std::sqrt(1.0f - mach_sq);
-            }
-
-            return total_thrust * density_factor * altitude_efficiency *
-                   reynolds_factor * compressibility_factor;
+            return total_thrust * data->bladeCount;
         }
 
-        float calculate_power(const rotor_data* data, float thrust,
-                            const AtmosphericConditions& conditions) {
+        float calculate_power(const rotor_data* data, float thrust, const AtmosphericConditions& conditions) {
             if (!data || !data->is_valid) return 0.0f;
 
             const float omega = data->currentRPM * RPM_TO_RAD;
             if (omega <= 0.0f) return 0.0f;
 
-            // Induced power
-            float induced_velocity = calculate_induced_velocity(thrust, conditions.density, data->discArea);
+            // Induced velocity
+            float induced_velocity = std::sqrt(thrust / (2.0f * conditions.density * data->discArea));
+
+            // Power components
             float induced_power = thrust * induced_velocity;
-
-            // Profile power
-            float tip_velocity = omega * data->bladeRadius;
-            float average_cd = 0.012f;
-            float profile_power = (1.0f/8.0f) * conditions.density * data->discArea *
-                                average_cd * std::pow(tip_velocity, 3);
-
-            // Parasitic power
-            float forward_velocity = 0.0f;
-            if (data->rigidBody) {
-                forward_velocity = data->rigidBody->getLinearVelocity().length();
-            }
+            float profile_power = (1.0f / 8.0f) * conditions.density * data->discArea * 0.012f * std::pow(omega * data->bladeRadius, 3);
+            float forward_velocity = data->rigidBody ? data->rigidBody->getLinearVelocity().length() : 0.0f;
             float parasitic_power = 0.5f * conditions.density * std::pow(forward_velocity, 3) * 0.002f;
 
             return induced_power + profile_power + parasitic_power;
@@ -224,21 +137,16 @@ namespace lark::rotor {
         auto* data = pool.get_data(get_id());
         if (!data || !data->is_valid) return;
 
-        float altitude = data->position.getY();
+        float altitude = data->rigidBody->getWorldTransform().getOrigin().getY();
         float velocity = data->rigidBody ? data->rigidBody->getLinearVelocity().length() : 0.0f;
-
         AtmosphericConditions conditions = calculate_atmospheric_conditions(altitude, velocity);
         float thrust = calculate_thrust(data, conditions);
 
         data->powerConsumption = calculate_power(data, thrust, conditions);
 
         if (data->rigidBody) {
-            float vertical_velocity = data->rigidBody->getLinearVelocity().y();
-
-            float drag_coefficient = 0.5f * (1.0f + 0.2f * conditions.mach_factor);
-            float drag = 0.5f * conditions.density * vertical_velocity *
-                        std::abs(vertical_velocity) * data->discArea * drag_coefficient;
-
+            float drag = 0.5f * conditions.density * data->rigidBody->getLinearVelocity().y() *
+                         std::abs(data->rigidBody->getLinearVelocity().y()) * data->discArea * 0.5f;
             btVector3 net_force = data->rotorNormal * (thrust - drag);
             data->rigidBody->applyCentralForce(net_force);
         }
