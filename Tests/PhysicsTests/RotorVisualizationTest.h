@@ -1,59 +1,65 @@
 #pragma once
+#include "DroneExtension/Components/Fuselage.h"
 #include "DroneExtension/Components/Rotor.h"
+#include "DroneExtension/DroneManager.h"
 #include "DronePhysicsRenderer.h"
+
 #include <btBulletDynamicsCommon.h>
 #include <chrono>
+#include <iomanip>
+#include <iostream>
 #include <memory>
 #include <thread>
-#include <iomanip>
 
 namespace lark::physics {
 
+struct RotorTestConfig {
+    bool visual_mode{false};
+    float simulation_speed{10.0f};
+    float target_rpm{5000.0f};
+    float test_duration{6000.0f};
+};
+
 class RotorVisualizationTest {
 public:
-    RotorVisualizationTest() : m_renderer(1280, 720) {
+    explicit RotorVisualizationTest(const RotorTestConfig& config = RotorTestConfig{})
+        : m_config(config),
+          m_renderer(config.visual_mode ? new visualization::DronePhysicsRenderer(1280, 720) : nullptr) {
         initializePhysics();
         setupRotor();
     }
 
     void run() {
-        const float timeStep = 1.0f / 60.0f;
+        const float base_timestep = 1.0f / 60.0f;
+        const float simulation_timestep = base_timestep * m_config.simulation_speed;
         auto lastTime = std::chrono::high_resolution_clock::now();
         float testTime = 0.0f;
 
-        // Test parameters
-        const float target_rpm = 5000.0f;
-        m_rotorComponent.set_rpm(target_rpm);
+        m_rotorComponent[0].set_rpm(m_config.target_rpm);
 
-        std::cout << std::fixed << std::setprecision(3);
-        std::cout << "Starting rotor physics test...\n"
-                  << "Configuration:\n"
-                  << "- Target RPM: " << target_rpm << "\n"
-                  << "- Blade Count: " << 2 << "\n"
-                  << "- Blade Radius: " << 0.127f << "m\n"
-                  << std::endl;
+        logConfiguration();
 
-        while (!m_renderer.shouldClose()) {
+        while (shouldContinue(testTime)) {
             auto currentTime = std::chrono::high_resolution_clock::now();
-            float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+            float deltaTime = m_config.visual_mode ?
+                std::chrono::duration<float>(currentTime - lastTime).count() :
+                simulation_timestep;
+
             lastTime = currentTime;
             testTime += deltaTime;
 
-            // Update physics
             updatePhysics(deltaTime);
 
-            // Log state every second
             m_timeSinceLastLog += deltaTime;
-            if (m_timeSinceLastLog >= 1.0f) {
-                logState();
+            if (m_timeSinceLastLog >= (m_config.visual_mode ? 1.0f : 0.1f)) {
+                logState(testTime);
                 m_timeSinceLastLog = 0.0f;
             }
 
-            // Render current state
-            renderFrame();
-
-            // Maintain consistent frame rate
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            if (m_config.visual_mode && m_renderer) {
+                renderFrame();
+                std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            }
         }
     }
 
@@ -62,7 +68,8 @@ public:
     }
 
 private:
-    visualization::DronePhysicsRenderer m_renderer;
+    RotorTestConfig m_config;
+    std::unique_ptr<visualization::DronePhysicsRenderer> m_renderer;
     std::unique_ptr<btDefaultCollisionConfiguration> m_collisionConfiguration;
     std::unique_ptr<btCollisionDispatcher> m_dispatcher;
     std::unique_ptr<btBroadphaseInterface> m_broadphase;
@@ -70,26 +77,40 @@ private:
     std::unique_ptr<btDiscreteDynamicsWorld> m_dynamicsWorld;
     btRigidBody* m_rotorBody{nullptr};
     btRigidBody* m_groundBody{nullptr};
-    rotor::drone_component m_rotorComponent;
+    util::vector<rotor::drone_component> m_rotorComponent;
     float m_timeSinceLastLog{0.0f};
 
-    void logState() {
+    bool shouldContinue(float testTime) {
+        if (m_config.visual_mode) {
+            return !m_renderer->shouldClose();
+        }
+        return testTime < m_config.test_duration;
+    }
+
+    void logConfiguration() {
+        std::cout << std::fixed << std::setprecision(3)
+                  << "Rotor Physics Test Configuration:\n"
+                  << "- Mode: " << (m_config.visual_mode ? "Visual" : "Console") << "\n"
+                  << "- Simulation Speed: " << m_config.simulation_speed << "x\n"
+                  << "- Target RPM: " << m_config.target_rpm << "\n"
+                  << "- Test Duration: " << m_config.test_duration << " seconds\n"
+                  << std::endl;
+    }
+
+    void logState(float testTime) {
         btTransform trans;
         m_rotorBody->getMotionState()->getWorldTransform(trans);
         btVector3 velocity = m_rotorBody->getLinearVelocity();
 
-        std::cout << "Physics State:\n"
-                  << "Position: ("
-                  << trans.getOrigin().getX() << ", "
+        std::cout << "Time: " << testTime << "s\n"
+                  << "Position: (" << trans.getOrigin().getX() << ", "
                   << trans.getOrigin().getY() << ", "
                   << trans.getOrigin().getZ() << ") m\n"
-                  << "Velocity: ("
-                  << velocity.getX() << ", "
+                  << "Velocity: (" << velocity.getX() << ", "
                   << velocity.getY() << ", "
                   << velocity.getZ() << ") m/s\n"
-                  << "Thrust: " << m_rotorComponent.get_thrust() << " N\n"
-                  << "Power: " << m_rotorComponent.get_power_consumption() << " W\n"
-                  << "Height: " << trans.getOrigin().getY() << " m\n"
+                  << "Thrust: " << m_rotorComponent[0].get_thrust() << " N\n"
+                  << "Power: " << m_rotorComponent[0].get_power_consumption() << " W\n"
                   << std::endl;
     }
 
@@ -100,21 +121,23 @@ private:
     }
 
     void updatePhysics(float deltaTime) {
-        m_rotorComponent.calculate_forces(deltaTime);
+        m_rotorComponent[0].calculate_forces(deltaTime);
         m_dynamicsWorld->stepSimulation(deltaTime, 10);
     }
 
     void renderFrame() {
+        if (!m_renderer) return;
+
         btTransform trans;
         m_rotorBody->getMotionState()->getWorldTransform(trans);
 
-        m_renderer.setObjectTransform(bulletToGlm(trans));
-        m_renderer.setCameraTarget(glm::vec3(
+        m_renderer->setObjectTransform(bulletToGlm(trans));
+        m_renderer->setCameraTarget(glm::vec3(
             trans.getOrigin().getX(),
             trans.getOrigin().getY(),
             trans.getOrigin().getZ()
         ));
-        m_renderer.render();
+        m_renderer->render();
     }
 
     void initializePhysics() {
@@ -166,14 +189,14 @@ private:
 
         drone_entity::entity_info info{};
         info.fuselage = &fuselageInfo;
-        info.rotor = &rotorInfo;
+        info.rotors = { &rotorInfo };
 
         auto entity = drone_entity::create(info);
         assert(entity.is_valid());
 
         m_rotorComponent = entity.rotor();
-        assert(m_rotorComponent.is_valid());
-        m_rotorComponent.initialize();
+        assert(m_rotorComponent[0].is_valid());
+        m_rotorComponent[0].initialize();
     }
 
     void createRotorBody(const rotor::init_info& rotorInfo) {

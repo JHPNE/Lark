@@ -11,16 +11,18 @@ namespace lark {
   namespace drone_entity {
     struct entity_info {
       fuselage::init_info* fuselage{ nullptr };
-      battery::init_info* battery{ nullptr };
-      rotor::init_info* rotor{ nullptr };
+      util::vector<battery::init_info*> batteries;
+      util::vector<rotor::init_info*> rotors;
+
+      bool is_valid_entity() const {
+        return (fuselage != nullptr);
+      }
+
     };
 
     entity create(entity_info info);
-
     void remove(drone_id id);
-
     bool is_alive(drone_id id);
-
-    void addDroneComponent(drone_id id, drone_data::BodyType component, entity_info info);
+    bool add_component(drone_id id, drone_data::BodyType component_type, const entity_info& info);
   }
 }

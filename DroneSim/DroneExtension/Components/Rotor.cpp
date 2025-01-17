@@ -145,9 +145,28 @@ namespace lark::rotor {
         data->powerConsumption = calculate_power(data, thrust, conditions);
 
         if (data->rigidBody) {
-            float drag = 0.5f * conditions.density * data->rigidBody->getLinearVelocity().y() *
-                         std::abs(data->rigidBody->getLinearVelocity().y()) * data->discArea * 0.5f;
-            btVector3 net_force = data->rotorNormal * (thrust - drag);
+            // Get velocity vector and calculate relative airflow
+            const btVector3& velocity = data->rigidBody->getLinearVelocity();
+
+            // Project velocity onto rotor normal to get axial component
+            float axial_velocity = velocity.dot(data->rotorNormal);
+
+            // Calculate drag coefficient based on angle of attack
+            // Using a simplified model for now - could be enhanced with lookup tables
+            constexpr float BASE_CD = 0.5f;  // Base drag coefficient for a flat disc
+            float effective_cd = BASE_CD * (1.0f + std::abs(axial_velocity) / 10.0f); // Increases with speed
+
+            // Calculate drag force using proper aerodynamic formula
+            float drag_magnitude = 0.5f * conditions.density * effective_cd * data->discArea *
+                                 axial_velocity * std::abs(axial_velocity);
+
+            // Apply drag force in direction opposite to motion
+            btVector3 drag_force = -data->rotorNormal * drag_magnitude;
+
+            // Combine thrust and drag
+            btVector3 net_force = (data->rotorNormal * thrust) + drag_force;
+
+            // Apply the combined force
             data->rigidBody->applyCentralForce(net_force);
         }
     }

@@ -1,6 +1,5 @@
 #pragma once
 #include "ECSTests/EntityTests.h"
-#include "PhysicsTests/PhysicsTests.h"
 #include "PhysicsTests/RotorVisualizationTest.h"
 
 #include <cstdio>
@@ -12,7 +11,11 @@ int main() {
 
   printf("Physics Tests \n");
   try {
-    lark::physics::RotorVisualizationTest test;
+    physics::RotorTestConfig config;
+    config.visual_mode = true;
+    config.simulation_speed = 1.0f;
+
+    lark::physics::RotorVisualizationTest test(config);
     test.run();
   }
   catch (const std::exception& e) {
