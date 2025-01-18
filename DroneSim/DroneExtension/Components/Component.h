@@ -9,7 +9,6 @@ namespace lark::drone_components {
     bool is_valid{ false };
     drone_entity::drone_id drone_id{};
 
-    // Add constructor to properly initialize from base type
     component_data() = default;
     explicit component_data(const BaseData& base) : BaseData(base) {}
   };

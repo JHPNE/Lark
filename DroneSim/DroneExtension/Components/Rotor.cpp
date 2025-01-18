@@ -193,7 +193,7 @@ namespace lark::rotor {
         const auto* data = pool.get_data(get_id());
         if (!data || !data->is_valid) return 0.0f;
 
-        float altitude = data->position.getY();
+        float altitude = glm::vec3(data->transform[3]).y;
         float velocity = data->rigidBody ? data->rigidBody->getLinearVelocity().length() : 0.0f;
         AtmosphericConditions conditions = calculate_atmospheric_conditions(altitude, velocity);
 

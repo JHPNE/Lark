@@ -17,16 +17,48 @@ namespace lark::drone_data {
     BATTERY
   };
 
+  struct ComponentShape {
+    enum class ShapeTypes {
+       BOX,
+       CYLINDER,
+       SPHERE,
+       CAPSULE,
+       CONVEX_HULL
+    };
+
+    ShapeTypes type;
+    glm::vec3 dimensions;
+
+    btTriangleMesh* mesh;
+
+    btCollisionShape* create_bullet_shape() const {
+      switch(type) {
+        case ShapeTypes::BOX:
+          return new btBoxShape(btVector3(dimensions.x, dimensions.y, dimensions.z));
+        case ShapeTypes::CYLINDER:
+          return new btCylinderShape(btVector3(dimensions.x, dimensions.y, dimensions.z));
+        case ShapeTypes::SPHERE:
+          return new btSphereShape(dimensions.x);  // Only uses x component as radius
+        case ShapeTypes::CAPSULE:
+          return new btCapsuleShape(dimensions.x, dimensions.y * 2.0f);  // radius, height
+        case ShapeTypes::CONVEX_HULL:
+          if(mesh) {
+            return new btConvexTriangleMeshShape(mesh);
+          }
+        return nullptr;
+      }
+      return nullptr;
+    }
+  };
+
   struct Body {
     virtual ~Body() = default;
     float powerConsumption = 0.f;
     float mass = 0.f;
     BodyType type = BodyType::FUSELAGE;
-    btVector3 position = btVector3(0.f, 0.f, 0.f);
+    glm::mat4 transform;
     btRigidBody* rigidBody = nullptr;
-    btTriangleMesh* meshInterface{nullptr};
-    // uses ID -> to find connected IDs
-    std::map<drone_entity::drone_id, util::vector<drone_entity::drone_id>> droneEntityConnections;
+    ComponentShape shape;
   };
 
   struct FuselageBody : Body {

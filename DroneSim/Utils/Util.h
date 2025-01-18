@@ -2,6 +2,9 @@
 
 #define USE_STL_VECTOR 1
 #define USE_STL_DEQUE 1
+#include <glm/vec3.hpp>
+
+#include "LinearMath/btVector3.h"
 
 #if USE_STL_VECTOR
 	#include <vector>
@@ -19,6 +22,11 @@ namespace lark::util {
 		{
 			v.clear();
 		}
+	}
+
+
+	inline btVector3 glm_to_bt_vector3(glm::vec3 vec) {
+		return btVector3{vec.x, vec.y, vec.z};
 	}
 }
 #endif

@@ -182,7 +182,7 @@ private:
         rotorInfo.liftCoefficient = 0.12f;  // Typical value
         rotorInfo.mass = 0.5f;             // 250g
         rotorInfo.rotorNormal = btVector3(0, 1, 0);
-        rotorInfo.position = btVector3(0, 0.5f, 0);
+        rotorInfo.transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0.5f, 0));
 
         createRotorBody(rotorInfo);
         rotorInfo.rigidBody = m_rotorBody;
@@ -208,7 +208,7 @@ private:
 
         btTransform startTransform;
         startTransform.setIdentity();
-        startTransform.setOrigin(rotorInfo.position);
+        startTransform.setOrigin(util::glm_to_bt_vector3(glm::vec3(rotorInfo.transform[3])));
 
         btVector3 localInertia(0, 0, 0);
         rotorShape->calculateLocalInertia(rotorInfo.mass, localInertia);
