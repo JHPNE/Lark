@@ -24,5 +24,6 @@ namespace lark {
     void remove(drone_id id);
     bool is_alive(drone_id id);
     bool add_component(drone_id id, drone_data::BodyType component_type, const entity_info& info);
+    void transform(drone_id id, glm::mat4& transform);
   }
 }

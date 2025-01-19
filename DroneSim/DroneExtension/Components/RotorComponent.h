@@ -11,6 +11,8 @@ namespace lark::rotor {
             void initialize();
             void calculate_forces(float deltaTime);
             void set_rpm(float target_rpm);
+
+
             [[nodiscard]] float get_thrust() const;
             [[nodiscard]] float get_power_consumption() const;
     };

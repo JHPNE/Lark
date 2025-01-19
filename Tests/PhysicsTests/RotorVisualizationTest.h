@@ -63,6 +63,10 @@ public:
         }
     }
 
+    void clearTrajectory() {
+        m_trajectoryPoints.clear();
+    }
+
     ~RotorVisualizationTest() {
         cleanup();
     }
@@ -78,6 +82,7 @@ private:
     btRigidBody* m_rotorBody{nullptr};
     btRigidBody* m_groundBody{nullptr};
     util::vector<rotor::drone_component> m_rotorComponent;
+    std::vector<glm::vec3> m_trajectoryPoints;  // Store points for trajectory visualization
     float m_timeSinceLastLog{0.0f};
 
     bool shouldContinue(float testTime) {
@@ -128,16 +133,58 @@ private:
     void renderFrame() {
         if (!m_renderer) return;
 
+        m_renderer->clear();
+
         btTransform trans;
         m_rotorBody->getMotionState()->getWorldTransform(trans);
 
-        m_renderer->setObjectTransform(bulletToGlm(trans));
+        // Set camera to follow rotor
         m_renderer->setCameraTarget(glm::vec3(
             trans.getOrigin().getX(),
             trans.getOrigin().getY(),
             trans.getOrigin().getZ()
         ));
+
+        // Convert bullet transform to GLM properly
+        glm::mat4 transform(1.0f);
+        // Get rotation
+        const btMatrix3x3& basis = trans.getBasis();
+        for(int row = 0; row < 3; row++) {
+            for(int col = 0; col < 3; col++) {
+                transform[col][row] = basis[row][col];
+            }
+        }
+        // Get translation
+        const btVector3& origin = trans.getOrigin();
+        transform[3][0] = origin.getX();
+        transform[3][1] = origin.getY();
+        transform[3][2] = origin.getZ();
+
+        // Add rotor visualization with proper scale
+        m_renderer->addObject(transform, glm::vec3(0.7f, 0.2f, 0.2f), glm::vec3(0.4f, 0.05f, 0.4f));
+
+        // Add a small center indicator for the rotation axis
+        glm::mat4 centerTransform = transform;
+        // Keep the translation but scale around the center
+        centerTransform = glm::translate(glm::mat4(1.0f), glm::vec3(transform[3])) *
+                         glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));
+        m_renderer->addObject(centerTransform, glm::vec3(1.0f, 1.0f, 1.0f));
+
+        // Add trajectory visualization
+        if (!m_trajectoryPoints.empty()) {
+            for (const auto& point : m_trajectoryPoints) {
+                glm::mat4 pointTransform = glm::translate(glm::mat4(1.0f), point);
+                pointTransform = glm::scale(pointTransform, glm::vec3(0.05f));
+                m_renderer->addObject(pointTransform, glm::vec3(0.2f, 0.7f, 0.2f));
+            }
+        }
+
         m_renderer->render();
+
+        // Store trajectory points
+        if (m_trajectoryPoints.size() < 100) {
+            m_trajectoryPoints.push_back(glm::vec3(transform[3]));
+        }
     }
 
     void initializePhysics() {
@@ -176,13 +223,13 @@ private:
         rotor::init_info rotorInfo;
 
         // Configure rotor parameters
-        rotorInfo.bladeRadius = 0.2;     // 12.7 cm propelle d
-        rotorInfo.bladePitch = 0.2f;        // ~11.5 degrees
-        rotorInfo.bladeCount = 3;           // Dual-blade propeller
-        rotorInfo.liftCoefficient = 0.12f;  // Typical value
-        rotorInfo.mass = 0.5f;             // 250g
+        rotorInfo.bladeRadius = 0.2;     // 12.7 cm propeller
+        rotorInfo.bladePitch = 0.2f;     // ~11.5 degrees
+        rotorInfo.bladeCount = 3;        // Three-blade propeller
+        rotorInfo.mass = 0.5f;           // 500g
         rotorInfo.rotorNormal = btVector3(0, 1, 0);
-        rotorInfo.transform = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0.5f, 0));
+        // Set initial height to 1.0 unit above ground
+        rotorInfo.transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
         createRotorBody(rotorInfo);
         rotorInfo.rigidBody = m_rotorBody;

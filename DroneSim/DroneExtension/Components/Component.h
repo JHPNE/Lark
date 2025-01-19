@@ -93,6 +93,41 @@ namespace lark::drone_components {
       }
     }
 
+    void set_transform(ComponentId id, const glm::mat4& new_transform) {
+      if (!exists(id)) return;
+      elements[id_mapping[id::index(id)]].transform = new_transform;
+
+      // Update physics body if it exists
+      auto* body = &elements[id_mapping[id::index(id)]];
+      if (body->rigidBody) {
+        btTransform bt_transform;
+        btMatrix3x3 basis;
+        btVector3 origin;
+
+        basis.setValue(
+            float(new_transform[0][0]), float(new_transform[0][1]), float(new_transform[0][2]),
+            float(new_transform[1][0]), float(new_transform[1][1]), float(new_transform[1][2]),
+            float(new_transform[2][0]), float(new_transform[2][1]), float(new_transform[2][2])
+        );
+
+        origin.setValue(
+            float(new_transform[3][0]),
+            float(new_transform[3][1]),
+            float(new_transform[3][2])
+        );
+
+        bt_transform.setBasis(basis);
+        bt_transform.setOrigin(origin);
+
+        body->rigidBody->setWorldTransform(bt_transform);
+        body->rigidBody->activate(true);
+      }
+    }
+
+    [[nodiscard]] glm::mat4 get_transform(ComponentId id) const {
+      return exists(id) ? elements[id_mapping[id::index(id)]].transform : glm::mat4(1.0f);
+    }
+
     // Access to component data
     [[nodiscard]] Data* get_data(ComponentId id) {
       return exists(id) ? &elements[id_mapping[id::index(id)]] : nullptr;

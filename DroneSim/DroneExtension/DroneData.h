@@ -70,10 +70,7 @@ namespace lark::drone_data {
     float bladeRadius = 0.f;
     float bladePitch = 0.f;
     unsigned int bladeCount = 1;
-    // TODO: Move to Environment
-    float airDensity = 0.f;
     float discArea = 1.f;
-    float liftCoefficient = 0.f;
     float currentRPM = 0.f;
     // TODO: Visually set origin as rotation achses maybe offer user the ability to do ithimself
     btVector3 rotorNormal{0, 0, 0};

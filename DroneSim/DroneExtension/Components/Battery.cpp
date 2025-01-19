@@ -13,4 +13,12 @@ namespace lark::battery {
   void remove(drone_component c) {
     pool.remove(c.get_id());
   }
+
+  glm::mat4 get_transform(drone_component c) {
+    return pool.get_transform(c.get_id());
+  }
+
+  void update_transform(drone_component c, glm::mat4& transform) {
+    pool.set_transform(c.get_id(), transform);
+  }
 }

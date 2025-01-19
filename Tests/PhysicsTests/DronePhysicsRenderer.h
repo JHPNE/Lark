@@ -10,6 +10,12 @@
 
 namespace lark::physics::visualization {
 
+struct RenderObject {
+    glm::mat4 transform;
+    glm::vec3 color;
+    glm::vec3 scale{1.0f};
+};
+
 class DronePhysicsRenderer {
 public:
     DronePhysicsRenderer(int width = 1280, int height = 720) 
@@ -25,6 +31,14 @@ public:
 
     bool shouldClose() const {
         return glfwWindowShouldClose(m_window);
+    }
+
+    void clear() {
+        m_renderObjects.clear();
+    }
+
+    void addObject(const glm::mat4& transform, const glm::vec3& color, const glm::vec3& scale = glm::vec3(1.0f)) {
+        m_renderObjects.push_back({transform, color, scale});
     }
 
     void render() {
@@ -57,18 +71,17 @@ public:
         glUniform3f(m_colorLoc, 0.2f, 0.2f, 0.2f);  // Gray color for ground
         drawCube();
 
-        // Draw test cube (will be replaced with drone components)
-        glm::mat4 cubeModel = m_objectTransform; // Use object transform
-        glUniformMatrix4fv(m_modelLoc, 1, GL_FALSE, glm::value_ptr(cubeModel));
-        glUniform3f(m_colorLoc, 0.7f, 0.2f, 0.2f);  // Red color for cube
-        drawCube();
+        // Draw all objects
+        for (const auto& obj : m_renderObjects) {
+            glm::mat4 model = obj.transform;
+            model = glm::scale(model, obj.scale);
+            glUniformMatrix4fv(m_modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+            glUniform3f(m_colorLoc, obj.color.r, obj.color.g, obj.color.b);
+            drawCube();
+        }
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
-    }
-
-    void setObjectTransform(const glm::mat4& transform) {
-        m_objectTransform = transform;
     }
 
     void setCameraTarget(const glm::vec3& target) {
@@ -87,7 +100,7 @@ private:
     GLint m_projLoc;
     GLint m_colorLoc;
 
-    glm::mat4 m_objectTransform = glm::mat4(1.0f);
+    std::vector<RenderObject> m_renderObjects;
     glm::vec3 m_cameraTarget = glm::vec3(0.f);
 
     void initializeOpenGL() {

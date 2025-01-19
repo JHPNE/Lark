@@ -145,6 +145,42 @@ namespace lark::drone_entity {
     return success;
   }
 
+  void transform(drone_id id, glm::mat4& new_transform) {
+    assert(is_alive(id));
+    const id::id_type index{ id::index(id) };
+
+    // Fuselage as pivot reference
+    const auto& fuselage = fuselages[index];
+    if (!fuselage.is_valid()) return;
+
+    // Calculate the transformation delta from original to new transform
+    // This represents how much we need to move/rotate from current to desired state
+    glm::mat4 original_transform = get_transform(fuselage);
+    glm::mat4 delta_transform = new_transform * glm::inverse(original_transform);
+
+    // First update the fuselage
+    update_transform(fuselage, new_transform);
+
+    // Update all comps
+    for (auto& rotor : rotors[index]) {
+      if (rotor.is_valid()) {
+        glm::mat4 rotor_transform = get_transform(rotor);
+
+        glm::mat4 new_rotor_transform = delta_transform * rotor_transform;
+        update_transform(rotor, new_rotor_transform);
+      }
+    }
+
+    for (auto& battery : batteries[index]) {
+      if (battery.is_valid()) {
+        glm::mat4 battery_transform = get_transform(battery);
+        // Apply the same transformation relative to the pivot
+        glm::mat4 new_battery_transform = delta_transform * battery_transform;
+        update_transform(battery, new_battery_transform);
+      }
+    }
+  }
+
   fuselage::drone_component entity::fuselage() const {
     assert(is_alive(_id));
     const id::id_type index{ id::index(_id) };
