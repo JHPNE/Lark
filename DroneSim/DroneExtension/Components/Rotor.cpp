@@ -84,11 +84,13 @@ namespace lark::rotor {
             const float omega = data->currentRPM * RPM_TO_RAD;
             if (omega <= 0.0f) return 0.0f;
 
-            // Get forward velocity
+            // Get forward velocity & height
             float forward_velocity = 0.0f;
+            float altitude = 0.0f;
             if (data->rigidBody) {
                 btVector3 velocity = data->rigidBody->getLinearVelocity();
                 forward_velocity = velocity.length();
+                altitude = data->rigidBody->getWorldTransform().getOrigin().getY();
             }
 
             // Blade element method for thrust calculation
@@ -111,7 +113,36 @@ namespace lark::rotor {
                 total_thrust += 0.5f * conditions.density * resultant_velocity * resultant_velocity * blade_chord * cl * dr;
             }
 
-            return total_thrust * data->bladeCount;
+            total_thrust *= data->bladeCount;
+
+            // Ground Effect
+            float rotor_diameter = 2.0f * data->bladeRadius;
+            float normalized_height = altitude / rotor_diameter;
+
+            if (normalized_height < 2.0f) {
+                // Cheeseman Benett model for ground effect
+                // IGE_THRUST = OGE_Thrust * (1 / (1 - (R/4h)²))
+                float ground_effect_factor = 1.0f;
+                if (normalized_height > 0.1f) {
+                    ground_effect_factor = 1.0f/ (1.0f - std::pow(1.0f / (4.0f * normalized_height), 2));
+                    ground_effect_factor = std::min(ground_effect_factor, 1.4f);
+                }
+
+                // Smooth transition for very low heights
+                if (normalized_height < 0.1f) {
+                    ground_effect_factor = 1.4f * (normalized_height / 0.1f);
+                }
+
+                total_thrust *= ground_effect_factor;
+
+                // Circulation effects
+                if (normalized_height < 0.3f) {
+                    float recirculation_factor = 1.0f - (normalized_height / 0.3f) * 0.1f;
+                    total_thrust *= recirculation_factor;
+                }
+            }
+
+            return total_thrust;
         }
 
         float calculate_power(const rotor_data* data, float thrust, const AtmosphericConditions& conditions) {

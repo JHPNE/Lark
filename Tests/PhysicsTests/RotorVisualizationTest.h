@@ -18,6 +18,7 @@ struct RotorTestConfig {
     float simulation_speed{10.0f};
     float target_rpm{5000.0f};
     float test_duration{6000.0f};
+    bool ground_effect{false};
 };
 
 class RotorVisualizationTest {
@@ -30,6 +31,10 @@ public:
     }
 
     void run() {
+        if (m_config.ground_effect) {
+            runGroundEffectTest();
+            return;
+        }
         const float base_timestep = 1.0f / 60.0f;
         const float simulation_timestep = base_timestep * m_config.simulation_speed;
         auto lastTime = std::chrono::high_resolution_clock::now();
@@ -102,6 +107,41 @@ private:
                   << std::endl;
     }
 
+    void runGroundEffectTest() {
+        float height = 3.0f;  // Start at 3 rotor diameters
+        const float min_height = 0.1f;
+        float descent_rate = 0.1f;
+
+        m_rotorComponent[0].set_rpm(m_config.target_rpm);
+
+        while (height > min_height && shouldContinue(0.0f)) {
+            // Update height
+            btTransform trans;
+            trans.setIdentity();
+            trans.setOrigin(btVector3(0.0f, height, 0.0f));
+            m_rotorBody->getMotionState()->setWorldTransform(trans);
+            m_rotorBody->setWorldTransform(trans);
+
+            // Run simulation step
+            updatePhysics(1.0f/60.0f);
+
+            // Log data
+            float thrust = m_rotorComponent[0].get_thrust();
+            float power = m_rotorComponent[0].get_power_consumption();
+            std::cout << "Height: " << height << "m, "
+                      << "Thrust: " << thrust << "N, "
+                      << "Power: " << power << "W, "
+                      << "Efficiency: " << thrust/power << "N/W" << std::endl;
+
+            if (m_config.visual_mode && m_renderer) {
+                renderFrame();
+                std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            }
+
+            height -= descent_rate * (1.0f/60.0f);
+        }
+    }
+
     void logState(float testTime) {
         btTransform trans;
         m_rotorBody->getMotionState()->getWorldTransform(trans);
@@ -172,7 +212,10 @@ private:
 
         // Add trajectory visualization
         if (!m_trajectoryPoints.empty()) {
+            int i = 0;
             for (const auto& point : m_trajectoryPoints) {
+                i++;
+                if ((i % 20) != 0) continue;
                 glm::mat4 pointTransform = glm::translate(glm::mat4(1.0f), point);
                 pointTransform = glm::scale(pointTransform, glm::vec3(0.05f));
                 m_renderer->addObject(pointTransform, glm::vec3(0.2f, 0.7f, 0.2f));
@@ -182,9 +225,7 @@ private:
         m_renderer->render();
 
         // Store trajectory points
-        if (m_trajectoryPoints.size() < 100) {
-            m_trajectoryPoints.push_back(glm::vec3(transform[3]));
-        }
+        m_trajectoryPoints.push_back(glm::vec3(transform[3]));
     }
 
     void initializePhysics() {

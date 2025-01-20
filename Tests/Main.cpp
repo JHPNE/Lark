@@ -13,21 +13,22 @@ int main() {
   printf("Physics Tests \n");
   try {
 
-    /*
     physics::RotorTestConfig config;
     config.visual_mode = true;
     config.simulation_speed = 9.0f;
+    config.ground_effect = true;
 
     lark::physics::RotorVisualizationTest rotorVisTest(config);
     rotorVisTest.run();
-    */
 
+    /*
     physics::TransformTestConfig config;
     config.visual_mode = true;
     config.test_duration = 60.0f;
 
     physics::TransformationTest transformation_test(config);
     transformation_test.run();
+    */
 
   }
   catch (const std::exception& e) {
