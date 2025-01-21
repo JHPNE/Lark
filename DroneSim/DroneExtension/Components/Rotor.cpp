@@ -1,7 +1,23 @@
 #include "Rotor.h"
 #include <algorithm>
 #include <cmath>
-
+/*
+ TODO
+- Prop wash effects between rotors
+- Interference when rotors are close
+- Wake interactions in forward flight
+- Dynamic inflow model
+- Blade flapping dynamics
+- Tip vortex effects
+- More detailed blade aerodynamics (currently using simplified lift coefficient)
+- Image method for ground effect
+- Wall effect modeling
+- Enhanced recirculation modeling near obstacles
+- Motor torque-speed curves
+- Electrical power modeling
+- Temperature effects on motor performance
+- Motor inertia effects
+ */
 namespace lark::rotor {
     namespace {
         // Basic Constants
