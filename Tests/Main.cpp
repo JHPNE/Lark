@@ -16,7 +16,7 @@ int main() {
     physics::RotorTestConfig config;
     config.visual_mode = true;
     config.simulation_speed = 9.0f;
-    config.ground_effect = true;
+    config.ground_effect = false;
 
     lark::physics::RotorVisualizationTest rotorVisTest(config);
     rotorVisTest.run();
@@ -29,7 +29,6 @@ int main() {
     physics::TransformationTest transformation_test(config);
     transformation_test.run();
     */
-
   }
   catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;

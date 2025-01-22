@@ -135,5 +135,9 @@ namespace lark::drone_components {
     [[nodiscard]] const Data* get_data(ComponentId id) const {
       return exists(id) ? &elements[id_mapping[id::index(id)]] : nullptr;
     }
+
+    [[nodiscard]] const util::vector<Data>& get_all_components() const {
+      return elements;
+    }
   };
 }

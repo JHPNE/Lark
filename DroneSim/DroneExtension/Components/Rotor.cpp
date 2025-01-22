@@ -3,9 +3,6 @@
 #include <cmath>
 /*
  TODO
-- Prop wash effects between rotors
-- Interference when rotors are close
-- Wake interactions in forward flight
 - Dynamic inflow model
 - Blade flapping dynamics
 - Tip vortex effects
@@ -47,6 +44,53 @@ namespace lark::rotor {
             float mach_factor;  // dimensionless
             float speed_of_sound; // m/s
         };
+
+        struct PropWashField {
+            btVector3 velocity;
+            btVector3 vorticity;
+            float intensity;
+        };
+
+        PropWashField calculate_prop_wash(const rotor_data* data, const AtmosphericConditions& conditions, float thrust) {
+            PropWashField wash{};
+            if (!data || !data->is_valid || !data->rigidBody) return wash;
+
+            const float omega = data->currentRPM * RPM_TO_RAD;
+            if (omega <= 0.0f) return wash;
+
+            const float induced_velocity = std::sqrt(thrust / (2.0f * conditions.density * data->discArea));
+
+            const btTransform& rotor_transform = data->rigidBody->getWorldTransform();
+            const btVector3& position = rotor_transform.getOrigin();
+
+            constexpr float wake_expansion_rate = 0.15f;
+            const float wake_radius = data->bladeRadius * (1.0f + wake_expansion_rate);
+
+            const float circulation = thrust / (conditions.density * omega * data->bladeRadius * data->bladeCount);
+            const float tip_vortex_strength = circulation * 0.8f;
+
+            wash.velocity = data->rotorNormal * induced_velocity;
+            wash.vorticity = data->rotorNormal * (tip_vortex_strength / (2.0f * PI * wake_radius));
+            wash.intensity = thrust / (conditions.density * data->discArea * std::pow(induced_velocity, 2));
+
+            return wash;
+        }
+
+        float calculate_prop_wash_influence(const PropWashField& wash, const btVector3& wash_origin, const btVector3& affected_point, float rotor_radius) {
+            btVector3 displacement = affected_point - wash_origin;
+            float vertical_distance = displacement.dot(wash.velocity.normalized());
+
+            if (vertical_distance < 0) return 0.0f;
+
+            float radial_distance = (displacement - displacement.dot(wash.velocity.normalized()) * wash.velocity.normalized()).length();
+
+            float wake_radius = rotor_radius * (1.0f + 0.15f * vertical_distance / rotor_radius);
+
+            float radial_factor = std::exp(-std::pow(radial_distance / wake_radius, 2));
+
+            float vertical_factor = std::exp(-vertical_distance / (3.0f * rotor_radius));
+            return wash.intensity * radial_factor * vertical_factor;
+        }
 
         AtmosphericConditions calculate_atmospheric_conditions(float altitude, float velocity) {
             AtmosphericConditions conditions{};
@@ -188,6 +232,38 @@ namespace lark::rotor {
         float velocity = data->rigidBody ? data->rigidBody->getLinearVelocity().length() : 0.0f;
         AtmosphericConditions conditions = calculate_atmospheric_conditions(altitude, velocity);
         float thrust = calculate_thrust(data, conditions);
+        PropWashField wash = calculate_prop_wash(data, conditions, thrust);
+
+        if (data->rigidBody) {
+            btVector3 total_wash_velocity(0,0,0);
+            btVector3 total_wash_vorticity(0,0,0);
+
+            const auto& all_rotors = pool.get_all_components();
+            for (const auto& other_rotor : all_rotors) {
+                if (other_rotor.drone_id == get_id()) continue;
+
+                const auto* other_data = pool.get_data(other_rotor.drone_id);
+                if (!other_data || !other_data->is_valid) continue;
+
+                PropWashField other_wash = calculate_prop_wash(other_data, conditions,
+                    calculate_thrust(other_data, conditions));
+
+                float influence = calculate_prop_wash_influence(other_wash,
+                    other_data->rigidBody->getWorldTransform().getOrigin(),
+                    data->rigidBody->getWorldTransform().getOrigin(),
+                    other_data->bladeRadius);
+
+                total_wash_velocity += other_wash.velocity * influence;
+                total_wash_vorticity += other_wash.vorticity * influence;
+            }
+
+            // Apply accumulated prop wash effects
+            btVector3 wash_force = total_wash_velocity * data->mass * 0.5f;
+            btVector3 wash_torque = total_wash_vorticity * data->mass * data->bladeRadius * 0.3f;
+
+            data->rigidBody->applyCentralForce(wash_force);
+            data->rigidBody->applyTorque(wash_torque);
+        }
 
         data->powerConsumption = calculate_power(data, thrust, conditions);
 
