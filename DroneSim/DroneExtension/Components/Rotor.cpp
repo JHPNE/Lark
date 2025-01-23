@@ -10,6 +10,7 @@
 - Image method for ground effect
 - Wall effect modeling
 - Enhanced recirculation modeling near obstacles
+
 - Motor torque-speed curves
 - Electrical power modeling
 - Temperature effects on motor performance
@@ -22,37 +23,42 @@ namespace lark::rotor {
         constexpr float RAD_TO_RPM = 60.0f / (2.0f * PI);
         constexpr float RPM_TO_RAD = (2.0f * PI) / 60.0f;
 
-        // ISA Model Constants
-        constexpr float ISA_SEA_LEVEL_PRESSURE = 101325.0f;    // Pa
-        constexpr float ISA_SEA_LEVEL_TEMPERATURE = 288.15f;   // K (15°C)
-        constexpr float ISA_SEA_LEVEL_DENSITY = 1.225f;        // kg/m³
-        constexpr float ISA_LAPSE_RATE = -0.0065f;             // K/m (up to troposphere)
-        constexpr float ISA_GAS_CONSTANT = 287.05f;            // J/(kg·K)
-        constexpr float ISA_GRAVITY = 9.80665f;                // m/s²
-        constexpr float ISA_TROPOPAUSE_ALTITUDE = 11000.0f;    // m
-        constexpr float ISA_TROPOPAUSE_TEMPERATURE = 216.65f;  // K
-        constexpr float ISA_GAMMA = 1.4f;                      // Ratio of specific heats for air
-
         using rotor_data = drone_components::component_data<drone_data::RotorBody>;
         drone_components::component_pool<rotor_id, rotor_data> pool;
 
-        struct AtmosphericConditions {
-            float density;      // kg/m³
-            float temperature;  // K
-            float pressure;     // Pa
-            float viscosity;    // kg/(m·s)
-            float mach_factor;  // dimensionless
-            float speed_of_sound; // m/s
-        };
 
-        struct PropWashField {
-            btVector3 velocity;
-            btVector3 vorticity;
-            float intensity;
-        };
+        models::TurbulenceState calculate_turbulence(const rotor_data* data, const models::AtmosphericConditions& conditions, float delta_time) {
+            if (!data || !data->rigidBody || !data->rigidBody) return models::TurbulenceState{};
 
-        PropWashField calculate_prop_wash(const rotor_data* data, const AtmosphericConditions& conditions, float thrust) {
-            PropWashField wash{};
+            float velocity = data->rigidBody->getLinearVelocity().length();
+            float altitude = data->rigidBody->getWorldTransform().getOrigin().getY();
+
+            return models::calculate_turbulence(altitude, velocity, conditions, delta_time);
+        }
+
+        void apply_turbulence(rotor_data* data, const models::TurbulenceState& turbulence) {
+            if (!data || !data->is_valid || !data->rigidBody) return;
+
+            btVector3 turbulent_force = btVector3(
+                turbulence.velocity.x(),
+                turbulence.velocity.y(),
+                turbulence.velocity.z()
+            ) * data->mass * turbulence.intensity;
+
+            btVector3 turbulent_torque = btVector3(
+                turbulence.angular_velocity.x(),
+                turbulence.angular_velocity.y(),
+                turbulence.angular_velocity.z()
+            ) * data->mass * data->bladeRadius * turbulence.intensity;
+
+            //float rpm_factor = data->currentRPM / 1000.0f
+
+            data->rigidBody->applyCentralForce(turbulent_force);
+            data->rigidBody->applyTorque(turbulent_torque);
+        }
+
+        models::PropWashField calculate_prop_wash(const rotor_data* data, const models::AtmosphericConditions& conditions, float thrust) {
+            models::PropWashField wash{};
             if (!data || !data->is_valid || !data->rigidBody) return wash;
 
             const float omega = data->currentRPM * RPM_TO_RAD;
@@ -76,7 +82,7 @@ namespace lark::rotor {
             return wash;
         }
 
-        float calculate_prop_wash_influence(const PropWashField& wash, const btVector3& wash_origin, const btVector3& affected_point, float rotor_radius) {
+        float calculate_prop_wash_influence(const models::PropWashField& wash, const btVector3& wash_origin, const btVector3& affected_point, float rotor_radius) {
             btVector3 displacement = affected_point - wash_origin;
             float vertical_distance = displacement.dot(wash.velocity.normalized());
 
@@ -92,53 +98,8 @@ namespace lark::rotor {
             return wash.intensity * radial_factor * vertical_factor;
         }
 
-        AtmosphericConditions calculate_atmospheric_conditions(float altitude, float velocity) {
-            AtmosphericConditions conditions{};
 
-            // Ensure non-negative altitude
-            altitude = std::max(0.0f, altitude);
-
-            // Temperature calculation based on ISA model
-            if (altitude <= ISA_TROPOPAUSE_ALTITUDE) {
-                conditions.temperature = ISA_SEA_LEVEL_TEMPERATURE + ISA_LAPSE_RATE * altitude;
-            } else {
-                conditions.temperature = ISA_TROPOPAUSE_TEMPERATURE;
-            }
-
-            // Pressure calculation
-            if (altitude <= ISA_TROPOPAUSE_ALTITUDE) {
-                float exponent = -ISA_GRAVITY / (ISA_GAS_CONSTANT * ISA_LAPSE_RATE);
-                conditions.pressure = ISA_SEA_LEVEL_PRESSURE *
-                    std::pow(conditions.temperature / ISA_SEA_LEVEL_TEMPERATURE, exponent);
-            } else {
-                float base_pressure = ISA_SEA_LEVEL_PRESSURE *
-                    std::pow(ISA_TROPOPAUSE_TEMPERATURE / ISA_SEA_LEVEL_TEMPERATURE,
-                            -ISA_GRAVITY / (ISA_GAS_CONSTANT * ISA_LAPSE_RATE));
-                float exponent = -ISA_GRAVITY * (altitude - ISA_TROPOPAUSE_ALTITUDE) /
-                                (ISA_GAS_CONSTANT * ISA_TROPOPAUSE_TEMPERATURE);
-                conditions.pressure = base_pressure * std::exp(exponent);
-            }
-
-            // Density from ideal gas law
-            conditions.density = conditions.pressure / (ISA_GAS_CONSTANT * conditions.temperature);
-
-            // Dynamic viscosity using Sutherland's law
-            constexpr float SUTHERLAND_TEMP = 273.15f;
-            constexpr float SUTHERLAND_C = 120.0f;
-            constexpr float SUTHERLAND_REF_VISC = 1.716e-5f;
-
-            conditions.viscosity = SUTHERLAND_REF_VISC *
-                std::pow(conditions.temperature / SUTHERLAND_TEMP, 1.5f) *
-                ((SUTHERLAND_TEMP + SUTHERLAND_C) / (conditions.temperature + SUTHERLAND_C));
-
-            // Speed of sound and Mach number
-            conditions.speed_of_sound = std::sqrt(ISA_GAMMA * ISA_GAS_CONSTANT * conditions.temperature);
-            conditions.mach_factor = velocity / conditions.speed_of_sound;
-
-            return conditions;
-        }
-
-        float calculate_thrust(const rotor_data* data, const AtmosphericConditions& conditions) {
+        float calculate_thrust(const rotor_data* data, const models::AtmosphericConditions& conditions) {
             if (!data || !data->is_valid) return 0.0f;
 
             const float omega = data->currentRPM * RPM_TO_RAD;
@@ -205,7 +166,7 @@ namespace lark::rotor {
             return total_thrust;
         }
 
-        float calculate_power(const rotor_data* data, float thrust, const AtmosphericConditions& conditions) {
+        float calculate_power(const rotor_data* data, float thrust, const models::AtmosphericConditions& conditions) {
             if (!data || !data->is_valid) return 0.0f;
 
             const float omega = data->currentRPM * RPM_TO_RAD;
@@ -230,9 +191,12 @@ namespace lark::rotor {
 
         float altitude = data->rigidBody->getWorldTransform().getOrigin().getY();
         float velocity = data->rigidBody ? data->rigidBody->getLinearVelocity().length() : 0.0f;
-        AtmosphericConditions conditions = calculate_atmospheric_conditions(altitude, velocity);
+        models::AtmosphericConditions conditions = models::calculate_atmospheric_conditions(altitude, velocity);
+
+        models::TurbulenceState turbulence = calculate_turbulence(data, conditions, deltaTime);
+        apply_turbulence(data, turbulence);
+
         float thrust = calculate_thrust(data, conditions);
-        PropWashField wash = calculate_prop_wash(data, conditions, thrust);
 
         if (data->rigidBody) {
             btVector3 total_wash_velocity(0,0,0);
@@ -245,8 +209,8 @@ namespace lark::rotor {
                 const auto* other_data = pool.get_data(other_rotor.drone_id);
                 if (!other_data || !other_data->is_valid) continue;
 
-                PropWashField other_wash = calculate_prop_wash(other_data, conditions,
-                    calculate_thrust(other_data, conditions));
+                models::PropWashField other_wash = calculate_prop_wash(other_data, conditions,
+                                                                       calculate_thrust(other_data, conditions));
 
                 float influence = calculate_prop_wash_influence(other_wash,
                     other_data->rigidBody->getWorldTransform().getOrigin(),
@@ -318,7 +282,7 @@ namespace lark::rotor {
 
         float altitude = glm::vec3(data->transform[3]).y;
         float velocity = data->rigidBody ? data->rigidBody->getLinearVelocity().length() : 0.0f;
-        AtmosphericConditions conditions = calculate_atmospheric_conditions(altitude, velocity);
+        models::AtmosphericConditions conditions = models::calculate_atmospheric_conditions(altitude, velocity);
 
         return calculate_thrust(data, conditions);
     }

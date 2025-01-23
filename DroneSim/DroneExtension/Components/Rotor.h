@@ -1,5 +1,8 @@
 #pragma once
 #include "Component.h"
+#include "Models/ISA.h"
+#include "Models/Turbulence.h"
+#include "Models/PropWash.h"
 
 namespace lark::rotor {
   struct init_info : drone_data::RotorBody{};

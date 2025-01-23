@@ -14,8 +14,8 @@ int main() {
   try {
 
     physics::RotorTestConfig config;
-    config.visual_mode = true;
-    config.simulation_speed = 9.0f;
+    config.visual_mode = false;
+    config.simulation_speed = 10.0f;
     config.ground_effect = false;
 
     lark::physics::RotorVisualizationTest rotorVisTest(config);
