@@ -2,8 +2,6 @@
 
 namespace lark::models {
     namespace {
-        constexpr float PI = glm::pi<float>();
-
         float calculate_von_karman_spectrum(float frequency, float airspeed, float length_scale, float turbulence_intensity = TURBULENCE_BASE_INTENSITY) {
             const float omega = 2.0f * PI * frequency / airspeed;
             const float sigma_u_squared = turbulence_intensity * turbulence_intensity;

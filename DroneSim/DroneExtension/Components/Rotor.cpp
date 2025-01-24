@@ -27,7 +27,7 @@ namespace lark::rotor {
         drone_components::component_pool<rotor_id, rotor_data> pool;
 
 
-        models::TurbulenceState calculate_turbulence(const rotor_data* data, const models::AtmosphericConditions& conditions, float delta_time) {
+        models::TurbulenceState get_turbulence(const rotor_data* data, const models::AtmosphericConditions& conditions, float delta_time) {
             if (!data || !data->rigidBody || !data->rigidBody) return models::TurbulenceState{};
 
             float velocity = data->rigidBody->getLinearVelocity().length();
@@ -57,45 +57,11 @@ namespace lark::rotor {
             data->rigidBody->applyTorque(turbulent_torque);
         }
 
-        models::PropWashField calculate_prop_wash(const rotor_data* data, const models::AtmosphericConditions& conditions, float thrust) {
-            models::PropWashField wash{};
-            if (!data || !data->is_valid || !data->rigidBody) return wash;
-
-            const float omega = data->currentRPM * RPM_TO_RAD;
-            if (omega <= 0.0f) return wash;
-
-            const float induced_velocity = std::sqrt(thrust / (2.0f * conditions.density * data->discArea));
-
-            const btTransform& rotor_transform = data->rigidBody->getWorldTransform();
-            const btVector3& position = rotor_transform.getOrigin();
-
-            constexpr float wake_expansion_rate = 0.15f;
-            const float wake_radius = data->bladeRadius * (1.0f + wake_expansion_rate);
-
-            const float circulation = thrust / (conditions.density * omega * data->bladeRadius * data->bladeCount);
-            const float tip_vortex_strength = circulation * 0.8f;
-
-            wash.velocity = data->rotorNormal * induced_velocity;
-            wash.vorticity = data->rotorNormal * (tip_vortex_strength / (2.0f * PI * wake_radius));
-            wash.intensity = thrust / (conditions.density * data->discArea * std::pow(induced_velocity, 2));
-
-            return wash;
-        }
-
-        float calculate_prop_wash_influence(const models::PropWashField& wash, const btVector3& wash_origin, const btVector3& affected_point, float rotor_radius) {
-            btVector3 displacement = affected_point - wash_origin;
-            float vertical_distance = displacement.dot(wash.velocity.normalized());
-
-            if (vertical_distance < 0) return 0.0f;
-
-            float radial_distance = (displacement - displacement.dot(wash.velocity.normalized()) * wash.velocity.normalized()).length();
-
-            float wake_radius = rotor_radius * (1.0f + 0.15f * vertical_distance / rotor_radius);
-
-            float radial_factor = std::exp(-std::pow(radial_distance / wake_radius, 2));
-
-            float vertical_factor = std::exp(-vertical_distance / (3.0f * rotor_radius));
-            return wash.intensity * radial_factor * vertical_factor;
+        models::PropWashField get_prop_wash(const rotor_data* data, const models::AtmosphericConditions& conditions, float thrust) {
+            models::PropWashField prop_wash {};
+            if (!data || !data->is_valid || !data->rigidBody) return prop_wash;
+            prop_wash = calculate_prop_wash(data->rotorNormal, data->currentRPM, data->discArea, data->bladeRadius, data->bladeCount, conditions, thrust);
+            return prop_wash;
         }
 
 
@@ -193,7 +159,7 @@ namespace lark::rotor {
         float velocity = data->rigidBody ? data->rigidBody->getLinearVelocity().length() : 0.0f;
         models::AtmosphericConditions conditions = models::calculate_atmospheric_conditions(altitude, velocity);
 
-        models::TurbulenceState turbulence = calculate_turbulence(data, conditions, deltaTime);
+        models::TurbulenceState turbulence = get_turbulence(data, conditions, deltaTime);
         apply_turbulence(data, turbulence);
 
         float thrust = calculate_thrust(data, conditions);
@@ -209,7 +175,7 @@ namespace lark::rotor {
                 const auto* other_data = pool.get_data(other_rotor.drone_id);
                 if (!other_data || !other_data->is_valid) continue;
 
-                models::PropWashField other_wash = calculate_prop_wash(other_data, conditions,
+                models::PropWashField other_wash = get_prop_wash(other_data, conditions,
                                                                        calculate_thrust(other_data, conditions));
 
                 float influence = calculate_prop_wash_influence(other_wash,

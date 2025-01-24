@@ -2,6 +2,11 @@
 #include <btBulletDynamicsCommon.h>
 
 namespace lark::models {
+    // Basic Constants
+    constexpr float PI = glm::pi<float>();
+    constexpr float RAD_TO_RPM = 60.0f / (2.0f * PI);
+    constexpr float RPM_TO_RAD = (2.0f * PI) / 60.0f;
+
     // ISA Model Constants
     constexpr float ISA_SEA_LEVEL_PRESSURE = 101325.0f;    // Pa
     constexpr float ISA_SEA_LEVEL_TEMPERATURE = 288.15f;   // K (15°C)
