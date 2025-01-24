@@ -169,6 +169,12 @@ FetchContent_Declare(
         GIT_TAG master  # You might want to pin to a specific commit/tag for stability
 )
 
+FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+FetchContent_MakeAvailable(googletest)
+
 # Make dependencies available
 FetchContent_MakeAvailable(glfw imgui tinyxml2 glm imguizmo)
 

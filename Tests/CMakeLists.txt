@@ -17,6 +17,9 @@ endif()
 # Create the executable target named Tests
 add_executable(Tests ${TEST_SOURCES})
 
+# Enable testing support
+enable_testing()
+
 # Include directories for Tests
 target_include_directories(Tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -43,6 +46,7 @@ target_link_libraries(Tests PRIVATE
         EngineDLL
         Python::Python
         pybind11::embed
+        gtest
 )
 
 # OpenMP configuration (if required)
@@ -123,3 +127,9 @@ endif()
 
 # Ensure dependencies are built before Tests
 add_dependencies(Tests EngineDLL DroneSim)
+
+# Include GoogleTest
+include(GoogleTest)
+
+# Discover and register tests
+gtest_discover_tests(Tests)
