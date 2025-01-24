@@ -1,28 +1,9 @@
 #include "Rotor.h"
 #include <algorithm>
 #include <cmath>
-/*
- TODO
-- Dynamic inflow model
-- Blade flapping dynamics
-- Tip vortex effects
-- More detailed blade aerodynamics (currently using simplified lift coefficient)
-- Image method for ground effect
-- Wall effect modeling
-- Enhanced recirculation modeling near obstacles
 
-- Motor torque-speed curves
-- Electrical power modeling
-- Temperature effects on motor performance
-- Motor inertia effects
- */
 namespace lark::rotor {
     namespace {
-        // Basic Constants
-        constexpr float PI = glm::pi<float>();
-        constexpr float RAD_TO_RPM = 60.0f / (2.0f * PI);
-        constexpr float RPM_TO_RAD = (2.0f * PI) / 60.0f;
-
         using rotor_data = drone_components::component_data<drone_data::RotorBody>;
         drone_components::component_pool<rotor_id, rotor_data> pool;
 
@@ -65,10 +46,12 @@ namespace lark::rotor {
         }
 
 
+
+
         float calculate_thrust(const rotor_data* data, const models::AtmosphericConditions& conditions) {
             if (!data || !data->is_valid) return 0.0f;
 
-            const float omega = data->currentRPM * RPM_TO_RAD;
+            const float omega = data->currentRPM * models::RPM_TO_RAD;
             if (omega <= 0.0f) return 0.0f;
 
             // Get forward velocity & height
@@ -94,7 +77,7 @@ namespace lark::rotor {
                 float tangential_velocity = omega * r;
                 float resultant_velocity = std::sqrt(tangential_velocity * tangential_velocity + forward_velocity * forward_velocity);
                 float aoa = local_pitch - std::atan2(forward_velocity, tangential_velocity);
-                constexpr float LIFT_SLOPE = 2.0f * PI;
+                constexpr float LIFT_SLOPE = 2.0f * models::PI;
                 float cl = std::clamp(LIFT_SLOPE * aoa, -1.5f, 1.5f);
 
                 total_thrust += 0.5f * conditions.density * resultant_velocity * resultant_velocity * blade_chord * cl * dr;
@@ -132,10 +115,43 @@ namespace lark::rotor {
             return total_thrust;
         }
 
+        void apply_wash(const rotor_data* data, const models::AtmosphericConditions& conditions) {
+             if (data->rigidBody) {
+                btVector3 total_wash_velocity(0,0,0);
+                btVector3 total_wash_vorticity(0,0,0);
+
+                const auto& all_rotors = pool.get_all_components();
+                for (const auto& other_rotor : all_rotors) {
+                    if (other_rotor.drone_id == data->drone_id) continue;
+
+                    const auto* other_data = pool.get_data(other_rotor.drone_id);
+                    if (!other_data || !other_data->is_valid) continue;
+
+                    models::PropWashField other_wash = get_prop_wash(other_data, conditions,
+                                                                           calculate_thrust(other_data, conditions));
+
+                    float influence = calculate_prop_wash_influence(other_wash,
+                        other_data->rigidBody->getWorldTransform().getOrigin(),
+                        data->rigidBody->getWorldTransform().getOrigin(),
+                        other_data->bladeRadius);
+
+                    total_wash_velocity += other_wash.velocity * influence;
+                    total_wash_vorticity += other_wash.vorticity * influence;
+                }
+
+                // Apply accumulated prop wash effects
+                btVector3 wash_force = total_wash_velocity * data->mass * 0.5f;
+                btVector3 wash_torque = total_wash_vorticity * data->mass * data->bladeRadius * 0.3f;
+
+                data->rigidBody->applyCentralForce(wash_force);
+                data->rigidBody->applyTorque(wash_torque);
+            }
+        }
+
         float calculate_power(const rotor_data* data, float thrust, const models::AtmosphericConditions& conditions) {
             if (!data || !data->is_valid) return 0.0f;
 
-            const float omega = data->currentRPM * RPM_TO_RAD;
+            const float omega = data->currentRPM * models::RPM_TO_RAD;
             if (omega <= 0.0f) return 0.0f;
 
             // Induced velocity
@@ -159,41 +175,92 @@ namespace lark::rotor {
         float velocity = data->rigidBody ? data->rigidBody->getLinearVelocity().length() : 0.0f;
         models::AtmosphericConditions conditions = models::calculate_atmospheric_conditions(altitude, velocity);
 
+        // Calculate blade flapping dynamics
+        data->blade_state = models::calculate_blade_state(
+            data->blade_properties,
+            data->currentRPM * models::RPM_TO_RAD,
+            velocity,
+            conditions.density,
+            data->bladePitch,  // collective pitch
+            0.0f,              // cyclic pitch (can be controlled separately)
+            0.0f,              // shaft tilt
+            deltaTime
+        );
+
+        // Calculate tip vortex effects
+        models::VortexParameters vortex_params;
+        vortex_params.blade_tip_speed = data->currentRPM * models::RPM_TO_RAD * data->bladeRadius;
+        vortex_params.blade_chord = 0.1f * data->bladeRadius;
+        vortex_params.effective_aoa = data->bladePitch;
+        vortex_params.blade_span = data->bladeRadius;
+        vortex_params.blade_count = data->bladeCount;
+
+        data->vortex_state = models::calculate_tip_vortex(
+            vortex_params,
+            conditions.density,
+            data->currentRPM * models::RPM_TO_RAD,
+            velocity,
+            data->rigidBody->getWorldTransform().getOrigin(),
+            data->rigidBody->getWorldTransform().getOrigin() + btVector3(0, -data->bladeRadius, 0),
+            deltaTime
+        );
+
+        // Calculate motor dynamics
+        data->motor_state = models::calculate_motor_state(
+            data->motor_parameters,
+            data->currentRPM,
+            data->powerConsumption / (data->currentRPM * models::RPM_TO_RAD), // estimate load torque
+            conditions.temperature,
+            deltaTime
+        );
+
+        // Calculate wall effects if near obstacles
+        const float wall_detection_radius = 2.0f * data->bladeRadius;
+        btVector3 rotor_pos = data->rigidBody->getWorldTransform().getOrigin();
+        btVector3 rotor_vel = data->rigidBody->getLinearVelocity();
+
+        // Simple wall detection using raycasts
+        btCollisionWorld::ClosestRayResultCallback ray_callback(
+            rotor_pos,
+            rotor_pos + btVector3(wall_detection_radius, 0, 0)
+        );
+
+        if (data->dynamics_world) {
+            data->dynamics_world->rayTest(rotor_pos,
+                rotor_pos + btVector3(wall_detection_radius, 0, 0),
+                ray_callback);
+
+            if (ray_callback.hasHit()) {
+                models::WallParameters wall_params;
+                wall_params.wall_normal = ray_callback.m_hitNormalWorld;
+                wall_params.wall_distance = ray_callback.m_closestHitFraction * wall_detection_radius;
+                wall_params.rotor_radius = data->bladeRadius;
+                wall_params.disk_loading = data->blade_state.disk_loading;
+                wall_params.thrust = calculate_thrust(data, conditions);
+
+                data->wall_state = models::calculate_wall_effect(
+                    wall_params,
+                    conditions.density,
+                    velocity,
+                    rotor_pos,
+                    rotor_vel,
+                    data->bladePitch
+                );
+
+                // Apply wall effect forces
+                data->rigidBody->applyCentralForce(data->wall_state.induced_force);
+                data->rigidBody->applyTorque(data->wall_state.induced_moment);
+            }
+        }
+
+        // Applies Turbulence
         models::TurbulenceState turbulence = get_turbulence(data, conditions, deltaTime);
         apply_turbulence(data, turbulence);
 
         float thrust = calculate_thrust(data, conditions);
 
-        if (data->rigidBody) {
-            btVector3 total_wash_velocity(0,0,0);
-            btVector3 total_wash_vorticity(0,0,0);
-
-            const auto& all_rotors = pool.get_all_components();
-            for (const auto& other_rotor : all_rotors) {
-                if (other_rotor.drone_id == get_id()) continue;
-
-                const auto* other_data = pool.get_data(other_rotor.drone_id);
-                if (!other_data || !other_data->is_valid) continue;
-
-                models::PropWashField other_wash = get_prop_wash(other_data, conditions,
-                                                                       calculate_thrust(other_data, conditions));
-
-                float influence = calculate_prop_wash_influence(other_wash,
-                    other_data->rigidBody->getWorldTransform().getOrigin(),
-                    data->rigidBody->getWorldTransform().getOrigin(),
-                    other_data->bladeRadius);
-
-                total_wash_velocity += other_wash.velocity * influence;
-                total_wash_vorticity += other_wash.vorticity * influence;
-            }
-
-            // Apply accumulated prop wash effects
-            btVector3 wash_force = total_wash_velocity * data->mass * 0.5f;
-            btVector3 wash_torque = total_wash_vorticity * data->mass * data->bladeRadius * 0.3f;
-
-            data->rigidBody->applyCentralForce(wash_force);
-            data->rigidBody->applyTorque(wash_torque);
-        }
+        // Applies Wash
+        apply_wash(data, conditions);
 
         data->powerConsumption = calculate_power(data, thrust, conditions);
 
@@ -230,7 +297,26 @@ namespace lark::rotor {
 
         data->currentRPM = 0.0f;
         data->powerConsumption = 0.0f;
-        data->discArea = PI * data->bladeRadius * data->bladeRadius;
+        data->discArea = models::PI * data->bladeRadius * data->bladeRadius;
+
+        // Initialize blade properties
+        data->blade_properties.mass = data->mass / data->bladeCount;
+        data->blade_properties.hinge_offset = 0.05f * data->bladeRadius;
+        data->blade_properties.lock_number = 5.0f;  // Typical value for small rotors
+        data->blade_properties.spring_constant = 1000.0f;
+        data->blade_properties.natural_frequency = std::sqrt(data->blade_properties.spring_constant /
+                                                           data->blade_properties.mass);
+        data->blade_properties.blade_grip = 0.95f * data->bladeRadius;
+
+        // Initialize motor parameters
+        data->motor_parameters.kv_rating = 1000.0f;  // Example KV rating
+        data->motor_parameters.resistance = 0.1f;     // Example resistance in ohms
+        data->motor_parameters.inductance = 0.0001f;  // Example inductance in H
+        data->motor_parameters.inertia = 0.0001f;    // Example rotor inertia
+        data->motor_parameters.thermal_resistance = 10.0f;  // Example thermal resistance
+        data->motor_parameters.thermal_capacity = 100.0f;   // Example thermal capacity
+        data->motor_parameters.voltage = 11.1f;       // Example 3S LiPo voltage
+        data->motor_parameters.max_current = 30.0f;   // Example max current
 
         if (data->bladeCount == 0) data->bladeCount = 2;
         if (data->bladePitch == 0.0f) data->bladePitch = 0.2f;
@@ -260,7 +346,7 @@ namespace lark::rotor {
     }
 
     drone_component create(init_info info, drone_entity::entity entity) {
-        info.discArea = PI * info.bladeRadius * info.bladeRadius;
+        info.discArea = models::PI * info.bladeRadius * info.bladeRadius;
         return drone_component{ pool.create(info, entity) };
     }
 

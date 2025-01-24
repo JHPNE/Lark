@@ -6,6 +6,11 @@
 #include <tuple>
 #include "../Common/Id.h"
 #include <glm/glm.hpp>
+#include "Components/Models/DynamicInflow.h"
+#include "Components/Models/BladeFlapping.h"
+#include "Components/Models/WallEffect.h"
+#include "Components/Models/TipVortex.h"
+#include "Components/Models/MotorModel.h"
 #include <btBulletDynamicsCommon.h>
 
 namespace lark::drone_data {
@@ -59,6 +64,7 @@ namespace lark::drone_data {
     glm::mat4 transform;
     btRigidBody* rigidBody = nullptr;
     ComponentShape shape;
+    btDynamicsWorld* dynamics_world{nullptr};
   };
 
   struct FuselageBody : Body {
@@ -74,6 +80,12 @@ namespace lark::drone_data {
     float currentRPM = 0.f;
     // TODO: Visually set origin as rotation achses maybe offer user the ability to do ithimself
     btVector3 rotorNormal{0, 0, 0};
+    models::BladeState blade_state;
+    models::VortexState vortex_state;
+    models::MotorState motor_state;
+    models::WallState wall_state;
+    models::BladeProperties blade_properties;
+    models::MotorParameters motor_parameters;
   };
 
   struct WingBody : Body {

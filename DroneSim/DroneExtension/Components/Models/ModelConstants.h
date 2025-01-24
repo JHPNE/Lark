@@ -1,5 +1,6 @@
 #pragma once
 #include <btBulletDynamicsCommon.h>
+#include <glm/ext/scalar_constants.hpp>
 
 namespace lark::models {
     // Basic Constants
