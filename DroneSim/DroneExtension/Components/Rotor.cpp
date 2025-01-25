@@ -68,7 +68,7 @@ namespace lark::rotor {
     }
 
     float drone_component::get_thrust() const {
-        const auto* data = pool.get_data(get_id());
+        auto* data = pool.get_data(get_id());
         if (!data || !data->is_valid) return 0.0f;
 
         float altitude = glm::vec3(data->transform[3]).y;

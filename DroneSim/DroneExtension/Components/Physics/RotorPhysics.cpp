@@ -2,7 +2,7 @@
 
 namespace lark::rotor::physics {
 
-    float calculate_thrust(const drone_data::RotorBody* data,
+    float calculate_thrust(drone_data::RotorBody* data,
                           const models::AtmosphericConditions& conditions) {
         if (!data || !data->rigidBody) return 0.0f;
 
@@ -33,32 +33,26 @@ namespace lark::rotor::physics {
                            blade_chord * cl * dr;
         }
 
-        total_thrust *= data->bladeCount;
+        float base_thrust = total_thrust * data->bladeCount;
 
-        // Apply ground effect
+        // Setup ground effect parameters
+        models::GroundEffectParams ge_params{};
+        ge_params.rotor_radius = data->bladeRadius;
+        ge_params.disk_loading = base_thrust / data->discArea;
+        ge_params.thrust_coefficient = base_thrust /
+            (0.5f * conditions.density * std::pow(omega * data->bladeRadius, 2) * data->discArea);
+        ge_params.collective_pitch = data->bladePitch;
+        ge_params.position = data->rigidBody->getWorldTransform().getOrigin();
+        ge_params.velocity = data->rigidBody->getLinearVelocity();
+
+        // Calculate ground effect
         float altitude = data->rigidBody->getWorldTransform().getOrigin().getY();
-        float rotor_diameter = 2.0f * data->bladeRadius;
-        float normalized_height = altitude / rotor_diameter;
+        models::GroundEffectState ge_state = models::calculate_ground_effect(ge_params, altitude, conditions);
 
-        if (normalized_height < 2.0f) {
-            float ground_effect_factor = 1.0f;
-            if (normalized_height > 0.1f) {
-                ground_effect_factor = 1.0f / (1.0f - std::pow(1.0f / (4.0f * normalized_height), 2));
-                ground_effect_factor = std::min(ground_effect_factor, 1.4f);
-            } else {
-                ground_effect_factor = 1.4f * (normalized_height / 0.1f);
-            }
+        // Store ground effect state for other calculations
+        data->ground_effect_state = ge_state;
 
-            total_thrust *= ground_effect_factor;
-
-            // Apply circulation effects near ground
-            if (normalized_height < 0.3f) {
-                float recirculation_factor = 1.0f - (normalized_height / 0.3f) * 0.1f;
-                total_thrust *= recirculation_factor;
-            }
-        }
-
-        return total_thrust;
+        return base_thrust * ge_state.thrust_multiplier;
     }
 
     float calculate_power(const drone_data::RotorBody* data, float thrust,
@@ -193,14 +187,15 @@ namespace lark::rotor::physics {
             turbulence.velocity.x(),
             turbulence.velocity.y(),
             turbulence.velocity.z()
-        ) * data->mass * turbulence.intensity;
+        ) * data->mass;
 
         btVector3 turbulent_torque = btVector3(
             turbulence.angular_velocity.x(),
             turbulence.angular_velocity.y(),
             turbulence.angular_velocity.z()
-        ) * data->mass * data->bladeRadius * turbulence.intensity;
+        ) * data->mass * data->bladeRadius;
 
+        // Apply forces with additional damping at high altitudes
         data->rigidBody->applyCentralForce(turbulent_force);
         data->rigidBody->applyTorque(turbulent_torque);
     }
@@ -214,7 +209,7 @@ namespace lark::rotor::physics {
         btVector3 total_wash_vorticity(0, 0, 0);
         btVector3 rotor_pos = data->rigidBody->getWorldTransform().getOrigin();
 
-        for (const auto* other_rotor : other_rotors) {
+        for (auto* other_rotor : other_rotors) {
             if (other_rotor == data) continue;
 
             float thrust = calculate_thrust(other_rotor, conditions);

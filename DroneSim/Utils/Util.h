@@ -28,6 +28,10 @@ namespace lark::util {
 	inline btVector3 glm_to_bt_vector3(glm::vec3 vec) {
 		return btVector3{vec.x, vec.y, vec.z};
 	}
+
+	inline glm::vec3 bt_to_glm_vec3(const btVector3& v) {
+		return glm::vec3(v.x(), v.y(), v.z());
+	}
 }
 #endif
 

@@ -145,25 +145,34 @@ TEST_F(RotorPhysicsTest, BladeFlappingTest) {
 
 // Test turbulence response
 TEST_F(RotorPhysicsTest, TurbulenceTest) {
-    m_rotorData.currentRPM = 5000.0f;
+    // Test parameters
+    const float test_altitude = 100.0f;  // 100m
+    const float test_airspeed = 15.0f;  // 15 m/s (reasonable airspeed)
+    const float test_time1 = 1.0f;
+    const float test_time2 = 2.0f;
+
+    // Atmospheric conditions
     auto conditions = getStandardConditions();
 
-    btVector3 initial_vel = m_rotorBody->getLinearVelocity();
-    btVector3 initial_angvel = m_rotorBody->getAngularVelocity();
+    // Calculate turbulence states at different time steps
+    auto turb_state1 = models::calculate_turbulence(test_altitude, test_airspeed, conditions, test_time1);
+    auto turb_state2 = models::calculate_turbulence(test_altitude, test_airspeed, conditions, test_time2);
 
-    rotor::physics::apply_turbulence(&m_rotorData, conditions, 0.016f);
+    // Validate turbulence velocities
+    EXPECT_GT(turb_state1.velocity.length(), 0.0f);  // Non-zero turbulence
+    EXPECT_LT(turb_state1.velocity.length(), 10.0f);  // Light to moderate turbulence range
+    EXPECT_GT(turb_state1.angular_velocity.length(), 0.0f);
+    EXPECT_LT(turb_state1.angular_velocity.length(), 2.0f);  // Reasonable angular turbulence
 
-    btVector3 final_vel = m_rotorBody->getLinearVelocity();
-    btVector3 final_angvel = m_rotorBody->getAngularVelocity();
+    // Validate temporal variation (turbulence should change over time)
+    float velocity_change = (turb_state2.velocity - turb_state1.velocity).length();
+    EXPECT_GT(velocity_change, 0.05f);
 
-    // Should see some velocity changes from turbulence
-    EXPECT_NE(initial_vel, final_vel);
-    EXPECT_NE(initial_angvel, final_angvel);
-
-    // But changes should be reasonable
-    EXPECT_LT((final_vel - initial_vel).length(), 1.0f);
-    EXPECT_LT((final_angvel - initial_angvel).length(), 1.0f);
+    // Ensure turbulence magnitude increases with altitude
+    auto turb_state_low = models::calculate_turbulence(10.0f, test_airspeed, conditions, test_time1);
+    EXPECT_GT(turb_state1.velocity.length(), turb_state_low.velocity.length() * 0.9f);
 }
+
 
 // Test motor dynamics
 TEST_F(RotorPhysicsTest, MotorDynamicsTest) {

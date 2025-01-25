@@ -3,6 +3,7 @@
 #include "PhysicsTests/RotorVisualizationTest.h"
 #include "PhysicsTests/TransformationTest.h"
 #include <cstdio>
+#include "PhysicsTests/ExtendedRotorTests.h"
 #include <gtest/gtest.h>
 
 int main(int argc, char** argv) {

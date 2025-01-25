@@ -9,10 +9,12 @@
 #include "../Models/Turbulence.h"
 #include "../Models/WallEffect.h"
 #include "../Models/MotorModel.h"
+#include "../Models/GroundEffect.h"
+#include "../Utils/Util.h"
 
 namespace lark::rotor::physics {
   // Core physics calculations
-  float calculate_thrust(const drone_data::RotorBody* data, const models::AtmosphericConditions& conditions);
+  float calculate_thrust(drone_data::RotorBody* data, const models::AtmosphericConditions& conditions);
   float calculate_power(const drone_data::RotorBody* data, float thrust, const models::AtmosphericConditions& conditions);
 
   // Model updates

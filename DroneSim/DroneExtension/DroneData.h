@@ -1,17 +1,18 @@
 #pragma once
-#include <vector>
-#include <memory>
+#include "../Common/Id.h"
+#include "Components/Models/BladeFlapping.h"
+#include "Components/Models/DynamicInflow.h"
+#include "Components/Models/GroundEffect.h"
+#include "Components/Models/MotorModel.h"
+#include "Components/Models/TipVortex.h"
+#include "Components/Models/WallEffect.h"
+#include <btBulletDynamicsCommon.h>
+#include <glm/glm.hpp>
 #include <map>
+#include <memory>
 #include <string>
 #include <tuple>
-#include "../Common/Id.h"
-#include <glm/glm.hpp>
-#include "Components/Models/DynamicInflow.h"
-#include "Components/Models/BladeFlapping.h"
-#include "Components/Models/WallEffect.h"
-#include "Components/Models/TipVortex.h"
-#include "Components/Models/MotorModel.h"
-#include <btBulletDynamicsCommon.h>
+#include <vector>
 
 namespace lark::drone_data {
 
@@ -86,6 +87,7 @@ namespace lark::drone_data {
     models::WallState wall_state;
     models::BladeProperties blade_properties;
     models::MotorParameters motor_parameters;
+    models::GroundEffectState ground_effect_state;
   };
 
   struct WingBody : Body {
