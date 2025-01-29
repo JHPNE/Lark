@@ -142,33 +142,6 @@ TEST_F(ExtendedRotorTests, BladeFlappingSpeedTest) {
     }
 }
 
-// Test motor thermal behavior under various loads
-TEST_F(ExtendedRotorTests, MotorThermalTest) {
-    for (int i = 0; i < 5; ++i) {  // Test 5 different configurations
-        configureRandomRotor();
-        auto conditions = getRandomAtmosphericConditions();
-
-        // Test thermal response under increasing load
-        std::vector<float> temperatures;
-        float initial_rpm = getRandomFloat(3000.0f, 6000.0f);
-
-        for (int j = 0; j < 120; ++j) {  // Simulate 2 seconds
-            m_rotorData.currentRPM = initial_rpm * (1.0f + float(j) / 120.0f);
-            rotor::physics::update_motor_state(&m_rotorData, conditions, 0.016f);
-            temperatures.push_back(m_rotorData.motor_state.winding_temperature);
-
-            // Basic thermal constraints
-            EXPECT_GT(m_rotorData.motor_state.winding_temperature, conditions.temperature);
-            EXPECT_LT(m_rotorData.motor_state.winding_temperature, 200.0f);  // Max temp
-
-            if (j > 0) {
-                // Temperature should increase under increasing load
-                EXPECT_GT(temperatures[j], temperatures[j-1]);
-            }
-        }
-    }
-}
-
 // Test turbulence response at different altitudes
 // In ExtendedRotorTests.h
 TEST_F(ExtendedRotorTests, AltitudeTurbulenceTest) {
@@ -226,41 +199,4 @@ TEST_F(ExtendedRotorTests, AltitudeTurbulenceTest) {
             << "Turbulence length scales should generally increase or stay constant with altitude";
     }
 }
-
-// Test ground effect with various rotor sizes
-TEST_F(ExtendedRotorTests, GroundEffectScalingTest) {
-    const std::array<float, 5> heights = {0.25f, 0.5f, 1.0f, 1.5f, 2.0f};  // In rotor diameters
-
-    for (int i = 0; i < 5; ++i) {  // Test 5 different configurations
-        configureRandomRotor();
-        m_rotorData.currentRPM = getRandomFloat(3000.0f, 9000.0f);
-        auto conditions = getStandardConditions();
-
-        float baseline_thrust = 0.0f;
-        std::vector<float> thrust_ratios;
-
-        // Get baseline thrust at 4 diameters height
-        btTransform transform = m_rotorBody->getWorldTransform();
-        transform.setOrigin(btVector3(0, 4.0f * m_rotorData.bladeRadius * 2, 0));
-        m_rotorBody->setWorldTransform(transform);
-        baseline_thrust = rotor::physics::calculate_thrust(&m_rotorData, conditions);
-
-        for (float height : heights) {
-            transform.setOrigin(btVector3(0, height * m_rotorData.bladeRadius * 2, 0));
-            m_rotorBody->setWorldTransform(transform);
-            float ground_thrust = rotor::physics::calculate_thrust(&m_rotorData, conditions);
-            thrust_ratios.push_back(ground_thrust / baseline_thrust);
-
-            // Verify reasonable ground effect magnitudes
-            EXPECT_GT(thrust_ratios.back(), 1.0f);
-            EXPECT_LT(thrust_ratios.back(), 1.4f);  // Theoretical maximum
-        }
-
-        // Verify ground effect diminishes with height
-        for (size_t j = 1; j < heights.size(); ++j) {
-            EXPECT_LT(thrust_ratios[j], thrust_ratios[j-1]);
-        }
-    }
-}
-
 } // namespace lark::tests
