@@ -2,54 +2,118 @@
 
 namespace lark::models {
     namespace {
-        // Basic non-dimensional parameters
-        float calculate_advance_ratio(float forward_velocity, float rotor_speed, float radius) {
-            if (rotor_speed < 1.0f) return 0.0f;
-            return forward_velocity / (rotor_speed * RPM_TO_RAD * radius);
+        // Calculate blade inertia about flapping hinge
+        float calculate_blade_inertia(const BladeProperties& props) {
+            return props.mass * std::pow(props.blade_grip, 2) / 3.0f;
         }
 
-        float calculate_thrust_coefficient(float mass, float air_density, float rotor_speed, float radius) {
-            float disk_area = PI * radius * radius;
-            float omega = rotor_speed * RPM_TO_RAD;
-            float denominator = air_density * disk_area * std::pow(omega * radius, 2);
-            if (denominator < 1e-6f) return 0.0f;
-            return (mass * ISA_GRAVITY) / denominator;
+        // Calculate aerodynamic moment about flapping hinge
+        float calculate_aero_moment(const BladeProperties& props, float air_density,
+                      float rotor_speed, float collective_pitch,
+                      float forward_velocity, float beta) {
+            float omega = rotor_speed;
+            float total_radius = props.hinge_offset + props.blade_grip;
+            float chord = 0.1f * total_radius; // 10% of total radius
+
+            const int num_elements = 10;
+            float dr = props.blade_grip / num_elements;
+            float total_moment = 0.0f;
+
+            for(int i = 1; i <= num_elements; i++) {
+                float r = i * dr; // Distance from hinge
+                float Ut = omega * (props.hinge_offset + r);
+                float Up = forward_velocity * std::sin(beta);
+
+                float alpha = collective_pitch - std::atan2(Up, Ut);
+                alpha = std::clamp(alpha, -0.3f, 0.3f);
+
+                float Mach = std::sqrt(Ut*Ut + Up*Up) / 340.0f;
+                float Cl = (2.0f * PI * alpha) / std::sqrt(1.0f - Mach*Mach);
+
+                float q = 0.5f * air_density * (Ut*Ut + Up*Up);
+                float dL = q * Cl * chord * dr;
+                total_moment += dL * (props.hinge_offset + r);
+            }
+
+            return total_moment; // Remove Lock number scaling
         }
 
-        // First-order flapping response
-        float calculate_flapping_angle(const BladeProperties& props, float advance_ratio,
-                                     float thrust_coeff, float rotor_speed) {
-            // Basic first harmonic response
-            float omega = rotor_speed * RPM_TO_RAD;
-            if (omega < 1.0f) return 0.0f;
+        float calculate_centrifugal_stiffness(const BladeProperties& props, float rotor_speed) {
+            float sum_stiffness = 0.0f;
+            float omega = rotor_speed;
+            float radius = props.blade_grip;
+            const int num_elements = 10;
+            float dr = radius / num_elements;
+            float dm = props.mass / num_elements;
 
-            // Calculate dimensionless natural frequency
-            float omega_bar = std::sqrt(1.0f + props.spring_constant /
-                                     (props.mass * std::pow(omega * props.blade_grip, 2)));
-
-            // Phase lag angle
-            float phi = std::atan2(props.lock_number/16.0f, omega_bar * omega_bar - 1.0f);
-
-            // First harmonic flapping coefficient
-            return advance_ratio * (thrust_coeff * std::cos(phi) /
-                   std::sqrt(std::pow(omega_bar * omega_bar - 1.0f, 2) +
-                           std::pow(props.lock_number/16.0f, 2)));
+            for (int i = 1; i <= num_elements; ++i) {
+                float r = i * dr;
+                float distance_from_shaft = props.hinge_offset + r;
+                sum_stiffness += dm * omega * omega * distance_from_shaft * distance_from_shaft;
+            }
+            return sum_stiffness;
         }
 
-        // Steady state coning
-        float calculate_coning_angle(const BladeProperties& props, float thrust_coeff,
-                                   float rotor_speed) {
-            float omega = rotor_speed * RPM_TO_RAD;
-            if (omega < 1.0f) return 0.0f;
+        // Calculate centrifugal moment
+        float calculate_centrifugal_moment(const BladeProperties& props,
+                                         float rotor_speed, float beta) {
+            float radius = props.blade_grip;
+            float omega = rotor_speed;
 
-            // Centrifugal stiffening
-            float centrifugal = props.mass * std::pow(omega, 2) * props.hinge_offset;
-            if (centrifugal < 1e-6f) return 0.0f;
+            // Integrate centrifugal force along blade span
+            const int num_elements = 10;
+            float dr = radius / num_elements;
+            float dm = props.mass / num_elements;
+            float total_moment = 0.0f;
 
-            // Thrust moment about hinge
-            float thrust_moment = thrust_coeff * props.lock_number / 6.0f;
+            for(int i = 1; i <= num_elements; i++) {
+                float r = i * dr;
+                float Fc = dm * omega * omega * (props.hinge_offset + r);
+                float moment_arm = (props.hinge_offset + r) * std::sin(beta);
+                total_moment -= Fc * moment_arm; // Negative for restoring moment
+            }
 
-            return std::atan2(thrust_moment, 1.0f + props.spring_constant/centrifugal);
+            // Add spring moment
+            total_moment -= props.spring_constant * beta;
+
+            return total_moment;
+        }
+
+        // Integrate blade motion using RK4
+        void integrate_blade_motion(float& beta, float& beta_dot,
+                                  float aero_moment, float centrifugal_moment,
+                                  const BladeProperties& props, float dt) {
+            float I_beta = calculate_blade_inertia(props);
+
+            // RK4 integration for second-order ODE
+            auto deriv = [&](float b, float bd) -> std::pair<float, float> {
+                float beta_dot = bd;
+                float beta_ddot = (aero_moment + centrifugal_moment -
+                                 props.spring_constant * b) / I_beta;
+                return {beta_dot, beta_ddot};
+            };
+
+            // RK4 coefficients
+            float k1_beta, k1_omega, k2_beta, k2_omega, k3_beta, k3_omega, k4_beta, k4_omega;
+            std::pair<float, float> k1 = deriv(beta, beta_dot);
+            k1_beta = k1.first;
+            k1_omega = k1.second;
+
+            std::pair<float, float> k2 = deriv(beta + dt*k1_beta/2, beta_dot + dt*k1_omega/2);
+            k2_beta = k2.first;
+            k2_omega = k2.second;
+
+            std::pair<float, float> k3 = deriv(beta + dt*k2_beta/2, beta_dot + dt*k2_omega/2);
+            k3_beta = k3.first;
+            k3_omega = k3.second;
+
+            std::pair<float, float> k4 = deriv(beta + dt*k3_beta, beta_dot + dt*k3_omega);
+            k4_beta = k4.first;
+            k4_omega = k4.second;
+
+            // Update states
+            beta += (dt/6.0f) * (k1_beta + 2*k2_beta + 2*k3_beta + k4_beta);
+            beta_dot += (dt/6.0f) * (k1_omega + 2*k2_omega + 2*k3_omega + k4_omega);
         }
     }
 
@@ -65,34 +129,40 @@ namespace lark::models {
 
         BladeState state{};
 
-        // Calculate non-dimensional parameters
-        float advance_ratio = calculate_advance_ratio(forward_velocity, rotor_speed, props.blade_grip);
-        float thrust_coeff = calculate_thrust_coefficient(props.mass, air_density, rotor_speed, props.blade_grip);
+        // Calculate aerodynamic moment
+        float aero_moment = calculate_aero_moment(props, air_density, rotor_speed,
+                                                collective_pitch, forward_velocity,
+                                                state.flapping_angle);
 
-        // Calculate primary angles
-        state.flapping_angle = calculate_flapping_angle(props, advance_ratio, thrust_coeff, rotor_speed);
-        state.coning_angle = calculate_coning_angle(props, thrust_coeff, rotor_speed);
+        // Calculate centrifugal moment
+        float cf_moment = calculate_centrifugal_moment(props, rotor_speed,
+                                                     state.flapping_angle);
 
-        // Calculate blade dynamics
-        float omega = rotor_speed * RPM_TO_RAD;
-        if (omega > 1.0f) {
-            // Update flapping rate based on quasi-steady assumption
-            state.flapping_rate = -advance_ratio * omega * std::sin(omega * delta_time);
+        // Integrate blade motion
+        integrate_blade_motion(state.flapping_angle, state.flapping_rate,
+                             aero_moment, cf_moment, props, delta_time);
 
-            // Lead-lag motion from Coriolis
-            state.lead_lag_angle = -2.0f * state.flapping_angle * state.flapping_rate / omega;
-        }
+        // Calculate coning angle (steady-state solution)
+        float centrifugal_stiffness = calculate_centrifugal_stiffness(props, rotor_speed);
+        state.coning_angle = aero_moment / (centrifugal_stiffness + props.spring_constant);
 
-        // Calculate TPP normal vector
-        btQuaternion shaft_rotation(btVector3(1, 0, 0), shaft_tilt);
-        btQuaternion flap_rotation(btVector3(0, 1, 0), state.flapping_angle);
-        btMatrix3x3 rotation_matrix;
-        rotation_matrix.setRotation(shaft_rotation * flap_rotation);
-        state.tip_path_plane = rotation_matrix * btVector3(0, 1, 0);
+        // Calculate lead-lag due to Coriolis
+        state.lead_lag_angle = -2.0f * state.flapping_angle * state.flapping_rate / rotor_speed;
 
-        // Calculate disk loading
-        float disk_area = PI * std::pow(props.blade_grip, 2);
-        state.disk_loading = thrust_coeff * (0.5f * air_density * std::pow(omega * props.blade_grip, 2));
+        // Set up tip path plane orientation
+        btQuaternion shaft_rot(btVector3(1, 0, 0), shaft_tilt);
+        btQuaternion flap_rot(btVector3(0, 0, 1), state.flapping_angle);
+        btQuaternion cone_rot(btVector3(1, 0, 0), state.coning_angle);
+
+        btMatrix3x3 rotation;
+        rotation.setRotation(cone_rot * flap_rot * shaft_rot);
+        state.tip_path_plane = rotation * btVector3(0, 1, 0);
+        state.tip_path_plane.normalize();
+
+        // Calculate disk loading from aerodynamic forces
+        float total_radius = props.hinge_offset + props.blade_grip;
+        float disk_area = PI * std::pow(total_radius, 2);
+        state.disk_loading = aero_moment / (total_radius * disk_area);
 
         return state;
     }

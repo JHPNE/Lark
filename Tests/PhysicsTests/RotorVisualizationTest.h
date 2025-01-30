@@ -14,7 +14,7 @@
 namespace lark::physics {
 
 struct RotorTestConfig {
-    bool visual_mode{false};
+    bool visual_mode{true};
     float simulation_speed{10.0f};
     float target_rpm{5000.0f};
     float test_duration{6000.0f};
@@ -310,8 +310,15 @@ private:
         );
 
         m_rotorBody = new btRigidBody(rbInfo);
-        m_rotorBody->setDamping(0.1f, 0.3f);
-        m_rotorBody->setAngularFactor(btVector3(0, 1, 0));
+        // Set proper damping
+        m_rotorBody->setDamping(0.2f, 0.4f);
+
+        // Allow rotation primarily around vertical axis
+        m_rotorBody->setAngularFactor(btVector3(0.2f, 1.0f, 0.2f));
+
+        // Ensure gravity is affecting the body
+        m_rotorBody->setFlags(0);  // Clear any flags that might disable gravity
+
         m_dynamicsWorld->addRigidBody(m_rotorBody);
     }
 

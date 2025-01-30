@@ -12,8 +12,8 @@ namespace lark::models {
     constexpr float ISA_SEA_LEVEL_PRESSURE = 101325.0f;    // Pa
     constexpr float ISA_SEA_LEVEL_TEMPERATURE = 288.15f;   // K (15°C)
     constexpr float ISA_SEA_LEVEL_DENSITY = 1.225f;        // kg/m³
-    constexpr float ISA_LAPSE_RATE = -0.0065f;             // K/m (up to troposphere)
-    constexpr float ISA_GAS_CONSTANT = 287.05f;            // J/(kg·K)
+    constexpr float ISA_LAPSE_RATE = -0.0065f;             // K/m
+    constexpr float ISA_GAS_CONSTANT = 287.05287f;         // J/(kg·K) - increased precision
     constexpr float ISA_GRAVITY = 9.80665f;                // m/s²
     constexpr float ISA_TROPOPAUSE_ALTITUDE = 11000.0f;    // m
     constexpr float ISA_TROPOPAUSE_TEMPERATURE = 216.65f;  // K

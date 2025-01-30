@@ -27,7 +27,10 @@ namespace lark::rotor {
         physics::apply_turbulence(data, conditions, deltaTime);
 
         // Calculate core physics
+        const btVector3 weight(0.0f, -data->mass * 9.81f, 0.0f);
         float thrust = physics::calculate_thrust(data, conditions);
+        btVector3 thrust_force = data->rotorNormal * thrust;
+
         data->powerConsumption = physics::calculate_power(data, thrust, conditions);
 
         // Apply aerodynamic forces
@@ -41,7 +44,7 @@ namespace lark::rotor {
                              axial_velocity * std::abs(axial_velocity);
 
         btVector3 drag_force = -data->rotorNormal * drag_magnitude;
-        btVector3 net_force = (data->rotorNormal * thrust) + drag_force;
+        btVector3 net_force = thrust_force + drag_force;
 
         data->rigidBody->applyCentralForce(net_force);
     }

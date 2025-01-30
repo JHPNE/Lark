@@ -1,50 +1,74 @@
 #include "ISA.h"
+#include <stdexcept>
 
 namespace lark::models {
 
-    AtmosphericConditions calculate_atmospheric_conditions(float altitude, float velocity) {
-            AtmosphericConditions conditions{};
-
-            // Ensure non-negative altitude
-            altitude = std::max(0.0f, altitude);
-
-            // Temperature calculation based on ISA model
-            if (altitude <= ISA_TROPOPAUSE_ALTITUDE) {
-                conditions.temperature = ISA_SEA_LEVEL_TEMPERATURE + ISA_LAPSE_RATE * altitude;
-            } else {
-                conditions.temperature = ISA_TROPOPAUSE_TEMPERATURE;
-            }
-
-            // Pressure calculation
-            if (altitude <= ISA_TROPOPAUSE_ALTITUDE) {
-                float exponent = -ISA_GRAVITY / (ISA_GAS_CONSTANT * ISA_LAPSE_RATE);
-                conditions.pressure = ISA_SEA_LEVEL_PRESSURE *
-                    std::pow(conditions.temperature / ISA_SEA_LEVEL_TEMPERATURE, exponent);
-            } else {
-                float base_pressure = ISA_SEA_LEVEL_PRESSURE *
-                    std::pow(ISA_TROPOPAUSE_TEMPERATURE / ISA_SEA_LEVEL_TEMPERATURE,
-                            -ISA_GRAVITY / (ISA_GAS_CONSTANT * ISA_LAPSE_RATE));
-                float exponent = -ISA_GRAVITY * (altitude - ISA_TROPOPAUSE_ALTITUDE) /
-                                (ISA_GAS_CONSTANT * ISA_TROPOPAUSE_TEMPERATURE);
-                conditions.pressure = base_pressure * std::exp(exponent);
-            }
-
-            // Density from ideal gas law
-            conditions.density = conditions.pressure / (ISA_GAS_CONSTANT * conditions.temperature);
-
-            // Dynamic viscosity using Sutherland's law
-            constexpr float SUTHERLAND_TEMP = 273.15f;
-            constexpr float SUTHERLAND_C = 120.0f;
-            constexpr float SUTHERLAND_REF_VISC = 1.716e-5f;
-
-            conditions.viscosity = SUTHERLAND_REF_VISC *
-                std::pow(conditions.temperature / SUTHERLAND_TEMP, 1.5f) *
-                ((SUTHERLAND_TEMP + SUTHERLAND_C) / (conditions.temperature + SUTHERLAND_C));
-
-            // Speed of sound and Mach number
-            conditions.speed_of_sound = std::sqrt(ISA_GAMMA * ISA_GAS_CONSTANT * conditions.temperature);
-            conditions.mach_factor = velocity / conditions.speed_of_sound;
-
-            return conditions;
+namespace {
+    // Helper functions to improve calculation precision
+    float calculate_temperature(float altitude) {
+        if (altitude <= ISA_TROPOPAUSE_ALTITUDE) {
+            return ISA_SEA_LEVEL_TEMPERATURE + ISA_LAPSE_RATE * altitude;
         }
+        return ISA_TROPOPAUSE_TEMPERATURE;
+    }
+
+    float calculate_pressure(float altitude, float temperature) {
+        if (altitude <= ISA_TROPOPAUSE_ALTITUDE) {
+            const float exponent = (-ISA_GRAVITY) / (ISA_GAS_CONSTANT * ISA_LAPSE_RATE);
+            const float temp_ratio = temperature / ISA_SEA_LEVEL_TEMPERATURE;
+            return ISA_SEA_LEVEL_PRESSURE * std::pow(temp_ratio, exponent);
+        } else {
+            const float tropo_temp_ratio = ISA_TROPOPAUSE_TEMPERATURE / ISA_SEA_LEVEL_TEMPERATURE;
+            const float base_exponent = (-ISA_GRAVITY) / (ISA_GAS_CONSTANT * ISA_LAPSE_RATE);
+            const float base_pressure = ISA_SEA_LEVEL_PRESSURE * std::pow(tropo_temp_ratio, base_exponent);
+
+            const float above_tropo_exponent = (-ISA_GRAVITY * (altitude - ISA_TROPOPAUSE_ALTITUDE)) /
+                                             (ISA_GAS_CONSTANT * ISA_TROPOPAUSE_TEMPERATURE);
+            return base_pressure * std::exp(above_tropo_exponent);
+        }
+    }
+
+    float calculate_density(float pressure, float temperature) {
+        return pressure / (ISA_GAS_CONSTANT * temperature);
+    }
+
+    float calculate_viscosity(float temperature) {
+        constexpr float SUTHERLAND_TEMP = 273.15f;
+        constexpr float SUTHERLAND_C = 110.4f;
+        constexpr float SUTHERLAND_REF_VISC = 1.716e-5f;
+
+        const float temp_ratio = temperature / SUTHERLAND_TEMP;
+        return SUTHERLAND_REF_VISC * std::pow(temp_ratio, 1.5f) *
+               ((SUTHERLAND_TEMP + SUTHERLAND_C) / (temperature + SUTHERLAND_C));
+    }
+
+    float calculate_speed_of_sound(float temperature) {
+        return std::sqrt(ISA_GAMMA * ISA_GAS_CONSTANT * temperature);
+    }
 }
+
+AtmosphericConditions calculate_atmospheric_conditions(float altitude, float velocity) {
+    if (altitude < 0.0f) {
+        throw std::invalid_argument("Altitude cannot be negative");
+    }
+    if (altitude > 86000.0f) {
+        throw std::out_of_range("Altitude exceeds valid range (0-86km)");
+    }
+
+    AtmosphericConditions conditions{};
+
+    // Calculate atmospheric parameters with maximum precision
+    conditions.temperature = calculate_temperature(altitude);
+    conditions.pressure = calculate_pressure(altitude, conditions.temperature);
+    conditions.density = calculate_density(conditions.pressure, conditions.temperature);
+    conditions.viscosity = calculate_viscosity(conditions.temperature);
+    conditions.speed_of_sound = calculate_speed_of_sound(conditions.temperature);
+
+    // Calculate Mach number if velocity is non-zero
+    conditions.mach_factor = (conditions.speed_of_sound > 0.0f) ?
+        velocity / conditions.speed_of_sound : 0.0f;
+
+    return conditions;
+}
+
+} // namespace lark::models
