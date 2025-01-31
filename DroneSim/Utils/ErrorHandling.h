@@ -117,31 +117,22 @@ protected:
      */
     void LogErrorToConsole() const noexcept {
         try {
+            std::string message = FormatError(code_, what());
+            std::string locationInfo = std::string(location_.file) + ":" + 
+                                     std::to_string(location_.line) + 
+                                     " in " + std::string(location_.function);
+            
             switch (severity_) {
                 case ErrorSeverity::CRITICAL:
                 case ErrorSeverity::SEVERE:
-                    Logger::GetInstance().Fatal(
-                        FormatError(code_, what()),
-                        location_
-                    );
+                    std::cerr << "FATAL: " << message << " [at " << locationInfo << "]" << std::endl;
                     break;
                 case ErrorSeverity::MODERATE:
-                    Logger::GetInstance().Error(
-                        FormatError(code_, what()),
-                        location_
-                    );
+                    std::cerr << "ERROR: " << message << " [at " << locationInfo << "]" << std::endl;
                     break;
                 case ErrorSeverity::MINOR:
-                    Logger::GetInstance().Warning(
-                        FormatError(code_, what()),
-                        location_
-                    );
-                    break;
                 case ErrorSeverity::WARNING:
-                    Logger::GetInstance().Warning(
-                        "Warning " + std::to_string(code_) + ": " + what(),
-                        location_
-                    );
+                    std::cout << "WARNING: " << message << " [at " << locationInfo << "]" << std::endl;
                     break;
             }
         } catch (...) {

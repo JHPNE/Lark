@@ -64,7 +64,7 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         minLevel_ = minLevel;
         initialized_ = true;
-        WriteLogEntryToConsole(Level::INFO, "Logging system initialized");
+        // Remove logging during initialization to prevent recursive locks
         return true;
     }
 
@@ -85,21 +85,21 @@ public:
             return;
         }
 
+        std::string formattedMessage;
+        try {
+            // Format message outside the lock
+            formattedMessage = FormatLogMessage(level, message, location);
+        } catch (...) {
+            return;
+        }
+
         try {
             std::lock_guard<std::mutex> lock(mutex_);
-
-            std::stringstream ss;
-            ss << FormatTimestamp(std::chrono::system_clock::now())
-               << " [" << LevelToString(level) << "] "
-               << "[" << location.file << ":" << location.line << "] "
-               << "[" << location.function << "] "
-               << message << std::endl;
-
             // Use cerr for ERROR and FATAL, cout for others
             if (level >= Level::ERROR) {
-                std::cerr << ss.str() << std::flush;
+                std::cerr << formattedMessage << std::flush;
             } else {
-                std::cout << ss.str() << std::flush;
+                std::cout << formattedMessage << std::flush;
             }
         } catch (...) {
             // Ensure logging never throws
@@ -184,6 +184,24 @@ private:
             return std::string(buffer);
         } catch (...) {
             return "TIME_ERROR";
+        }
+    }
+
+    std::string FormatLogMessage(
+        Level level,
+        const std::string& message,
+        const SourceLocation& location
+    ) const noexcept {
+        try {
+            std::stringstream ss;
+            ss << FormatTimestamp(std::chrono::system_clock::now())
+               << " [" << LevelToString(level) << "] "
+               << "[" << location.file << ":" << location.line << "] "
+               << "[" << location.function << "] "
+               << message << std::endl;
+            return ss.str();
+        } catch (...) {
+            return message + "\n";
         }
     }
 

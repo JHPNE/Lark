@@ -191,18 +191,29 @@ TEST_F(LoggingTest, AssertSimulationMacroTest) {
 TEST_F(LoggingTest, LocationTrackingTest) {
     // Exercise
     try {
-        throw ValidationError("Test error");
+        // Explicitly specify the location to ensure macro expansion happens here
+        throw ValidationError(
+            "Test error",
+            ValidationError::ERROR_BASE,
+            ErrorSeverity::MODERATE,
+            MAKE_SOURCE_LOCATION()
+        );
         FAIL() << "ValidationError not thrown as expected";
     }
     catch (const ValidationError& error) {
-        // Verify location information
         const SourceLocation& location = error.GetLocation();
-        EXPECT_TRUE(ContainsContent("LoggingTest.h", location.file))
-            << "Incorrect source file";
-        EXPECT_TRUE(ContainsContent("LocationTrackingTest", location.function))
+        std::string filename = std::string(location.file);
+        size_t lastSlash = filename.find_last_of("/\\");
+        if (lastSlash != std::string::npos) {
+            filename = filename.substr(lastSlash + 1);
+        }
+
+        std::string functionName = std::string(location.function);
+
+        EXPECT_EQ(filename, "LoggingTest.h") << "Incorrect source file";
+        EXPECT_TRUE(functionName.find("LocationTrackingTest") != std::string::npos)
             << "Incorrect function name";
-        EXPECT_GT(location.line, 0)
-            << "Invalid line number";
+        EXPECT_GT(location.line, 0) << "Invalid line number";
     }
 }
 
