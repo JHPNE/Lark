@@ -31,20 +31,31 @@ public:
   lark::editor::scene* GetScene() {return &m_scene; };
   GeometryType GetGeometryType() const { return m_geometryType; };
 
+  void SetPrimitiveType(content_tools::PrimitiveMeshType type) {
+    m_meshType = type;
+  }
+
   void loadGeometry() {
     float size[3] = {5.0f, 5.0f, 5.0f};
-    uint32_t segments[3] = {32, 16, 1};
+    uint32_t segments[3];
+    if (m_meshType == content_tools::PrimitiveMeshType::uv_sphere) {
+      segments[0] = 32;
+      segments[1] = 16;
+      segments[2] = 1;
+    } else {
+      segments[0] = segments[1] = segments[2] = 2;
+    }
 
     std::shared_ptr<lark::editor::Geometry> geometry;
     try {
       geometry = m_geometryType == ObjImport
                   ? lark::editor::Geometry::LoadGeometry(m_geometrySource.c_str())
                   : lark::editor::Geometry::CreatePrimitive(
-                          content_tools::PrimitiveMeshType::uv_sphere,
+                          m_meshType,
                           size,
                           segments
                       );
-      
+
       if (!geometry) {
         printf("[Geometry::loadGeometry] Failed to create geometry\n");
         return;
@@ -75,6 +86,7 @@ public:
     auto geometrySourceElement = context.document.NewElement("GeometrySource");
     SerializerUtils::WriteAttribute(geometrySourceElement, "GeometrySourceElement", m_geometrySource);
     SerializerUtils::WriteAttribute(geometrySourceElement, "GeometryType", m_geometryType == PrimitiveType ? "P" : "O");
+    SerializerUtils::WriteAttribute(geometrySourceElement, "PrimitiveMeshType", m_meshType == content_tools::PrimitiveMeshType::cube ? "cube" : "uv_sphere");
     element->LinkEndChild(geometrySourceElement);
   }
 
@@ -102,6 +114,13 @@ public:
           throw std::invalid_argument("Invalid GeometryType attribute value");
         }
       }
+
+      const char* geometryPrimitiveMeshTypeStr = GeometrySourceElement->Attribute("PrimitiveMeshType");
+      if (std::strcmp(geometryPrimitiveMeshTypeStr, "cube") == 0) {
+        m_meshType = content_tools::PrimitiveMeshType::cube;
+      } else {
+        m_meshType = content_tools::PrimitiveMeshType::uv_sphere;
+      }
     }
 
     return true; // Return true if deserialization was successful
@@ -112,4 +131,5 @@ private:
   std::string m_geometrySource;
   GeometryType m_geometryType;
   lark::editor::scene m_scene;
+  content_tools::PrimitiveMeshType m_meshType;
 };

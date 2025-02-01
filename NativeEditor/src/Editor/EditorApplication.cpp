@@ -263,23 +263,13 @@ namespace editor {
 				}
 
 				if (ImGui::Button("Create Plane")) {
-					float size[3] = {5.0f, 5.0f, 5.0f};
-					uint32_t segments[3] = {32, 16, 1};
-					m_geometry = lark::editor::Geometry::CreatePrimitive(
-						content_tools::PrimitiveMeshType::uv_sphere,
-						size,
-						segments
-					);
-
-
-
 					geometry_component test{};
 					test.type = PrimitiveType;
 					test.file_name = m_geometryNameBuffer;
-					test.name = "sphere";
-					test.scene = m_geometry.get()->GetScene();
+					test.name = "cube";
+					test.mesh_type = content_tools::PrimitiveMeshType::cube;
 
-					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("sphere", &test)->GetID();
+					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("cube", &test)->GetID();
 					GeometryViewerView::Get().AddGeometry(entityId);
 					//m_geometry->randomModificationVertexes(entityId,559 );
 				}

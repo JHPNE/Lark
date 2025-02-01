@@ -377,20 +377,8 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
                 geom.type = geomType;
                 geom.file_name = geometrySourceElement;
                 geom.name = geometryName;
+                geom.mesh_type = content_tools::PrimitiveMeshType::uv_sphere;
 
-                float size[3] = {5.0f, 5.0f, 5.0f};
-                uint32_t segments[3] = {32, 16, 1};
-
-                std::shared_ptr<lark::editor::Geometry> geometry;
-                geometry = geomType == ObjImport
-                            ? lark::editor::Geometry::LoadGeometry(geometrySourceElement)
-                            : lark::editor::Geometry::CreatePrimitive(
-                                    content_tools::PrimitiveMeshType::uv_sphere,
-                                    size,
-                                    segments
-                                );
-
-                geom.scene = geometry->GetScene();
 
                 entity = scene->CreateEntityInternal(entityName, &geom);
             } else {

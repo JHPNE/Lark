@@ -99,6 +99,7 @@ public:
             geometry->SetGeometryName(geom->name);
             geometry->SetGeometrySource(geom->file_name);
             geometry->SetGeometryType(geom->type);
+            geometry->SetPrimitiveType(geom->mesh_type);
             geometry->loadGeometry();
 
             // Store component in entity

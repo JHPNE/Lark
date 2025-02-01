@@ -114,6 +114,7 @@ struct geometry_component {
   const char *name;
   const char *file_name;
   GeometryType type;
+  content_tools::PrimitiveMeshType mesh_type;
 };
 
 struct game_entity_descriptor {
