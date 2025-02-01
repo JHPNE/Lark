@@ -243,166 +243,165 @@ namespace {
  * @return Fully constructed mesh with validated geometry
  */
 mesh create_cube(const primitive_init_info& info) {
-    // VALIDATION
-    // ------------------------------------------------------------------------
+    // PRECONDITION: All size components must be > 0
     assert(info.size.x > 0.0f && info.size.y > 0.0f && info.size.z > 0.0f);
 
-    const u32 segments_x = glm::clamp(info.segments[axis::x], 1u, 64u);
-    const u32 segments_y = glm::clamp(info.segments[axis::y], 1u, 64u);
-    const u32 segments_z = glm::clamp(info.segments[axis::z], 1u, 64u);
-
-    // FACE SPECIFICATION
-    // ------------------------------------------------------------------------
-    struct face_definition {
-        v3 normal;           // Unit normal vector
-        v3 origin;           // Base corner for grid generation
-        v3 axis_u;          // Primary axis for UV mapping
-        v3 axis_v;          // Secondary axis for UV mapping
-        u32 u_segments;     // Segments along U axis
-        u32 v_segments;     // Segments along V axis
-    };
-
-    // Center-aligned cube coordinates
-    const v3 half = info.size * 0.5f;
-
-    // Define all faces with explicit geometry
-    const face_definition faces[6] = {
-        // Front face (+Z)
-        {
-            v3(0.0f, 0.0f, 1.0f),
-            v3(-half.x, -half.y, half.z),
-            v3(info.size.x, 0.0f, 0.0f),
-            v3(0.0f, info.size.y, 0.0f),
-            segments_x,
-            segments_y
-        },
-        // Back face (-Z)
-        {
-            v3(0.0f, 0.0f, -1.0f),
-            v3(-half.x, -half.y, -half.z),
-            v3(info.size.x, 0.0f, 0.0f),
-            v3(0.0f, info.size.y, 0.0f),
-            segments_x,
-            segments_y
-        },
-        // Right face (+X)
-        {
-            v3(1.0f, 0.0f, 0.0f),
-            v3(half.x, -half.y, -half.z),
-            v3(0.0f, 0.0f, info.size.z),
-            v3(0.0f, info.size.y, 0.0f),
-            segments_z,
-            segments_y
-        },
-        // Left face (-X)
-        {
-            v3(-1.0f, 0.0f, 0.0f),
-            v3(-half.x, -half.y, -half.z),
-            v3(0.0f, 0.0f, info.size.z),
-            v3(0.0f, info.size.y, 0.0f),
-            segments_z,
-            segments_y
-        },
-        // Top face (+Y)
-        {
-            v3(0.0f, 1.0f, 0.0f),
-            v3(-half.x, half.y, -half.z),
-            v3(info.size.x, 0.0f, 0.0f),
-            v3(0.0f, 0.0f, info.size.z),
-            segments_x,
-            segments_z
-        },
-        // Bottom face (-Y)
-        {
-            v3(0.0f, -1.0f, 0.0f),
-            v3(-half.x, -half.y, -half.z),
-            v3(info.size.x, 0.0f, 0.0f),
-            v3(0.0f, 0.0f, info.size.z),
-            segments_x,
-            segments_z
-        }
-    };
-
-    // MESH CONSTRUCTION
-    // ------------------------------------------------------------------------
     mesh m{};
     m.name = "cube";
 
-    // Pre-calculate exact buffer sizes for all faces
-    u32 total_vertices = 0;
-    u32 total_indices = 0;
-    for (const auto& face : faces) {
-        const u32 face_vertices = (face.u_segments + 1) * (face.v_segments + 1);
-        const u32 face_triangles = (face.u_segments * face.v_segments * 6);
-        total_vertices += face_vertices;
-        total_indices += face_triangles;
-    }
+    // Compute half extents so that the cube is centered at the origin.
+    const v3 half = info.size * 0.5f;
 
-    // Pre-allocate all buffers
-    m.positions.reserve(total_vertices);
-    m.normals.reserve(total_vertices);
-    m.raw_indices.reserve(total_indices);
-    util::vector<v2> uvs;
-    uvs.reserve(total_vertices);
+    // Define the 6 faces of the cube. For each face we specify:
+    //  - The normal (for lighting and flat shading)
+    //  - The four corner positions in a consistent winding order
+    //  - The UV coordinates for each vertex (we use (0,0)-(1,1))
+    struct Face {
+        v3 normal;
+        v3 positions[4];
+        v2 uvs[4];
+    };
 
-    // Generate geometry for each face
-    for (const auto& face : faces) {
-        const u32 base_vertex = static_cast<u32>(m.positions.size());
-
-        // Generate vertices for current face grid
-        for (u32 v = 0; v <= face.v_segments; ++v) {
-            const f32 v_ratio = static_cast<f32>(v) / face.v_segments;
-
-            for (u32 u = 0; u <= face.u_segments; ++u) {
-                const f32 u_ratio = static_cast<f32>(u) / face.u_segments;
-
-                // Precise vertex position calculation
-                const v3 position = face.origin +
-                                  face.axis_u * u_ratio +
-                                  face.axis_v * v_ratio;
-
-                m.positions.push_back(position);
-                m.normals.push_back(face.normal);
-                uvs.push_back(v2(u_ratio, 1.0f - v_ratio));
+    Face faces[6] = {
+        // Front face (+Z)
+        {
+            v3(0.f, 0.f, 1.f),
+            {
+                v3(-half.x, -half.y, half.z),
+                v3( half.x, -half.y, half.z),
+                v3( half.x,  half.y, half.z),
+                v3(-half.x,  half.y, half.z)
+            },
+            {
+                v2(0.f, 0.f),
+                v2(1.f, 0.f),
+                v2(1.f, 1.f),
+                v2(0.f, 1.f)
+            }
+        },
+        // Back face (-Z)
+        {
+            v3(0.f, 0.f, -1.f),
+            {
+                v3( half.x, -half.y, -half.z),
+                v3(-half.x, -half.y, -half.z),
+                v3(-half.x,  half.y, -half.z),
+                v3( half.x,  half.y, -half.z)
+            },
+            {
+                v2(0.f, 0.f),
+                v2(1.f, 0.f),
+                v2(1.f, 1.f),
+                v2(0.f, 1.f)
+            }
+        },
+        // Right face (+X)
+        {
+            v3(1.f, 0.f, 0.f),
+            {
+                v3(half.x, -half.y,  half.z),
+                v3(half.x, -half.y, -half.z),
+                v3(half.x,  half.y, -half.z),
+                v3(half.x,  half.y,  half.z)
+            },
+            {
+                v2(0.f, 0.f),
+                v2(1.f, 0.f),
+                v2(1.f, 1.f),
+                v2(0.f, 1.f)
+            }
+        },
+        // Left face (-X)
+        {
+            v3(-1.f, 0.f, 0.f),
+            {
+                v3(-half.x, -half.y, -half.z),
+                v3(-half.x, -half.y,  half.z),
+                v3(-half.x,  half.y,  half.z),
+                v3(-half.x,  half.y, -half.z)
+            },
+            {
+                v2(0.f, 0.f),
+                v2(1.f, 0.f),
+                v2(1.f, 1.f),
+                v2(0.f, 1.f)
+            }
+        },
+        // Top face (+Y)
+        {
+            v3(0.f, 1.f, 0.f),
+            {
+                v3(-half.x, half.y,  half.z),
+                v3( half.x, half.y,  half.z),
+                v3( half.x, half.y, -half.z),
+                v3(-half.x, half.y, -half.z)
+            },
+            {
+                v2(0.f, 0.f),
+                v2(1.f, 0.f),
+                v2(1.f, 1.f),
+                v2(0.f, 1.f)
+            }
+        },
+        // Bottom face (-Y)
+        {
+            v3(0.f, -1.f, 0.f),
+            {
+                v3(-half.x, -half.y, -half.z),
+                v3( half.x, -half.y, -half.z),
+                v3( half.x, -half.y,  half.z),
+                v3(-half.x, -half.y,  half.z)
+            },
+            {
+                v2(0.f, 0.f),
+                v2(1.f, 0.f),
+                v2(1.f, 1.f),
+                v2(0.f, 1.f)
             }
         }
+    };
 
-        // Generate indices with consistent winding
-        const u32 vertices_per_row = face.u_segments + 1;
-        for (u32 v = 0; v < face.v_segments; ++v) {
-            for (u32 u = 0; u < face.u_segments; ++u) {
-                const u32 i0 = base_vertex + v * vertices_per_row + u;
-                const u32 i1 = i0 + 1;
-                const u32 i2 = i0 + vertices_per_row;
-                const u32 i3 = i2 + 1;
+    // Reserve space: 24 vertices and 36 indices
+    m.positions.reserve(24);
+    m.normals.reserve(24);
+    util::vector<v2> allUVs;
+    allUVs.reserve(24);
+    m.raw_indices.reserve(36);
 
-                // First triangle of quad (clockwise winding)
-                m.raw_indices.push_back(i0);
-                m.raw_indices.push_back(i1);
-                m.raw_indices.push_back(i2);
-
-                // Second triangle of quad (clockwise winding)
-                m.raw_indices.push_back(i1);
-                m.raw_indices.push_back(i3);
-                m.raw_indices.push_back(i2);
-            }
+    // For each face, add its vertices and corresponding indices.
+    // Vertices for a face are stored consecutively.
+    for (u32 face = 0; face < 6; ++face) {
+        const u32 baseIndex = static_cast<u32>(m.positions.size());
+        for (u32 i = 0; i < 4; ++i) {
+            m.positions.push_back(faces[face].positions[i]);
+            m.normals.push_back(faces[face].normal);
+            allUVs.push_back(faces[face].uvs[i]);
         }
+
+        // Two triangles per face (clockwise winding order)
+        // Triangle 1: vertices 0, 1, 2
+        m.raw_indices.push_back(baseIndex + 0);
+        m.raw_indices.push_back(baseIndex + 1);
+        m.raw_indices.push_back(baseIndex + 2);
+
+        // Triangle 2: vertices 0, 2, 3
+        m.raw_indices.push_back(baseIndex + 0);
+        m.raw_indices.push_back(baseIndex + 2);
+        m.raw_indices.push_back(baseIndex + 3);
     }
 
-    // FINALIZATION AND VALIDATION
-    // ------------------------------------------------------------------------
+    // Save the UVs into the mesh’s UV set (assumes uv_sets[0] exists)
     m.uv_sets.resize(1);
-    m.uv_sets[0] = std::move(uvs);
+    m.uv_sets[0] = std::move(allUVs);
 
-    // Verify output integrity
-    assert(m.positions.size() == total_vertices);
-    assert(m.normals.size() == total_vertices);
-    assert(m.raw_indices.size() == total_indices);
-    assert(m.uv_sets[0].size() == total_vertices);
+    // Optional: Validate vertex/index counts
+    assert(m.positions.size() == 24);
+    assert(m.normals.size() == 24);
+    assert(m.raw_indices.size() == 36);
+    assert(m.uv_sets[0].size() == 24);
 
     return m;
 }
-
 
   void create_plane(scene& scene, const primitive_init_info& info) {
     lod_group lod{};
