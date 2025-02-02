@@ -42,8 +42,11 @@ public:
       segments[0] = 32;
       segments[1] = 16;
       segments[2] = 1;
+    } else if (m_meshType == content_tools::PrimitiveMeshType::cube ) {
+      segments[0] = segments[1] = segments[2] = 16;
     } else {
-      segments[0] = segments[1] = segments[2] = 2;
+      segments[0] = 32;
+      segments[1] = 1;
     }
 
     std::shared_ptr<lark::editor::Geometry> geometry;

@@ -266,10 +266,10 @@ namespace editor {
 					geometry_component test{};
 					test.type = PrimitiveType;
 					test.file_name = m_geometryNameBuffer;
-					test.name = "cube";
-					test.mesh_type = content_tools::PrimitiveMeshType::cube;
+					test.name = "cylinder";
+					test.mesh_type = content_tools::PrimitiveMeshType::cylinder;
 
-					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("cube", &test)->GetID();
+					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("cylinder", &test)->GetID();
 					GeometryViewerView::Get().AddGeometry(entityId);
 					//m_geometry->randomModificationVertexes(entityId,559 );
 				}

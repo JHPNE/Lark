@@ -235,170 +235,294 @@ namespace {
     return m;
   }
 
-/**
- * @brief Creates a segmented cube mesh with precise vertex and face generation
- * @param info Primitive initialization parameters
- * @precondition info.size components must be positive non-zero values
- * @precondition info.segments components must be at least 1
- * @return Fully constructed mesh with validated geometry
- */
-mesh create_cube(const primitive_init_info& info) {
-    // PRECONDITION: All size components must be > 0
-    assert(info.size.x > 0.0f && info.size.y > 0.0f && info.size.z > 0.0f);
+ //------------------------------------------------------------------------
+  // Helper: Add a subdivided quad (face) into a mesh.
+  // The face is defined by a center point, two unit–direction vectors (right and up)
+  // and half–extents along each. The grid is defined by segRight and segUp divisions.
+  //
+  // UV coordinates are generated in [0,1]×[0,1] across the face.
+  // All vertices on this face get the same normal.
+  //------------------------------------------------------------------------
+  void add_face(mesh &m,
+                const v3 &center,
+                const v3 &normal,
+                const v3 &right,   // local “horizontal” direction (unit length)
+                const v3 &up,      // local “vertical” direction (unit length)
+                float halfWidth,   // half–extent along the right direction
+                float halfHeight,  // half–extent along the up direction
+                u32 segRight,
+                u32 segUp)
+  {
+      // Remember the starting index for this face:
+      u32 baseIndex = static_cast<u32>(m.positions.size());
+      // Create grid vertices:
+      for (u32 j = 0; j <= segUp; ++j)
+      {
+          // t goes from 0 to 1 vertically
+          float t = float(j) / float(segUp);
+          // Interpolate vertical offset from -halfHeight to +halfHeight
+          float offsetV = glm::mix(-halfHeight, halfHeight, t);
+          for (u32 i = 0; i <= segRight; ++i)
+          {
+              float s = float(i) / float(segRight);
+              float offsetU = glm::mix(-halfWidth, halfWidth, s);
+              v3 pos = center + right * offsetU + up * offsetV;
+              m.positions.push_back(pos);
+              m.normals.push_back(normal);
+              // UV coordinates – flip vertical axis if desired.
+              m.uv_sets[0].push_back({ s, t });
+          }
+      }
+      // Create indices (two triangles per quad):
+      for (u32 j = 0; j < segUp; ++j)
+      {
+          for (u32 i = 0; i < segRight; ++i)
+          {
+              u32 i0 = baseIndex + j * (segRight + 1) + i;
+              u32 i1 = i0 + 1;
+              u32 i2 = i0 + (segRight + 1);
+              u32 i3 = i2 + 1;
+              // Triangle 1
+              m.raw_indices.push_back(i0);
+              m.raw_indices.push_back(i1);
+              m.raw_indices.push_back(i2);
+              // Triangle 2
+              m.raw_indices.push_back(i1);
+              m.raw_indices.push_back(i3);
+              m.raw_indices.push_back(i2);
+          }
+      }
+  }
 
+  //------------------------------------------------------------------------
+  // Modified segmented cube generator.
+  //
+  // We assume that info.size gives the overall dimensions,
+  // and info.segments is a vector of three values:
+  //   - segments[0]: subdivisions along X,
+  //   - segments[1]: subdivisions along Y,
+  //   - segments[2]: subdivisions along Z.
+  //
+  // We build each face as a subdivided plane with the following scheme:
+  //   Front and Back faces: horizontal: segments[0] (X), vertical: segments[1] (Y)
+  //   Right and Left faces: horizontal: segments[2] (Z), vertical: segments[1] (Y)
+  //   Top and Bottom faces: horizontal: segments[0] (X), vertical: segments[2] (Z)
+  //------------------------------------------------------------------------
+  mesh create_cube(const primitive_init_info& info) {
+      // PRECONDITION: All size components must be > 0
+      assert(info.size.x > 0.0f && info.size.y > 0.0f && info.size.z > 0.0f);
+
+      mesh m{};
+      m.name = "cube";
+      // Reserve one UV set.
+      m.uv_sets.resize(1);
+
+      // Compute half extents so that the cube is centered at the origin.
+      const v3 half = info.size * 0.5f;
+
+      // Determine segments per axis (ensure at least 1 subdivision per axis)
+      u32 segX = glm::max(info.segments[0], 1u);
+      u32 segY = glm::max(info.segments[1], 1u);
+      u32 segZ = glm::max(info.segments[2], 1u);
+
+      // Front face (+Z): center at (0,0,half.z)
+      {
+          v3 center = { 0.f, 0.f, half.z };
+          v3 normal = { 0.f, 0.f, 1.f };
+          v3 right  = { 1.f, 0.f, 0.f }; // from -half.x to +half.x
+          v3 up     = { 0.f, 1.f, 0.f }; // from -half.y to +half.y
+          add_face(m, center, normal, right, up, half.x, half.y, segX, segY);
+      }
+      // Back face (-Z): center at (0,0,-half.z)
+      {
+          v3 center = { 0.f, 0.f, -half.z };
+          // Note: for proper outward normals, the face normal is reversed.
+          v3 normal = { 0.f, 0.f, -1.f };
+          // To keep winding consistent, we flip the right vector.
+          v3 right  = { -1.f, 0.f, 0.f }; // from +half.x to -half.x
+          v3 up     = { 0.f, 1.f, 0.f };
+          add_face(m, center, normal, right, up, half.x, half.y, segX, segY);
+      }
+      // Right face (+X): center at (half.x,0,0)
+      {
+          v3 center = { half.x, 0.f, 0.f };
+          v3 normal = { 1.f, 0.f, 0.f };
+          // For the right face, the “horizontal” direction is along -Z
+          v3 right  = { 0.f, 0.f, -1.f }; // from -half.z to +half.z
+          v3 up     = { 0.f, 1.f, 0.f };
+          add_face(m, center, normal, right, up, half.z, half.y, segZ, segY);
+      }
+      // Left face (-X): center at (-half.x,0,0)
+      {
+          v3 center = { -half.x, 0.f, 0.f };
+          v3 normal = { -1.f, 0.f, 0.f };
+          // For left face, horizontal goes from +half.z to -half.z
+          v3 right  = { 0.f, 0.f, 1.f };
+          v3 up     = { 0.f, 1.f, 0.f };
+          add_face(m, center, normal, right, up, half.z, half.y, segZ, segY);
+      }
+      // Top face (+Y): center at (0,half.y,0)
+      {
+          v3 center = { 0.f, half.y, 0.f };
+          v3 normal = { 0.f, 1.f, 0.f };
+          // For the top face, horizontal is along X and vertical is along -Z.
+          v3 right  = { 1.f, 0.f, 0.f }; // from -half.x to +half.x
+          v3 up     = { 0.f, 0.f, -1.f }; // from +half.z to -half.z
+          add_face(m, center, normal, right, up, half.x, half.z, segX, segZ);
+      }
+      // Bottom face (-Y): center at (0,-half.y,0)
+      {
+          v3 center = { 0.f, -half.y, 0.f };
+          v3 normal = { 0.f, -1.f, 0.f };
+          // For bottom face, horizontal is along X and vertical is along +Z.
+          v3 right  = { 1.f, 0.f, 0.f }; // from -half.x to +half.x
+          v3 up     = { 0.f, 0.f, 1.f };  // from -half.z to +half.z
+          add_face(m, center, normal, right, up, half.x, half.z, segX, segZ);
+      }
+
+      // (Optional) You can add assertions to validate expected vertex/index counts.
+      return m;
+  }
+
+  //------------------------------------------------------------------------
+  // New cylinder generator.
+  //
+  // We assume the cylinder is Y–axis–aligned, centered at the origin.
+  // info.size.y is the full height, and info.size.x (or z) gives the diameter
+  // of the base (so the radius is half of that).
+  //
+  // We use:
+  //    - radialSegments = info.segments[0] (minimum 3)
+  //    - heightSegments = info.segments[1] (minimum 1)
+  // Caps are generated as separate triangle fans.
+  //------------------------------------------------------------------------
+mesh create_cylinder(const primitive_init_info& info)
+{
     mesh m{};
-    m.name = "cube";
+    m.name = "cylinder";
+    m.uv_sets.resize(1);
 
-    // Compute half extents so that the cube is centered at the origin.
-    const v3 half = info.size * 0.5f;
+    // Parameters
+    const u32 phi_count = glm::clamp(info.segments[0], 3u, 64u);
+    const u32 height_segments = glm::max(info.segments[1], 1u);
+    const float radius = info.size.x * 0.5f;
+    const float halfHeight = info.size.y * 0.5f;
 
-    // Define the 6 faces of the cube. For each face we specify:
-    //  - The normal (for lighting and flat shading)
-    //  - The four corner positions in a consistent winding order
-    //  - The UV coordinates for each vertex (we use (0,0)-(1,1))
-    struct Face {
-        v3 normal;
-        v3 positions[4];
-        v2 uvs[4];
-    };
+    const u32 num_vertices = 2 + phi_count * (height_segments + 1);
+    const u32 num_indices = 2 * 3 * phi_count + 2 * 3 * phi_count * height_segments;
 
-    Face faces[6] = {
-        // Front face (+Z)
-        {
-            v3(0.f, 0.f, 1.f),
-            {
-                v3(-half.x, -half.y, half.z),
-                v3( half.x, -half.y, half.z),
-                v3( half.x,  half.y, half.z),
-                v3(-half.x,  half.y, half.z)
-            },
-            {
-                v2(0.f, 0.f),
-                v2(1.f, 0.f),
-                v2(1.f, 1.f),
-                v2(0.f, 1.f)
+    m.positions.reserve(num_vertices);
+    m.normals.reserve(num_vertices);
+    m.uv_sets[0].reserve(num_vertices);
+    m.raw_indices.reserve(num_indices);
+
+    // Add top center vertex
+    u32 current_vertex = 0;
+    m.positions.push_back({0.f, halfHeight, 0.f});
+    m.normals.push_back({0.f, 1.f, 0.f});
+    m.uv_sets[0].push_back({0.5f, 0.5f});
+    current_vertex++;
+
+    // Generate vertices for height rings
+    for (u32 j = 0; j <= height_segments; ++j) {
+        const float v = static_cast<float>(j) / height_segments;
+        const float y = glm::mix(halfHeight, -halfHeight, v);
+
+        for (u32 i = 0; i < phi_count; ++i) {
+            const float u = static_cast<float>(i) / phi_count;
+            const float phi = u * glm::two_pi<float>();
+            const float cos_phi = glm::cos(phi);
+            const float sin_phi = glm::sin(phi);
+
+            // Position
+            m.positions.push_back({
+                radius * cos_phi,
+                y,
+                radius * sin_phi
+            });
+
+            // Normal - vertical for caps, outward for sides
+            if (j == 0) {
+                m.normals.push_back({0.f, 1.f, 0.f});
+            } else if (j == height_segments) {
+                m.normals.push_back({0.f, -1.f, 0.f});
+            } else {
+                m.normals.push_back(glm::normalize(v3{cos_phi, 0.f, sin_phi}));
             }
-        },
-        // Back face (-Z)
-        {
-            v3(0.f, 0.f, -1.f),
-            {
-                v3( half.x, -half.y, -half.z),
-                v3(-half.x, -half.y, -half.z),
-                v3(-half.x,  half.y, -half.z),
-                v3( half.x,  half.y, -half.z)
-            },
-            {
-                v2(0.f, 0.f),
-                v2(1.f, 0.f),
-                v2(1.f, 1.f),
-                v2(0.f, 1.f)
+
+            // UV coordinates
+            if (j == 0 || j == height_segments) {
+                // Cap UVs - circular mapping
+                m.uv_sets[0].push_back({
+                    cos_phi * 0.5f + 0.5f,
+                    sin_phi * 0.5f + 0.5f
+                });
+            } else {
+                // Side UVs - cylindrical mapping
+                m.uv_sets[0].push_back({u, v});
             }
-        },
-        // Right face (+X)
-        {
-            v3(1.f, 0.f, 0.f),
-            {
-                v3(half.x, -half.y,  half.z),
-                v3(half.x, -half.y, -half.z),
-                v3(half.x,  half.y, -half.z),
-                v3(half.x,  half.y,  half.z)
-            },
-            {
-                v2(0.f, 0.f),
-                v2(1.f, 0.f),
-                v2(1.f, 1.f),
-                v2(0.f, 1.f)
-            }
-        },
-        // Left face (-X)
-        {
-            v3(-1.f, 0.f, 0.f),
-            {
-                v3(-half.x, -half.y, -half.z),
-                v3(-half.x, -half.y,  half.z),
-                v3(-half.x,  half.y,  half.z),
-                v3(-half.x,  half.y, -half.z)
-            },
-            {
-                v2(0.f, 0.f),
-                v2(1.f, 0.f),
-                v2(1.f, 1.f),
-                v2(0.f, 1.f)
-            }
-        },
-        // Top face (+Y)
-        {
-            v3(0.f, 1.f, 0.f),
-            {
-                v3(-half.x, half.y,  half.z),
-                v3( half.x, half.y,  half.z),
-                v3( half.x, half.y, -half.z),
-                v3(-half.x, half.y, -half.z)
-            },
-            {
-                v2(0.f, 0.f),
-                v2(1.f, 0.f),
-                v2(1.f, 1.f),
-                v2(0.f, 1.f)
-            }
-        },
-        // Bottom face (-Y)
-        {
-            v3(0.f, -1.f, 0.f),
-            {
-                v3(-half.x, -half.y, -half.z),
-                v3( half.x, -half.y, -half.z),
-                v3( half.x, -half.y,  half.z),
-                v3(-half.x, -half.y,  half.z)
-            },
-            {
-                v2(0.f, 0.f),
-                v2(1.f, 0.f),
-                v2(1.f, 1.f),
-                v2(0.f, 1.f)
-            }
+            current_vertex++;
         }
-    };
-
-    // Reserve space: 24 vertices and 36 indices
-    m.positions.reserve(24);
-    m.normals.reserve(24);
-    util::vector<v2> allUVs;
-    allUVs.reserve(24);
-    m.raw_indices.reserve(36);
-
-    // For each face, add its vertices and corresponding indices.
-    // Vertices for a face are stored consecutively.
-    for (u32 face = 0; face < 6; ++face) {
-        const u32 baseIndex = static_cast<u32>(m.positions.size());
-        for (u32 i = 0; i < 4; ++i) {
-            m.positions.push_back(faces[face].positions[i]);
-            m.normals.push_back(faces[face].normal);
-            allUVs.push_back(faces[face].uvs[i]);
-        }
-
-        // Two triangles per face (clockwise winding order)
-        // Triangle 1: vertices 0, 1, 2
-        m.raw_indices.push_back(baseIndex + 0);
-        m.raw_indices.push_back(baseIndex + 1);
-        m.raw_indices.push_back(baseIndex + 2);
-
-        // Triangle 2: vertices 0, 2, 3
-        m.raw_indices.push_back(baseIndex + 0);
-        m.raw_indices.push_back(baseIndex + 2);
-        m.raw_indices.push_back(baseIndex + 3);
     }
 
-    // Save the UVs into the mesh’s UV set (assumes uv_sets[0] exists)
-    m.uv_sets.resize(1);
-    m.uv_sets[0] = std::move(allUVs);
+    // Add bottom center vertex
+    m.positions.push_back({0.f, -halfHeight, 0.f});
+    m.normals.push_back({0.f, -1.f, 0.f});
+    m.uv_sets[0].push_back({0.5f, 0.5f});
 
-    // Optional: Validate vertex/index counts
-    assert(m.positions.size() == 24);
-    assert(m.normals.size() == 24);
-    assert(m.raw_indices.size() == 36);
-    assert(m.uv_sets[0].size() == 24);
+    // Generate indices
+    u32 index_count = 0;
+
+    // Top cap - CCW when viewed from above
+    const u32 top_center = 0;
+    const u32 top_ring_start = 1;
+    for (u32 i = 0; i < phi_count; ++i) {
+        const u32 next_i = (i + 1) % phi_count;
+        m.raw_indices.push_back(top_center);
+        m.raw_indices.push_back(top_ring_start + next_i);
+        m.raw_indices.push_back(top_ring_start + i);
+        index_count += 3;
+    }
+
+    // Side faces - ensure CCW when viewed from outside
+    for (u32 j = 0; j < height_segments; ++j) {
+        const u32 ring_start = 1 + j * phi_count;
+        const u32 next_ring_start = ring_start + phi_count;
+
+        for (u32 i = 0; i < phi_count; ++i) {
+            const u32 next_i = (i + 1) % phi_count;
+            const u32 curr_ring_curr = ring_start + i;
+            const u32 curr_ring_next = ring_start + next_i;
+            const u32 next_ring_curr = next_ring_start + i;
+            const u32 next_ring_next = next_ring_start + next_i;
+
+            // First triangle
+            m.raw_indices.push_back(curr_ring_curr);
+            m.raw_indices.push_back(curr_ring_next);
+            m.raw_indices.push_back(next_ring_curr);
+
+            // Second triangle
+            m.raw_indices.push_back(curr_ring_next);
+            m.raw_indices.push_back(next_ring_next);
+            m.raw_indices.push_back(next_ring_curr);
+
+            index_count += 6;
+        }
+    }
+
+    // Bottom cap - CCW when viewed from below
+    const u32 bottom_center = current_vertex;
+    const u32 bottom_ring_start = bottom_center - phi_count;
+    for (u32 i = 0; i < phi_count; ++i) {
+        const u32 next_i = (i + 1) % phi_count;
+        m.raw_indices.push_back(bottom_center);
+        m.raw_indices.push_back(bottom_ring_start + i);
+        m.raw_indices.push_back(bottom_ring_start + next_i);
+        index_count += 3;
+    }
+
+    assert(index_count == num_indices);
+    assert(current_vertex + 1 == num_vertices);
 
     return m;
 }
@@ -426,8 +550,12 @@ mesh create_cube(const primitive_init_info& info) {
 
   }
   void create_cylinder(scene& scene, const primitive_init_info& info) {
-
+    lod_group lod{};
+    lod.name = "cylinder";
+    lod.meshes.emplace_back(create_cylinder(info));
+    scene.lod_groups.emplace_back(lod);
   }
+
   void create_capsule(scene& scene, const primitive_init_info& info) {
 
   }
