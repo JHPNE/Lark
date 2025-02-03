@@ -29,11 +29,11 @@ namespace lark::drones {
    */
   struct DroneState {
     glm::vec3 position;           ///< Inertial position (m)
-    glm::vec3 velocity;           ///< Inertial velocity (m/s)
+    glm::vec3 velocity;           ///< Inertial velocity (m/s) the world velocity P gain
     glm::quat orientation;        ///< Orientation quaternion [x,y,z,w]
-    glm::vec3 angularVelocity;    ///< Body rates (rad/s)
+    glm::vec3 angular_velocity;    ///< Body rates (rad/s)
     glm::vec3 wind;               ///< Wind vector (m/s)
-    std::vector<float> rotorSpeeds; ///< Current rotor speeds (rad/s)
+    std::vector<float> rotor_speeds; ///< Current rotor speeds (rad/s)
 
     /**
      * @brief Validates the state vector dimensions
@@ -41,7 +41,7 @@ namespace lark::drones {
      * @return True if dimensions are valid
      */
     [[nodiscard]] bool validateDimensions(size_t expectedRotors) const {
-      return rotorSpeeds.size() == expectedRotors;
+      return rotor_speeds.size() == expectedRotors;
     }
   };
 
