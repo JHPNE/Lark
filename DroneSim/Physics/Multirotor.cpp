@@ -1,6 +1,9 @@
 #include "Multirotor.h"
-#include <random>
+
+#include "Utils/ErrorHandling.h"
+#include "Utils/Logger.h"
 #include <chrono>
+#include <random>
 #include <stdexcept>
 
 namespace lark::drones {
@@ -469,6 +472,7 @@ namespace lark::drones {
     if (!std::isfinite(glm::length(glm::quat(quatDot.w, quatDot.x, quatDot.y, quatDot.z)))) {
         throw std::runtime_error("Quaternion derivative computation produced non-finite values");
     }
+
 
     return glm::quat(quatDot.w, quatDot.x, quatDot.y, quatDot.z);
   }
