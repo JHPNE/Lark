@@ -6,6 +6,9 @@
 #include <random>
 #include <stdexcept>
 
+/**
+ * TODO maybe outsource Model logic like flapping etc into Model files
+ */
 namespace lark::drones {
   DroneState Multirotor::step(const DroneState& state, const ControlInput& control, float timeStep) {
     if (timeStep <= 0.0f) {

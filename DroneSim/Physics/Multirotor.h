@@ -1,3 +1,4 @@
+#pragma once
 #include "IDrone.h"
 
 namespace lark::drones {
