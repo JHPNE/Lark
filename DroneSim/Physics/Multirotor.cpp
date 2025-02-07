@@ -10,6 +10,273 @@
  * TODO maybe outsource Model logic like flapping etc into Model files
  */
 namespace lark::drones {
+    void Multirotor::initializeControlAllocation() {
+        // PRE-CONDITIONS
+        if (rotors.empty()) {
+            throw std::runtime_error("Cannot initialize control allocation with no rotors");
+        }
+
+        try {
+            // Initialize allocation matrices with zero
+            thrustMomentToForce = glm::mat4(0.0f);
+            forceToThrustMoment = glm::mat4(0.0f);
+
+            // Compute the control allocation matrix that maps from
+            // [collective_thrust, roll_moment, pitch_moment, yaw_moment] to individual rotor forces
+            // For each rotor, compute its contribution to thrust and moments
+            for (size_t i = 0; i < rotors.size(); ++i) {
+                const auto& rotor = rotors[i];
+
+                // Verify rotor parameters
+                if (std::abs(rotor.thrustCoeff) < 1e-6f) {
+                    throw std::runtime_error("Rotor thrust coefficient too small");
+                }
+
+                // Row 0: Thrust contribution (all rotors contribute positively to thrust)
+                thrustMomentToForce[0][i] = 1.0f;
+
+                // Row 1: Roll moment = y * thrust
+                thrustMomentToForce[1][i] = rotor.position.y;
+
+                // Row 2: Pitch moment = -x * thrust
+                thrustMomentToForce[2][i] = -rotor.position.x;
+
+                // Row 3: Yaw moment = direction * (torque/thrust ratio)
+                float k = rotor.torqueCoeff / rotor.thrustCoeff;  // Ratio of torque to thrust
+                thrustMomentToForce[3][i] = rotor.direction * k;
+            }
+
+            // Compute pseudo-inverse for motor force to thrust/moment mapping
+            glm::mat4 inverse = glm::inverse(thrustMomentToForce);
+
+            // Validate inverse computation
+            float det = glm::determinant(thrustMomentToForce);
+            if (std::abs(det) < 1e-6f || !std::isfinite(det)) {
+                throw std::runtime_error("Control allocation matrix is singular");
+            }
+
+            forceToThrustMoment = inverse;
+
+            // POST-CONDITIONS: Verify inverse computation
+            glm::mat4 identity = thrustMomentToForce * forceToThrustMoment;
+            constexpr float MATRIX_TOLERANCE = 1e-4f;
+
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    float expected = (i == j) ? 1.0f : 0.0f;
+                    if (std::abs(identity[i][j] - expected) > MATRIX_TOLERANCE) {
+                        std::stringstream ss;
+                        ss << "Control allocation matrix inverse validation failed at ["
+                           << i << "," << j << "] = " << identity[i][j];
+                        throw std::runtime_error(ss.str());
+                    }
+                }
+            }
+
+        } catch (const std::exception& e) {
+            // Wrap any exceptions with context
+            throw std::runtime_error(
+                std::string("Control allocation initialization failed: ") + e.what()
+            );
+        }
+    }
+
+    Multirotor::Multirotor(
+        const InertiaProperties& inertial,
+        const AerodynamicProperties& aero,
+        const MotorProperties& motor,
+        const std::vector<RotorParameters>& rotorParams,
+        ControlMode mode)
+        : inertialProps(inertial),
+          aeroProps(aero),
+          motorProps(motor),
+          rotors(rotorParams),
+          inverseInertia(glm::inverse(inertial.getInertiaMatrix())),
+          controlMode(mode) {
+
+        // Validate inertia properties
+        if (inertial.mass <= 0.0f) {
+            throw std::invalid_argument("Mass must be positive");
+        }
+
+        // Principal moments must be positive
+        if (inertial.Ixx <= 0.0f || inertial.Iyy <= 0.0f || inertial.Izz <= 0.0f) {
+            throw std::invalid_argument("Principal moments of inertia must be positive");
+        }
+
+        // Validate rotor configuration
+        if (rotorParams.empty()) {
+            throw std::invalid_argument("At least one rotor required");
+        }
+
+        // Validate each rotor's parameters
+        for (const auto& rotor : rotorParams) {
+            if (auto error = rotor.validate()) {
+                throw std::invalid_argument("Invalid rotor parameters: " + error.value());
+            }
+        }
+
+        initializeControlAllocation();
+    }
+
+    void Multirotor::setControlMode(ControlMode mode) {
+        // Validate requested mode is supported
+        switch (mode) {
+        case ControlMode::MOTOR_SPEEDS:
+        case ControlMode::MOTOR_THRUSTS:
+        case ControlMode::COLLECTIVE_THRUST_BODY_RATES:
+        case ControlMode::COLLECTIVE_THRUST_BODY_MOMENTS:
+        case ControlMode::COLLECTIVE_THRUST_ATTITUDE:
+        case ControlMode::VELOCITY:
+            controlMode = mode;
+            break;
+
+        default:
+            throw std::invalid_argument("Unsupported control mode");
+        }
+    }
+
+    std::optional<std::string> Multirotor::validateState(const DroneState& state) const {
+        std::stringstream error;
+
+        // Check rotor count matches configuration
+        if (state.rotor_speeds.size() != rotors.size()) {
+            error << "Invalid rotor count. Expected " << rotors.size()
+                  << ", got " << state.rotor_speeds.size();
+            return error.str();
+        }
+
+        // Validate quaternion normalization
+        constexpr float QUAT_NORM_TOLERANCE = 1e-3f;
+        const float quatLength = glm::length(state.orientation);
+        if (std::abs(quatLength - 1.0f) > QUAT_NORM_TOLERANCE) {
+            error << "Quaternion not normalized. Length: " << quatLength;
+            return error.str();
+        }
+
+        // Check for invalid values
+        auto checkFinite = [](const glm::vec3& v, const char* name) -> std::optional<std::string> {
+            if (!std::isfinite(v.x) || !std::isfinite(v.y) || !std::isfinite(v.z)) {
+                return std::string(name) + " contains non-finite values";
+            }
+            return std::nullopt;
+        };
+
+        if (auto err = checkFinite(state.position, "Position")) return err;
+        if (auto err = checkFinite(state.velocity, "Velocity")) return err;
+        if (auto err = checkFinite(state.angular_velocity, "Angular velocity")) return err;
+        if (auto err = checkFinite(state.wind, "Wind")) return err;
+
+        // Validate rotor speeds within bounds
+        for (size_t i = 0; i < state.rotor_speeds.size(); ++i) {
+            const float speed = state.rotor_speeds[i];
+            if (!std::isfinite(speed)) {
+                error << "Non-finite rotor speed at index " << i;
+                return error.str();
+            }
+            if (speed < rotors[i].minSpeed || speed > rotors[i].maxSpeed) {
+                error << "Rotor " << i << " speed " << speed
+                      << " outside bounds [" << rotors[i].minSpeed
+                      << ", " << rotors[i].maxSpeed << "]";
+                return error.str();
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<std::string> Multirotor::validateControl(const ControlInput& control) const {
+        std::stringstream error;
+
+        // First validate control mode matches current configuration
+        if (control.mode != controlMode) {
+            error << "Control mode mismatch. Expected "
+                  << static_cast<int>(controlMode) << ", got "
+                  << static_cast<int>(control.mode);
+            return error.str();
+        }
+
+        // Validate based on control mode
+        switch (control.mode) {
+            case ControlMode::MOTOR_SPEEDS:
+                if (control.motorSpeeds.size() != rotors.size()) {
+                    error << "Invalid motor speed count. Expected " << rotors.size()
+                          << ", got " << control.motorSpeeds.size();
+                    return error.str();
+                }
+                // Check speed bounds
+                for (size_t i = 0; i < control.motorSpeeds.size(); ++i) {
+                    const float speed = control.motorSpeeds[i];
+                    if (!std::isfinite(speed)) {
+                        error << "Non-finite motor speed at index " << i;
+                        return error.str();
+                    }
+                    if (speed < rotors[i].minSpeed || speed > rotors[i].maxSpeed) {
+                        error << "Motor " << i << " speed " << speed
+                              << " outside bounds [" << rotors[i].minSpeed
+                              << ", " << rotors[i].maxSpeed << "]";
+                        return error.str();
+                    }
+                }
+                break;
+
+            case ControlMode::MOTOR_THRUSTS:
+                if (control.motorThrusts.size() != rotors.size()) {
+                    error << "Invalid motor thrust count. Expected " << rotors.size()
+                          << ", got " << control.motorThrusts.size();
+                    return error.str();
+                }
+                for (size_t i = 0; i < control.motorThrusts.size(); ++i) {
+                    if (!std::isfinite(control.motorThrusts[i])) {
+                        error << "Non-finite motor thrust at index " << i;
+                        return error.str();
+                    }
+                }
+                break;
+
+            case ControlMode::COLLECTIVE_THRUST_BODY_RATES:
+            case ControlMode::COLLECTIVE_THRUST_BODY_MOMENTS:
+                if (!std::isfinite(control.collectiveThrust)) {
+                    return "Non-finite collective thrust";
+                }
+                if (!std::isfinite(control.bodyRates.x) ||
+                    !std::isfinite(control.bodyRates.y) ||
+                    !std::isfinite(control.bodyRates.z)) {
+                    return "Non-finite body rates";
+                }
+                break;
+
+            case ControlMode::COLLECTIVE_THRUST_ATTITUDE:
+                if (!std::isfinite(control.collectiveThrust)) {
+                    return "Non-finite collective thrust";
+                }
+                // Validate quaternion normalization
+                {
+                    constexpr float QUAT_NORM_TOLERANCE = 1e-3f;
+                    const float quatLength = glm::length(control.targetAttitude);
+                    if (std::abs(quatLength - 1.0f) > QUAT_NORM_TOLERANCE) {
+                        error << "Target attitude quaternion not normalized. Length: " << quatLength;
+                        return error.str();
+                    }
+                }
+                break;
+
+            case ControlMode::VELOCITY:
+                if (!std::isfinite(control.targetVelocity.x) ||
+                    !std::isfinite(control.targetVelocity.y) ||
+                    !std::isfinite(control.targetVelocity.z)) {
+                    return "Non-finite target velocity";
+                }
+                break;
+
+            default:
+                return "Unsupported control mode";
+        }
+
+        return std::nullopt;
+    }
+
+
   DroneState Multirotor::step(const DroneState& state, const ControlInput& control, float timeStep) {
     if (timeStep <= 0.0f) {
       throw std::invalid_argument("Time step must be positive");
