@@ -1,3 +1,5 @@
+#ifndef LARK_DRONES_DRONETYPES_H
+#define LARK_DRONES_DRONETYPES_H
 
 #include <array>
 #include <cstdint>
@@ -154,3 +156,4 @@ namespace lark::drones {
     [[nodiscard]] std::optional<std::string> validate(size_t numRotors) const;
   };
 }
+#endif

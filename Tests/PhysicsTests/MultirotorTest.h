@@ -1,6 +1,7 @@
-#include <gtest/gtest.h>
+#pragma once
 #include "Physics/Multirotor.h"
 #include <cmath>
+#include <gtest/gtest.h>
 #include <memory>
 
 namespace lark::test {
