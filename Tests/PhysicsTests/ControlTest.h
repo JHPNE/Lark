@@ -85,7 +85,7 @@ private:
 
     static std::vector<RotorParameters> createRotorConfiguration() {
         constexpr float arm_length = 0.17f;  // 17cm arm length
-        constexpr float sqrt2_2 = arm_length/std::sqrt(2.0f);
+        const float sqrt2_2 = arm_length/std::sqrt(2.0f);
 
         return {
             // Front right
@@ -186,4 +186,79 @@ TEST_F(ControlTest, HoverManeuver) {
     EXPECT_TRUE(std::isfinite(finalError));
 }
 
+/**
+ * @brief Test hover maneuver control
+ * @test Validates drone stable hover behavior
+ */
+TEST_F(ControlTest, SpinManeuver) {
+    using Clock = std::chrono::high_resolution_clock;
+    auto startTime = Clock::now();
+
+    // Create drone and controller
+    Multirotor drone(inertialProps, aeroProps, motorProps, rotors,
+                    ControlMode::COLLECTIVE_THRUST_ATTITUDE);
+    Controller controller(inertialProps);
+
+    // Initial state
+    DroneState state{
+        .position = {0, 0, 0},
+        .velocity = {0, 0, 0},
+        .orientation = {0, 0, 0, 1},
+        .angular_velocity = {0, 0, 0},
+        .wind = {0, 0, 0},
+        .rotor_speeds = std::vector<float>(4, 0.0f)
+    };
+
+    // Simulation parameters
+    constexpr float dt = 0.01f;        // 100Hz
+    constexpr float t_final = 5.0f;    // 5 seconds
+    constexpr float print_interval = 0.1f;
+
+    // Hover at z=1m
+    FlatOutput desired{
+        .position = {2, 1, 1},
+        .velocity = {0, 0, 0},
+        .acceleration = {0, 0, 0},
+        .jerk = {0, 0, 0},
+        .snap = {0, 0, 0},
+        .yaw = 0,
+        .yawRate = 0
+    };
+
+    std::cout << "\nRunning hover simulation...\n";
+
+    float t = 0;
+    size_t stepCount = 0;
+
+    while (t < t_final) {
+        ControlInput control = controller.computeControl(
+            ControlMode::COLLECTIVE_THRUST_ATTITUDE,
+            state,
+            desired
+        );
+
+        state = drone.step(state, control, dt);
+
+        if (std::fmod(t, print_interval) < dt) {
+            printState(state, t);
+        }
+
+        t += dt;
+        stepCount++;
+    }
+
+    auto endTime = Clock::now();
+    std::chrono::duration<double> elapsed = endTime - startTime;
+
+    const float finalError = glm::length(state.position - desired.position);
+
+    std::cout << "\nSimulation complete!\n"
+              << "Steps: " << stepCount << "\n"
+              << "Simulation time: " << t_final << "s\n"
+              << "Wall time: " << elapsed.count() << "s\n"
+              << "Final position error: " << finalError << "m\n";
+
+    // Basic sanity check - error should be finite
+    EXPECT_TRUE(std::isfinite(finalError));
+}
 } // namespace lark::drones::test
