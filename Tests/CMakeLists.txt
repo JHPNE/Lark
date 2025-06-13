@@ -24,7 +24,7 @@ enable_testing()
 target_include_directories(Tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/EngineDLL/include
-        ${CMAKE_SOURCE_DIR}/DroneSim/include
+        ${CMAKE_SOURCE_DIR}/Lark/include
         # Add other include paths as needed
         ${glad_SOURCE_DIR}/include
         ${glfw_SOURCE_DIR}/include
@@ -42,7 +42,7 @@ target_link_libraries(Tests PRIVATE
         glfw
         tinyxml2
         glm
-        DroneSim
+        Lark
         EngineDLL
         Python::Python
         pybind11::embed
@@ -126,7 +126,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/scripts")
 endif()
 
 # Ensure dependencies are built before Tests
-add_dependencies(Tests EngineDLL DroneSim)
+add_dependencies(Tests EngineDLL Lark)
 
 # Include GoogleTest
 include(GoogleTest)

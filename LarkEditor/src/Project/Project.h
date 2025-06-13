@@ -11,7 +11,7 @@
 
 class Project : public std::enable_shared_from_this<Project>, public ISerializable {
 public:
-    static constexpr const char* Extension = ".drosim";
+    static constexpr const char* Extension = ".lark";
 
     static std::shared_ptr<Project> Create(const std::string& name,
         const fs::path& path,

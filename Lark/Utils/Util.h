@@ -3,8 +3,7 @@
 #define USE_STL_VECTOR 1
 #define USE_STL_DEQUE 1
 #include <glm/vec3.hpp>
-
-#include "LinearMath/btVector3.h"
+#include <LinearMath/btVector3.h>
 
 #if USE_STL_VECTOR
 	#include <vector>

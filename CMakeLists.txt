@@ -1,7 +1,7 @@
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.16.0 FATAL_ERROR)
 
-project(Drosim VERSION 1.0.0 LANGUAGES CXX)
+project(Lark VERSION 1.0.0 LANGUAGES CXX)
 
 find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
 # Find OpenMP
@@ -50,9 +50,9 @@ include(cmake/CompilerOptions.cmake)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Add subdirectories
-add_subdirectory(DroneSim)
+add_subdirectory(Lark)
 add_subdirectory(EngineDLL)
-add_subdirectory(NativeEditor)
+add_subdirectory(LarkEditor)
 add_subdirectory(Tests)
 
 # Add this after your add_subdirectory calls
@@ -65,5 +65,5 @@ if(DEFAULT_SCRIPTS)
     file(COPY ${DEFAULT_SCRIPTS} DESTINATION ${SCRIPT_OUTPUT_DIR})
 endif()
 
-add_dependencies(DroSimEditor EngineDLL)
+add_dependencies(LarkEditor EngineDLL)
 add_dependencies(Tests EngineDLL)

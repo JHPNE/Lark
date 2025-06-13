@@ -1,0 +1,1 @@
+<ProjectTemplate xmlns="http://schemas.datacontract.org/2004/07/Lark.SimProject" xmlns:i="http://www.w3.org/2001/XMLSchema-instance"><pFile>project.lark</pFile><pFolders xmlns:a="http://schemas.microsoft.com/2003/10/Serialization/Arrays"><a:string>.Lark</a:string><a:string>Content</a:string><a:string>SimCode</a:string></pFolders><pType>Empty Project</pType></ProjectTemplate>

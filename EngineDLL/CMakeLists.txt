@@ -21,10 +21,10 @@ target_include_directories(${PROJECT_NAME}
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         PRIVATE
-        ${CMAKE_SOURCE_DIR}/DroneSim
-        ${CMAKE_SOURCE_DIR}/DroneSim/Common
-        ${CMAKE_SOURCE_DIR}/DroneSim/Components
-        ${CMAKE_SOURCE_DIR}/DroneSim/DroneSimAPI
+        ${CMAKE_SOURCE_DIR}/Lark
+        ${CMAKE_SOURCE_DIR}/Lark/Common
+        ${CMAKE_SOURCE_DIR}/Lark/Components
+        ${CMAKE_SOURCE_DIR}/Lark/LarkAPI
         ${Python_INCLUDE_DIRS}
         ${pybind11_INCLUDE_DIRS}
 )
@@ -41,7 +41,7 @@ endif()
 
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE
-        DroneSim
+        Lark
         glm
         Python::Python
         pybind11::pybind11

@@ -10,7 +10,7 @@ Lark uses Data-Oriented Programming to optimize data layout and access patterns.
 ## How to Implement New Components
 ### Creating a New Component
 1. **Header File:**
-   Create a header file for your component in the `DroneSim/Components/` directory. Define the component's data structure and necessary functions. For example:
+   Create a header file for your component in the `Lark/Components/` directory. Define the component's data structure and necessary functions. For example:
    ```cpp
    #pragma once
    #include "Entity.h"

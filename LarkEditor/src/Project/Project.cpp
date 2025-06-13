@@ -49,11 +49,11 @@ std::shared_ptr<Project> Project::Create(const std::string& name,
         // Create hidden directory
         fs::path hiddenDir = projectDir /
 #ifdef _WIN32
-            ".Drosim";
+            ".lark";
         // Set as hidden in Windows
         FileSystem::SetHidden(hiddenDir);
 #else
-            ".drosim";
+            ".lark";
         // On Unix-like systems, ensure directory has correct permissions if needed
         fs::permissions(hiddenDir, fs::perms::owner_all | fs::perms::group_all | fs::perms::others_read);
 #endif

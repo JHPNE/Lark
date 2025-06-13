@@ -312,7 +312,7 @@ bool ProjectBrowserView::WriteProjectData() {
 
 void ProjectBrowserView::LoadTemplates() {
 
-	std::string enginePathString = Utils::GetEnvironmentVariable("DRONESIM_ENGINE");
+	std::string enginePathString = Utils::GetEnvVar("LARK_ENGINE");
 
 	if (enginePathString.empty()) {
 		Utils::s_showEnginePathPopup = true;

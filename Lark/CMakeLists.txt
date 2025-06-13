@@ -1,4 +1,4 @@
-set(PROJECT_NAME DroneSim)
+set(PROJECT_NAME Lark)
 
 # Collect source files
 file(GLOB_RECURSE SOURCE_FILES

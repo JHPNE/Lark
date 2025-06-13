@@ -1,4 +1,4 @@
-﻿set(PROJECT_NAME DroSimEditor)
+﻿set(PROJECT_NAME LarkEditor)
 
 # Collect source files
 file(GLOB_RECURSE EDITOR_FILES
@@ -13,10 +13,10 @@ add_executable(${PROJECT_NAME} ${EDITOR_FILES})
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/EngineDLL
-        ${CMAKE_SOURCE_DIR}/DroneSim
-        ${CMAKE_SOURCE_DIR}/DroneSim/Common
-        ${CMAKE_SOURCE_DIR}/DroneSim/Components
-        ${CMAKE_SOURCE_DIR}/DroneSim/DroneSimAPI
+        ${CMAKE_SOURCE_DIR}/Lark
+        ${CMAKE_SOURCE_DIR}/Lark/Common
+        ${CMAKE_SOURCE_DIR}/Lark/Components
+        ${CMAKE_SOURCE_DIR}/Lark/LarkAPI
         ${glad_SOURCE_DIR}/include
         ${glfw_SOURCE_DIR}/include
         ${imgui_SOURCE_DIR}
@@ -33,7 +33,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
         tinyxml2
         glm
-        DroneSim
+        Lark
         EngineDLL
         Python::Python
         pybind11::embed
