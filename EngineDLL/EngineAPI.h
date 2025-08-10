@@ -42,10 +42,6 @@ extern "C" {
     ENGINE_API const char** GetScriptNames(size_t* count);
     ENGINE_API bool RegisterScript(const char* script_name);
 
-    // Function to add and remove scripts from existing entities
-    ENGINE_API bool AddScriptToEntity(lark::id::id_type entity_id, const char* script_name);
-    ENGINE_API bool RemoveScriptFromEntity(lark::id::id_type entity_id);
-
     ENGINE_API bool GameLoop_Initialize(u32 target_fps, f32 fixed_timestep);
     ENGINE_API void GameLoop_Tick();  // Process a single frame
     ENGINE_API void GameLoop_Shutdown();

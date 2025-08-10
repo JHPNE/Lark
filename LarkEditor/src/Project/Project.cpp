@@ -103,7 +103,22 @@ std::shared_ptr<Project> Project::Load(const fs::path& projectFile) {
 
 
 void Project::Unload() {
-    // Will be implemented when we add resource management
+    for (auto& scene : m_scenes) {
+        for (auto& entity : scene->GetEntities()) {
+            RemoveGameEntity(entity->GetID());
+        }
+        scene->RemoveAllEntities();
+    }
+
+
+    m_scenes.clear();
+    m_activeScene = nullptr;
+
+    GlobalUndoRedo::Instance().GetUndoRedo().Reset();
+
+    m_isModified = false;
+
+    Logger::Get().Log(MessageType::Info, "Successfully unloaded project: " + GetName());
 }
 
 Project::Project(const std::string& name, const fs::path& path)

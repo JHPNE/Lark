@@ -12,6 +12,8 @@
 #include <sstream>
 #include <tinyxml2.h>
 
+#include "GeometryViewerView.h"
+
 namespace detail {
 	
 
@@ -369,6 +371,25 @@ void ProjectBrowserView::OpenSelectedProject() {
             return;
         }
 
+        // clean up if there is a currently loaded project before loading a new one
+        if (m_loadedProject) {
+            Logger::Get().Log(MessageType::Info, "Unloading current project: " + m_loadedProject->GetName());
+
+            GeometryViewerView::Get().ClearGeometries();
+
+            for (auto& scene : m_loadedProject->GetScenes()) {
+                for (auto& entity : scene->GetEntities()) {
+                    entity->SetSelected(false);
+                }
+            }
+
+            m_loadedProject->Unload();
+
+            m_loadedProject.reset();
+
+            Logger::Get().Log(MessageType::Info, "Sucessfully unloaded current project");
+        }
+
         if (auto project = Project::Load(projectData.GetFullPath())) {
             // Update last opened time
             auto now = std::chrono::system_clock::now();
@@ -400,6 +421,22 @@ void ProjectBrowserView::OpenSelectedProject() {
 bool ProjectBrowserView::CreateNewProject() {
     if (!ValidateProjectPath() || m_selectedTemplate >= m_templates.size()) {
         return false;
+    }
+
+    if (m_loadedProject) {
+        Logger::Get().Log(MessageType::Info,
+            "Unloading current project before creating new one");
+
+        GeometryViewerView::Get().ClearGeometries();
+
+        for (auto& scene : m_loadedProject->GetScenes()) {
+            for (auto& entity : scene->GetEntities()) {
+                entity->SetSelected(false);
+            }
+        }
+
+        m_loadedProject->Unload();
+        m_loadedProject.reset();
     }
 
     auto tmpl = m_templates[m_selectedTemplate];
