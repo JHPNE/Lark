@@ -169,10 +169,18 @@ namespace editor {
 			// File Menu
 			if (ImGui::BeginMenu("File")) {
 				if (ImGui::MenuItem("New Project", "Ctrl+N")) {
-					ProjectBrowserView::Get().GetShowState() = true;
+					if (ProjectBrowserView::Get().GetShowState() && ProjectBrowserView::Get().GetLoadedProject() != nullptr) {
+						ProjectBrowserView::Get().GetLoadedProject()->Unload();
+					} else {
+						ProjectBrowserView::Get().GetShowState() = true;
+					}
 				}
 				if (ImGui::MenuItem("Open Project", "Ctrl+O")) {
-					ProjectBrowserView::Get().GetShowState() = true;
+					if (ProjectBrowserView::Get().GetShowState() && ProjectBrowserView::Get().GetLoadedProject() != nullptr) {
+						ProjectBrowserView::Get().GetLoadedProject()->Unload();
+					} else {
+						ProjectBrowserView::Get().GetShowState() = true;
+					}
 				}
 				if (ImGui::MenuItem("Save", "Ctrl+S")) {
 					ProjectBrowserView::Get().GetLoadedProject()->Save();

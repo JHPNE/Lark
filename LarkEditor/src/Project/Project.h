@@ -29,7 +29,7 @@ public:
     bool RemoveScene(uint32_t sceneId);
     std::shared_ptr<Scene> GetScene(uint32_t sceneId) const;
     std::shared_ptr<Scene> GetActiveScene() const { return m_activeScene; };
-	bool SetActiveScene(uint32_t sceneId);
+    bool SetActiveScene(uint32_t sceneId);
     const std::vector<std::shared_ptr<Scene>>& GetScenes() const { return m_scenes; }
 
     // Project modified state

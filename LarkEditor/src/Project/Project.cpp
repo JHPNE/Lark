@@ -10,30 +10,6 @@
 
 #include <fstream>
 
-namespace {
-    std::string ReadFileContent(const fs::path& path) {
-        std::ifstream file(path, std::ios::binary);
-        if (!file) return "";
-        return std::string(std::istreambuf_iterator<char>(file),
-            std::istreambuf_iterator<char>());
-    }
-
-    std::string FormatProjectXml(const std::string& xml,
-        const std::string& name,
-        const std::string& path) {
-        std::string result = xml;
-        size_t pos;
-
-        if ((pos = result.find("{0}")) != std::string::npos)
-            result.replace(pos, 3, name);
-
-        if ((pos = result.find("{1}")) != std::string::npos)
-            result.replace(pos, 3, path);
-
-        return result;
-    }
-}
-
 std::shared_ptr<Project> Project::Create(const std::string& name,
     const fs::path& path, const ProjectTemplate& tmpl) {
     try {

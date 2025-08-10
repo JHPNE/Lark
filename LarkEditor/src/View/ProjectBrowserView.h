@@ -15,7 +15,7 @@ public:
 
     void Draw();
     bool& GetShowState() { return m_show; }
-    std::shared_ptr<Project> GetLoadedProject() const { return m_loadedProject; }
+    [[nodiscard]] std::shared_ptr<Project> GetLoadedProject() const { return m_loadedProject; }
     void SetLoadedProject(const std::shared_ptr<Project>& project) { m_loadedProject = project; }
 
 private:
