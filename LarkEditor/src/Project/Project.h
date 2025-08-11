@@ -46,11 +46,6 @@ public:
 
     bool Save() {
         try {
-            // Log current state
-            Logger::Get().Log(MessageType::Info,
-                "Saving project - Name: " + m_name +
-                ", Path: " + m_path.string());
-
             tinyxml2::XMLDocument doc;
             SerializationContext context(doc);
 
@@ -62,11 +57,29 @@ public:
 
             Serialize(root, context);
 
+            if (context.HasErrors()) {
+                for (const auto& error : context.errors) {
+                    Logger::Get().Log(MessageType::Error, "Serialization Error: " + error);
+                }
+                return false;
+            }
+
+            for (const auto& warning : context.warnings) {
+                Logger::Get().Log(MessageType::Warning, "Serialization Warning: " + warning);
+            }
             auto fullPath = GetFullPath();
             Logger::Get().Log(MessageType::Info,
                 "Saving to: " + fullPath.string());
 
-            return doc.SaveFile(fullPath.string().c_str()) == tinyxml2::XML_SUCCESS;
+            bool success = doc.SaveFile(fullPath.string().c_str()) == tinyxml2::XML_SUCCESS;
+            if (success) {
+                m_isModified = false;
+                Logger::Get().Log(MessageType::Info, "Project saved succesfully");
+            } else {
+                Logger::Get().Log(MessageType::Error, "Failed to save project");
+            }
+
+            return success;
         }
         catch (const std::exception& e) {
             Logger::Get().Log(MessageType::Error,
@@ -77,6 +90,57 @@ public:
 
 private:
     Project(const std::string& name, const fs::path& path);
+
+    void HandleScriptDeserialization(const tinyxml2::XMLElement *compElement, const std::shared_ptr<GameEntity> &entity, SerializationContext& context) {
+        ScriptInitializer scriptInit;
+        if (auto scriptNameElement = compElement->FirstChildElement("ScriptName")) {
+            const char* name = scriptNameElement->Attribute("Name");
+            if (name) {
+                scriptInit.scriptName = name;
+                // Check if script is loaded
+                auto it = std::find(m_loaded_scripts.begin(), m_loaded_scripts.end(), scriptInit.scriptName);
+                if (it != m_loaded_scripts.end()) {
+                    auto* script = entity->AddComponent<Script>(&scriptInit);
+                    if (script) {
+                        script->Deserialize(compElement, context);
+                    }
+                }
+            }
+        }
+    }
+
+    void HandleGeometryDeserialization(const tinyxml2::XMLElement *compElement, const std::shared_ptr<GameEntity> &entity, SerializationContext& context) {
+        GeometryInitializer geometryInit;
+
+        // Read basic geometry data
+        if (auto nameElement = compElement->FirstChildElement("GeometryName")) {
+            geometryInit.geometryName = nameElement->Attribute("GeometryName") ?
+                nameElement->Attribute("GeometryName") : "";
+        }
+        if (auto visibleElement = compElement->FirstChildElement("Visible")) {
+            geometryInit.visible = visibleElement->BoolAttribute("Visible");
+        } else {
+            geometryInit.visible = true;
+        }
+        if (auto sourceElement = compElement->FirstChildElement("GeometrySource")) {
+            geometryInit.geometrySource = sourceElement->Attribute("GeometrySourceElement") ?
+                sourceElement->Attribute("GeometrySourceElement") : "";
+
+            const char* typeStr = sourceElement->Attribute("GeometryType");
+            geometryInit.geometryType = (typeStr && std::strcmp(typeStr, "O") == 0) ?
+                GeometryType::ObjImport : GeometryType::PrimitiveType;
+
+            const char* meshTypeStr = sourceElement->Attribute("PrimitiveMeshType");
+            geometryInit.meshType = (meshTypeStr && std::strcmp(meshTypeStr, "cube") == 0) ?
+                content_tools::PrimitiveMeshType::cube : content_tools::PrimitiveMeshType::uv_sphere;
+        }
+
+        auto* geometry = entity->AddComponent<Geometry>(&geometryInit);
+        if (geometry) {
+            geometry->Deserialize(compElement, context);
+            geometry->loadGeometry();
+        }
+    }
 
 	// Internal Methods for Undo/Redo
     std::shared_ptr<Scene> AddSceneInternal(const std::string& sceneName);

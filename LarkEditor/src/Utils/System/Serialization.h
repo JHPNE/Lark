@@ -3,13 +3,49 @@
 #include <string>
 #include <type_traits>
 #include <vector>
-#include <functional>
+#include <unordered_map>
 #include "tinyxml2.h"
+
+struct Version {
+    uint32_t major = 1;
+    uint32_t minor = 0;
+    uint32_t patch = 0;
+
+    bool operator>=(const Version& other) const {
+        if (major != other.major) return major > other.major;
+        if (minor != other.minor) return minor > other.minor;
+        return patch >= other.patch;
+    }
+
+    std::string toString() const {
+        return std::to_string(major) + "." +
+               std::to_string(minor) + "." +
+               std::to_string(patch);
+    }
+
+    static Version fromString(const std::string& str) {
+        Version v;
+        sscanf(str.c_str(), "%u.%u.%u", &v.major, &v.minor, &v.patch);
+        return v;
+    }
+};
 
 class SerializationContext {
 public:
-    explicit SerializationContext(tinyxml2::XMLDocument& doc) : document(doc) {}
+    explicit SerializationContext(tinyxml2::XMLDocument& doc)
+        : document(doc), version{1, 0, 0} {}
+
     tinyxml2::XMLDocument& document;
+    Version version;
+    std::unordered_map<std::string, std::string> userData;
+
+    // Error handling
+    std::vector<std::string> errors;
+    std::vector<std::string> warnings;
+
+    void AddError(const std::string& error) { errors.push_back(error); }
+    void AddWarning(const std::string& warning) { warnings.push_back(warning); }
+    bool HasErrors() const { return !errors.empty(); }
 };
 
 class ISerializable {
@@ -17,6 +53,25 @@ public:
     virtual ~ISerializable() = default;
     virtual void Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const = 0;
     virtual bool Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) = 0;
+
+    // Optional: Override for versioning support
+    virtual Version GetVersion() const { return {1, 0, 0}; }
+    virtual bool SupportsVersion(const Version& version) const {
+        return version >= Version{1, 0, 0};
+    }
+
+    // Helper method to add version info
+    void WriteVersion(tinyxml2::XMLElement* element) const {
+        element->SetAttribute("version", GetVersion().toString().c_str());
+    }
+
+    Version ReadVersion(const tinyxml2::XMLElement* element) const {
+        const char* versionStr = element->Attribute("version");
+        if (versionStr) {
+            return Version::fromString(versionStr);
+        }
+        return {1, 0, 0}; // Default version
+    }
 };
 
 // Serializer utilities
@@ -26,10 +81,16 @@ namespace SerializerUtils {
         if constexpr (std::is_same_v<T, std::string>) {
             element->SetAttribute(name, value.c_str());
         }
+        else if constexpr (std::is_same_v<T, bool>) {
+            element->SetAttribute(name, value ? "true" : "false");
+        }
         else if constexpr (std::is_unsigned_v<T>) {
             element->SetAttribute(name, static_cast<unsigned int>(value));
         }
-        else {
+        else if constexpr (std::is_integral_v<T>) {
+            element->SetAttribute(name, static_cast<int>(value));
+        }
+        else if constexpr (std::is_floating_point_v<T>) {
             element->SetAttribute(name, value);
         }
     }
@@ -44,7 +105,11 @@ namespace SerializerUtils {
             }
         }
         else if constexpr (std::is_same_v<T, bool>) {
-            return element->QueryBoolAttribute(name, &value) == tinyxml2::XML_SUCCESS;
+            const char* str = element->Attribute(name);
+            if (str) {
+                value = (strcmp(str, "true") == 0);
+                return true;
+            }
         }
         else if constexpr (std::is_unsigned_v<T>) {
             unsigned int temp;
@@ -119,4 +184,42 @@ namespace SerializerUtils {
         }
         return false;
     }
+
+    // Helper for serializing Vec3
+    inline void WriteVec3(tinyxml2::XMLDocument& doc, tinyxml2::XMLElement* parent,
+                         const char* name, const Vec3& vec) {
+        auto element = doc.NewElement(name);
+        WriteAttribute(element, "x", vec.x);
+        WriteAttribute(element, "y", vec.y);
+        WriteAttribute(element, "z", vec.z);
+        parent->LinkEndChild(element);
+    }
+
+    inline bool ReadVec3(const tinyxml2::XMLElement* parent, const char* name,
+                        Vec3& vec, const Vec3& defaultVal = Vec3(0, 0, 0)) {
+        auto element = parent->FirstChildElement(name);
+        if (!element) {
+            vec = defaultVal;
+            return false; // Element not found, but we set default
+        }
+
+        float x = defaultVal.x, y = defaultVal.y, z = defaultVal.z;
+        ReadAttribute(element, "x", x);
+        ReadAttribute(element, "y", y);
+        ReadAttribute(element, "z", z);
+        vec = Vec3(x, y, z);
+        return true;
+    }
 }
+
+#define SERIALIZE_PROPERTY(element, context, property) \
+SerializerUtils::WriteAttribute(element, #property, property)
+
+#define DESERIALIZE_PROPERTY(element, context, property) \
+SerializerUtils::ReadAttribute(element, #property, property)
+
+#define SERIALIZE_VEC3(context, parent, name, vec) \
+SerializerUtils::WriteVec3(context.document, parent, name, vec)
+
+#define DESERIALIZE_VEC3(parent, name, vec, defaultVal) \
+SerializerUtils::ReadVec3(parent, name, vec, defaultVal)

@@ -2,6 +2,8 @@
 #include <cassert>
 #include <string>
 #include <memory>
+
+#include "Structures.h"
 #include "Utils/MathUtils.h"
 
 class GameEntity;
@@ -33,7 +35,11 @@ struct ScriptInitializer : ComponentInitializer {
 };
 
 struct GeometryInitializer : ComponentInitializer {
-	char* geometryName;
+	std::string geometryName;
+	GeometryType geometryType;
+	bool visible;
+	std::string geometrySource;
+	content_tools::PrimitiveMeshType meshType;
 };
 
 
@@ -53,6 +59,16 @@ public:
 
 	static ComponentType GetStaticType() { return ComponentType::None; }
 	GameEntity* GetOwner() const { return m_owner; }
+
+	static const char* ComponentTypeToString(ComponentType type) {
+		switch (type) {
+			case ComponentType::None:      return "None";
+			case ComponentType::Transform: return "Transform";
+			case ComponentType::Script:    return "Script";
+			case ComponentType::Geometry:  return "Geometry";
+			default:                        return "Unknown";
+		}
+	}
 
 protected:
 	explicit Component(GameEntity* owner) : m_owner(owner) {

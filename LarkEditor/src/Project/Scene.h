@@ -73,40 +73,29 @@ public:
         return entity;
     }
 
-    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name,
-                         const geometry_component* geom = nullptr) {
-        game_entity_descriptor desc{};
-        desc.transform.position[0] = desc.transform.position[1] = desc.transform.position[2] = 0.f;
-        // Zero out rotation
-        std::memset(desc.transform.rotation, 0, sizeof(float) * 3);
-        // Set scale to 1
-        desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
+    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name, bool createEngineEntity = true ) {
+        std::shared_ptr<GameEntity> entity;
 
+        if (createEngineEntity) {
+            // Create basic engine entity with just transform
+            game_entity_descriptor desc{};
+            desc.transform.position[0] = desc.transform.position[1] = desc.transform.position[2] = 0.f;
+            std::memset(desc.transform.rotation, 0, sizeof(float) * 3);
+            desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
 
-        if (geom != nullptr && geom->scene != nullptr) {
-            desc.geometry.is_dynamic = false;
-            desc.geometry.scene = geom->scene;
+            uint32_t entityId = CreateGameEntity(&desc);
+            entity = std::shared_ptr<GameEntity>(
+                new GameEntity(name, entityId, shared_from_this())
+            );
+        } else {
+            // Deferred path for deserialization - don't create engine entity yet
+            static uint32_t tempId = 1000000; // High number to avoid conflicts
+            entity = std::shared_ptr<GameEntity>(
+                new GameEntity(name, tempId++, shared_from_this())
+            );
         }
 
-        uint32_t entityId = CreateGameEntity(&desc);
-        auto entity = std::shared_ptr<GameEntity>(
-            new GameEntity(name, entityId, shared_from_this())
-        );
-
-        if (geom != nullptr) {
-            // Create and initialize the new component
-            auto* geometry = new Geometry(entity.get());
-            geometry->SetGeometryName(geom->name);
-            geometry->SetGeometrySource(geom->file_name);
-            geometry->SetGeometryType(geom->type);
-            geometry->SetPrimitiveType(geom->mesh_type);
-            geometry->loadGeometry();
-
-            // Store component in entity
-            entity->m_components[geometry->GetType()] = std::unique_ptr<Component>(geometry);
-        }
-
-		entity->SetActive(m_isActive);
+        entity->SetActive(m_isActive);
         m_entities.push_back(entity);
         Logger::Get().Log(MessageType::Info, "Created entity: " + name);
         return entity;
@@ -180,6 +169,58 @@ public:
         m_entities.clear();
     }
 
+    std::shared_ptr<GameEntity> CreateEntityWithGeometry(const std::string& name,
+                                                         const GeometryInitializer& geomInit) {
+        auto entity = CreateEntityInternal(name, false); // Don't create engine entity yet
+        if (!entity) return nullptr;
+
+        auto* geometry = entity->AddComponent<Geometry>(&geomInit);
+        if (geometry) {
+            geometry->loadGeometry();
+        }
+
+        // Now create the engine entity with all components
+        FinalizeEntityCreation(entity);
+        return entity;
+    }
+
+    void FinalizeEntityCreation(std::shared_ptr<GameEntity> entity) {
+        game_entity_descriptor desc{};
+
+        // Fill transform
+        if (auto* transform = entity->GetComponent<Transform>()) {
+            const auto& pos = transform->GetPosition();
+            const auto& rot = transform->GetRotation();
+            const auto& scale = transform->GetScale();
+            Utils::SetTransform(desc, pos, rot, scale);
+        }
+
+        // Fill script
+        if (auto* script = entity->GetComponent<Script>()) {
+            desc.script.script_creator = GetScriptCreator(script->GetScriptName().c_str());
+        }
+
+        // Fill geometry
+        if (auto* geometry = entity->GetComponent<Geometry>()) {
+            // Only set geometry descriptor if we have a valid scene
+            if (geometry->GetScene()) {
+                desc.geometry.is_dynamic = false;
+                desc.geometry.scene = geometry->GetScene();
+            }
+        }
+
+        // Create or update the engine entity
+        if (entity->GetID() >= 1000000) { // It's a temporary ID
+            uint32_t newId = CreateGameEntity(&desc);
+            entity->SetID(newId);
+        } else {
+            // Entity already exists in engine, need to recreate it
+            RemoveGameEntity(entity->GetID());
+            uint32_t newId = CreateGameEntity(&desc);
+            entity->SetID(newId);
+        }
+    }
+
     std::shared_ptr<GameEntity> GetEntity(uint32_t entityId) const {
         auto it = std::find_if(m_entities.begin(), m_entities.end(),
             [entityId](const auto& entity) { return entity->GetID() == entityId; });
@@ -188,135 +229,6 @@ public:
 
     const std::vector<std::shared_ptr<GameEntity>>& GetEntities() const {
         return m_entities;
-    }
-
-    // Component Logic
-    template<typename T>
-    T* AddComponentToEntity(uint32_t entityId, const ComponentInitializer* initializer = nullptr) {
-        static_assert(std::is_base_of<Component, T>::value, "T must derive from Component");
-        static_assert(!std::is_abstract<T>::value, "Cannot create abstract component type");  // Add this check
-
-        auto entity = GetEntity(entityId);
-        if (!entity) {
-            Logger::Get().Log(MessageType::Error, "Entity not found: " + std::to_string(entityId));
-            return nullptr;
-        }
-
-        ComponentType type = T::GetStaticType();
-
-        if (entity->m_components[type]) {
-            Logger::Get().Log(MessageType::Warning, "Component already exists on entity: " + entity->GetName());
-            return nullptr;
-        }
-
-        // Create and initialize the new component
-        T* component = new T(entity.get());
-        if (initializer && !component->Initialize(initializer)) {
-            delete component;
-            Logger::Get().Log(MessageType::Error, "Failed to initialize component");
-            return nullptr;
-        }
-
-        // Store component in entity
-        entity->m_components[type] = std::unique_ptr<Component>(component);
-
-        // Create descriptor with current state
-        game_entity_descriptor desc{};
-
-        // Fill transform data
-        if (auto* transform = entity->GetComponent<Transform>()) {
-            const auto& pos = transform->GetPosition();
-            const auto& rot = transform->GetRotation();
-            const auto& scale = transform->GetScale();
-            Utils::SetTransform(desc, pos, rot, scale);
-        }
-
-        // Fill script data
-        if (auto* script = entity->GetComponent<Script>()) {
-            desc.script.script_creator = GetScriptCreator(script->GetScriptName().c_str());
-        }
-
-        // Fill geometry data
-        if (auto* geometry = entity->GetComponent<Geometry>()) {
-            desc.geometry.file_name = geometry->GetGeometryName().c_str();
-        }
-
-        // Remove old engine entity and create new one
-        RemoveGameEntity(entityId);
-        uint32_t newId = CreateGameEntity(&desc);
-
-        if (newId == 0) { // Assuming 0 is invalid
-            entity->m_components.erase(type);
-            Logger::Get().Log(MessageType::Error, "Failed to recreate entity in engine");
-            return nullptr;
-        }
-
-        // Update entity's ID
-        entity->SetID(newId);
-
-        // Add to undo/redo system
-        auto action = std::make_shared<UndoRedoAction>(
-            [this, entityId, type]() {  // Undo: remove component
-                auto entity = GetEntity(entityId);
-                if (entity) entity->m_components.erase(type);
-            },
-            [this, entityId, type, initializer]() {  // Redo: add component
-                AddComponentToEntity<T>(entityId, initializer);
-            },
-            "Add Component to Entity: " + entity->GetName()
-        );
-
-        GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
-
-        return component;
-    }
-
-    template<typename T>
-    bool RemoveComponentFromEntity(uint32_t entityId) {
-        static_assert(std::is_base_of<Component, T>::value, "T must derive from Component");
-
-        auto entity = GetEntity(entityId);
-        if (entity) {
-            // Get the component type
-            ComponentType componentType = T::GetStaticType();
-
-            // Since we cant remove transform or shouldn't
-            if (!entity->GetComponent<T>()) {
-                Logger::Get().Log(MessageType::Warning, "Entity does not have component of requested type");
-                return false;
-            }
-
-            // Cannot remove Transform component
-            if (componentType == ComponentType::Transform) {
-                Logger::Get().Log(MessageType::Warning, "Cannot remove Transform component");
-                return false;
-            }
-
-            RemoveGameEntity(entityId);
-            // Create descriptor with current state
-            game_entity_descriptor desc{};
-            // Store transform data
-            if (auto transform = entity->GetComponent<Transform>()) {
-                auto pos = transform->GetPosition();
-                auto rot = transform->GetRotation();
-                auto scale = transform->GetScale();
-                Utils::SetTransform(desc, pos, rot, scale);
-            }
-
-            // Handle script component specially
-            if (componentType != ComponentType::Script && entity->GetComponent<Script>()) {
-                desc.script.script_creator = GetScriptCreator(entity->GetComponent<Script>()->GetScriptName().c_str());
-            }
-
-            entity->m_components.erase(componentType);
-
-            auto newEntityId = CreateGameEntity(&desc);
-            entity->SetID(newEntityId);
-
-            return true;
-        }
-
-        return false;
     }
 
     // Undo/Redo

@@ -105,7 +105,6 @@ void ComponentView::Draw() {
                     // Remove script button
                     if (ImGui::Button("Remove Script", ImVec2(120, 0))) {
                         //selectedEntity->RemoveComponent<Script>();
-                        activeScene->RemoveComponentFromEntity<Script>(selectedEntity->GetID());
                     }
                 }
             }
@@ -154,7 +153,6 @@ void ComponentView::Draw() {
                                 if (ImGui::MenuItem(script_names[i])) {
                                     ScriptInitializer scriptInit;
                                     scriptInit.scriptName = script_names[i];
-                                    activeScene->AddComponentToEntity<Script>(selectedEntity->GetID(), &scriptInit);
                                 }
                             }
                             ImGui::EndMenu();

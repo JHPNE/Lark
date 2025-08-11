@@ -1,8 +1,7 @@
 #pragma once
 #include "Component.h"
 #include <string>
-
-#include "EngineAPI.h"
+#include "Utils/System/Serialization.h"
 
 class Script : public Component, public ISerializable {
 public:
@@ -25,15 +24,21 @@ public:
 
     // Serialization interface
     void Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const override {
-        auto scriptNameElement = context.document.NewElement("ScriptName");
-        scriptNameElement->SetAttribute("Name", m_scriptName.c_str());
-        element->LinkEndChild(scriptNameElement);
+        WriteVersion(element);
+        SERIALIZE_PROPERTY(element, context, m_scriptName);
     }
     bool Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) override {
-        if (auto scriptNameElement = element->FirstChildElement("ScriptName")) {
-            m_scriptName = scriptNameElement->Attribute("Name");
+        context.version = ReadVersion(element);
+        if (!SupportsVersion(context.version)) {
+            context.AddError("Unsupported Script version: " + context.version.toString());
+            return false;
         }
+
+        DESERIALIZE_PROPERTY(element, context, m_scriptName);
+        return !context.HasErrors();
     }
+
+    Version GetVersion() const override {  return { 1,  1, 0}; }
 private:
     std::string m_scriptName;
 };

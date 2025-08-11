@@ -260,15 +260,16 @@ namespace editor {
 				}
 
 				if (ImGui::Button("Create Plane")) {
-					geometry_component test{};
-					test.type = PrimitiveType;
-					test.file_name = m_geometryNameBuffer;
-					test.name = "cylinder";
-					test.mesh_type = content_tools::PrimitiveMeshType::cylinder;
+					GeometryInitializer geomInit;
+					geomInit.geometryName = "uv_sphere";
+					geomInit.geometryType = GeometryType::PrimitiveType;
+					geomInit.visible = true;
+					geomInit.meshType = content_tools::PrimitiveMeshType::cylinder;
 
-					uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("cylinder", &test)->GetID();
-					GeometryViewerView::Get().AddGeometry(entityId);
-					//m_geometry->randomModificationVertexes(entityId,559 );
+					auto entity = project->GetActiveScene()->CreateEntityWithGeometry("cylinder", geomInit);
+					if (entity) {
+						GeometryViewerView::Get().AddGeometry(entity->GetID());
+					}
 				}
 
 			    if (ImGui::Button("Load Obj")) {
@@ -334,20 +335,16 @@ namespace editor {
 		    	if (file_dialog.Show(&m_showGeometryCreation)) {
 		    		const char* selectedPath = file_dialog.GetSelectedPathAsChar();
 		    		if (selectedPath && strlen(selectedPath) > 0) {
-		    			// Load geometry using the selected path
-		    			m_geometry = lark::editor::Geometry::LoadGeometry(selectedPath);
+		    			GeometryInitializer geomInit;
+		    			geomInit.geometryName = "LoadedGeometry";
+		    			geomInit.geometryType = GeometryType::ObjImport;
+		    			geomInit.visible = true;
+		    			geomInit.geometrySource = selectedPath;
+		    			geomInit.meshType = content_tools::PrimitiveMeshType::cube; // Not used for OBJ
 
-		    			// Create geometry component
-		    			geometry_component test{};
-		    			test.type = ObjImport;
-		    			test.file_name = selectedPath;
-		    			test.name = "LoadedGeometry";
-		    			test.scene = m_geometry->GetScene();
-
-		    			// Add geometry to the scene
-		    			if (project) {
-		    				uint32_t entityId = project->GetActiveScene()->CreateEntityInternal("LoadedGeometry", &test)->GetID();
-		    				GeometryViewerView::Get().AddGeometry(entityId);
+		    			auto entity = project->GetActiveScene()->CreateEntityWithGeometry("LoadedGeometry", geomInit);
+		    			if (entity) {
+		    				GeometryViewerView::Get().AddGeometry(entity->GetID());
 		    			}
 		    		}
 		    	}

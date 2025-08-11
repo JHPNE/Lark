@@ -1,5 +1,6 @@
 #pragma once
 #include <CommonHeaders.h>
+#include "LarkAPI/GameEntity.h"
 
 // Geometry Structures
 

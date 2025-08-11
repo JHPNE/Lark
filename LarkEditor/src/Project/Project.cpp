@@ -227,8 +227,7 @@ std::shared_ptr<Scene> Project::GetScene(uint32_t sceneId) const {
 }
 
 void Project::Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const {
-    // Write project properties
-    SerializerUtils::WriteAttribute(element, "version", "1.0");
+    WriteVersion(element);
     SerializerUtils::WriteElement(context.document, element, "Name", m_name);
     SerializerUtils::WriteElement(context.document, element, "Path", m_path.string());
 
@@ -239,40 +238,24 @@ void Project::Serialize(tinyxml2::XMLElement* element, SerializationContext& con
     for (const auto& scene : m_scenes) {
         auto sceneElement = context.document.NewElement("Scene");
         SerializerUtils::WriteAttribute(sceneElement, "id", scene->GetID());
-
-        if (scene == m_activeScene) {
-            SerializerUtils::WriteAttribute(sceneElement, "active", true);
-        }
-
+        SerializerUtils::WriteAttribute(sceneElement, "active", scene == m_activeScene);
         SerializerUtils::WriteElement(context.document, sceneElement, "Name", scene->GetName());
 
-        // Serialize entities
         for (const auto& entity : scene->GetEntities()) {
             auto entityElement = context.document.NewElement("Entity");
             SerializerUtils::WriteAttribute(entityElement, "id", entity->GetID());
             SerializerUtils::WriteAttribute(entityElement, "name", entity->GetName());
 
-            if (auto transform = entity->GetComponent<Transform>()) {
-                auto transformElement = context.document.NewElement("Transform");
-                transform->Serialize(transformElement, context);
-                entityElement->LinkEndChild(transformElement);
+            for (const auto& [compType, compPtr] : entity->GetAllComponents()) {
+                if (auto serializable = dynamic_cast<const ISerializable*>(compPtr.get())) {
+                    auto compName = Component::ComponentTypeToString(compType); // Implement this function
+                    auto compElement = context.document.NewElement(compName);
+                    serializable->Serialize(compElement, context);
+                    entityElement->LinkEndChild(compElement);
+                }
             }
-
-            if (auto script = entity->GetComponent<Script>()) {
-                auto scriptElement = context.document.NewElement("Script");
-                script->Serialize(scriptElement, context);
-                entityElement->LinkEndChild(scriptElement);
-            }
-
-            if (auto geometry = entity->GetComponent<Geometry>()) {
-                auto geometryElement = context.document.NewElement("Geometry");
-                geometry->Serialize(geometryElement, context);
-                entityElement->LinkEndChild(geometryElement);
-            }
-
             sceneElement->LinkEndChild(entityElement);
         }
-
         scenesElement->LinkEndChild(sceneElement);
     }
 }
@@ -286,17 +269,9 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
         return false;
         }
 
-    // Log the values we read
-    Logger::Get().Log(MessageType::Info,
-        "Read from XML - Name: " + name + ", Path: " + pathStr);
-
     // Update member variables
     m_name = name;
     m_path = fs::path(pathStr);
-
-    Logger::Get().Log(MessageType::Info,
-        "After assignment - Name: " + m_name +
-        ", Path: " + m_path.string());
 
     // Read scenes
     auto scenesElement = element->FirstChildElement("Scenes");
@@ -305,115 +280,54 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
     uint32_t activeSceneId = 0;
 
     for (auto sceneElement = scenesElement->FirstChildElement("Scene");
-         sceneElement;
-         sceneElement = sceneElement->NextSiblingElement("Scene")) {
+         sceneElement; sceneElement = sceneElement->NextSiblingElement("Scene")) {
 
-        uint32_t id;
-        std::string sceneName;
-        bool isActive = false;
+        uint32_t id; std::string sceneName; bool active = false;
 
-        if (!SerializerUtils::ReadAttribute(sceneElement, "id", id) ||
-            !SerializerUtils::ReadElement(sceneElement, "Name", sceneName)) {
-            continue;
-        }
-
-        SerializerUtils::ReadAttribute(sceneElement, "active", isActive);
-        if (isActive) {
-            activeSceneId = id;
-        }
+        SerializerUtils::ReadAttribute(sceneElement, "id", id);
+        SerializerUtils::ReadAttribute(sceneElement, "active", active);
+        SerializerUtils::ReadElement(sceneElement, "Name", sceneName);
 
         auto scene = std::make_shared<Scene>(sceneName, id, shared_from_this());
+        if (active) m_activeScene = scene;
 
         // Load entities
         for (auto entityElement = sceneElement->FirstChildElement("Entity");
-             entityElement;
-             entityElement = entityElement->NextSiblingElement("Entity")) {
+            entityElement; entityElement = entityElement->NextSiblingElement("Entity")) {
+            uint32_t entityId; std::string entityName;
 
-            uint32_t entityId;
-            std::string entityName;
+            SerializerUtils::ReadAttribute(entityElement, "id", entityId);
+            SerializerUtils::ReadAttribute(entityElement, "name", entityName);
 
-            if (!SerializerUtils::ReadAttribute(entityElement, "id", entityId) ||
-                !SerializerUtils::ReadAttribute(entityElement, "name", entityName)) {
-                Logger::Get().Log(MessageType::Warning,
-                    "Skipping entity with missing attributes in scene: " + scene->GetName());
-                continue;
-            }
+            const std::shared_ptr<GameEntity> entity = scene->CreateEntityInternal(entityName);
+            if (!entity) continue;
 
-            std::shared_ptr<GameEntity> entity = nullptr;
+            for (auto *compElement = entityElement->FirstChildElement();
+                compElement; compElement = compElement->NextSiblingElement()) {
+                const std::string compName = compElement->Value();
 
-            if (auto geometryElement = entityElement->FirstChildElement("Geometry")) {
-                auto nameElement = geometryElement->FirstChildElement("GeometryName");
-                auto sourceElement = geometryElement->FirstChildElement("GeometrySource");
-
-                if (!nameElement || !sourceElement) {
-                    Logger::Get().Log(MessageType::Warning, "Missing geometry elements for entity: " + entityName);
-                    continue;
-                }
-
-                auto geometryName = nameElement->Attribute("GeometryName");
-                auto geometrySourceElement = sourceElement->Attribute("GeometrySourceElement");
-                auto geometryType = sourceElement->Attribute("GeometryType");
-
-                if (!geometryName || !geometrySourceElement || !geometryType) {
-                    Logger::Get().Log(MessageType::Warning, "Missing geometry attributes for entity: " + entityName);
-                    continue;
-                }
-
-                std::string geomTypeStr = geometryType;
-                auto geomType = (geomTypeStr == "O")
-                                ? GeometryType::ObjImport
-                                : GeometryType::PrimitiveType;
-
-                geometry_component geom{};
-                geom.type = geomType;
-                geom.file_name = geometrySourceElement;
-                geom.name = geometryName;
-                geom.mesh_type = content_tools::PrimitiveMeshType::uv_sphere;
-
-
-                entity = scene->CreateEntityInternal(entityName, &geom);
-            } else {
-                entity = scene->CreateEntityInternal(entityName);
-            }
-
-            if (!entity) {
-                Logger::Get().Log(MessageType::Error,
-                    "Failed to create entity: " + entityName);
-            }
-            else {
-                // Components who are not Bound to Entity Creation besides Transform
-                if (auto transformElement = entityElement->FirstChildElement("Transform")) {
-                    if (auto transform = entity->GetComponent<Transform>()) {
-                        transform->Deserialize(transformElement, context);
-
-                        transform_component test{};
-                        transform->packForEngine(&test);
-                        SetEntityTransform(entity->GetID(), test);
+                if (compName == "Transform") {
+                    if (const auto transform = entity->GetComponent<Transform>()) {
+                        transform->Deserialize(compElement, context);
                     }
                 }
-
-                //TODO use Deserializer
-                if (auto scriptElement = entityElement->FirstChildElement("Script")) {
-                    auto scriptName = scriptElement->FirstChildElement("ScriptName")->Attribute("Name");
-                    auto it = std::find(m_loaded_scripts.begin(), m_loaded_scripts.end(), scriptName);
-                    if (it != m_loaded_scripts.end()) {
-                        ScriptInitializer scriptInit;
-                        scriptInit.scriptName = scriptName;
-                        scene->AddComponentToEntity<Script>(entity->GetID(), &scriptInit);
-                    }
+                else if (compName == "Script") {
+                    HandleScriptDeserialization(compElement, entity, context);
+                }
+                else if (compName == "Geometry") {
+                    HandleGeometryDeserialization(compElement, entity, context);
                 }
             }
+
+            // Now create the engine entity with all components
+            scene->FinalizeEntityCreation(entity);
         }
-
         m_scenes.push_back(scene);
     }
 
-    // Set active scene
-    if (activeSceneId != 0) {
-        SetActiveScene(activeSceneId);
-    }
-    else if (!m_scenes.empty()) {
-        SetActiveScene(m_scenes.front()->GetID());
+    // Set active scene if none was marked as active
+    if (!m_activeScene && !m_scenes.empty()) {
+        m_activeScene = m_scenes.front();
     }
 
     return true;

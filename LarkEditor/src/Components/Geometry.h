@@ -8,7 +8,7 @@
 class Geometry : public Component, public ISerializable {
 public:
   Geometry(GameEntity* owner)
-      : Component(owner) {}
+      : Component(owner){}
 
   ComponentType GetType() const override { return GetStaticType(); }
   static ComponentType GetStaticType() { return ComponentType::Geometry; }
@@ -17,6 +17,10 @@ public:
     if (init) {
       const auto* GeometryInit = static_cast<const GeometryInitializer*>(init);
       m_geometryName = GeometryInit->geometryName;
+      m_geometryType = GeometryInit->geometryType;
+      visible = GeometryInit->visible;
+      m_geometrySource = GeometryInit->geometrySource;
+      m_meshType = GeometryInit->meshType;
     }
     return true;
   }
@@ -26,10 +30,12 @@ public:
   bool IsVisible() {return visible; };
   void SetVisible(bool visible) { this->visible = visible; };
   void SetGeometrySource(const std::string &source) { m_geometrySource = source; };
+  std::string GetGeometrySource() const { return m_geometrySource; };
   void SetGeometryType(GeometryType type) { m_geometryType = type; };
   void SetScene(lark::editor::scene scene) {m_scene = scene; };
   lark::editor::scene* GetScene() {return &m_scene; };
   GeometryType GetGeometryType() const { return m_geometryType; };
+  content_tools::PrimitiveMeshType GetPrimitiveMeshType() const { return m_meshType; };
 
   void SetPrimitiveType(content_tools::PrimitiveMeshType type) {
     m_meshType = type;
@@ -51,7 +57,7 @@ public:
 
     std::shared_ptr<lark::editor::Geometry> geometry;
     try {
-      geometry = m_geometryType == ObjImport
+      geometry = false
                   ? lark::editor::Geometry::LoadGeometry(m_geometrySource.c_str())
                   : lark::editor::Geometry::CreatePrimitive(
                           m_meshType,
@@ -78,56 +84,46 @@ public:
 
   // Serialization interface
   void Serialize(tinyxml2::XMLElement* element, SerializationContext& context) const override {
-    auto GeometryNameElement = context.document.NewElement("GeometryName");
-    SerializerUtils::WriteAttribute(GeometryNameElement, "GeometryName", m_geometryName.c_str());
-    element->LinkEndChild(GeometryNameElement);
+    WriteVersion(element);
 
-    auto visibleElement = context.document.NewElement("Visible");
-    SerializerUtils::WriteAttribute(visibleElement, "Visible", visible);
-    element->LinkEndChild(visibleElement);
+    SERIALIZE_PROPERTY(element, context, m_geometryName);
+    SERIALIZE_PROPERTY(element, context, visible);
+    SERIALIZE_PROPERTY(element, context, m_geometrySource);
 
-    auto geometrySourceElement = context.document.NewElement("GeometrySource");
-    SerializerUtils::WriteAttribute(geometrySourceElement, "GeometrySourceElement", m_geometrySource);
-    SerializerUtils::WriteAttribute(geometrySourceElement, "GeometryType", m_geometryType == PrimitiveType ? "P" : "O");
-    SerializerUtils::WriteAttribute(geometrySourceElement, "PrimitiveMeshType", m_meshType == content_tools::PrimitiveMeshType::cube ? "cube" : "uv_sphere");
-    element->LinkEndChild(geometrySourceElement);
+    std::string typeStr = (m_geometryType == GeometryType::PrimitiveType) ? "Primitive" : "ObjImport";
+    SerializerUtils::WriteAttribute(element, "geometryType", typeStr);
+
+    std::string meshTypeStr = (m_meshType == content_tools::PrimitiveMeshType::cube) ? "cube" : "uv_sphere";
+    SerializerUtils::WriteAttribute(element, "primitiveType", meshTypeStr);
+
   }
 
   bool Deserialize(const tinyxml2::XMLElement* element, SerializationContext& context) override {
-    if (auto GeometryNameElement = element->FirstChildElement("GeometryName")) {
-      m_geometryName = GeometryNameElement->Attribute("GeometryName");
+    context.version = ReadVersion(element);
+    if (!SupportsVersion(context.version)) {
+      context.AddError("Unsupported version " + context.version.toString());
+      return false;
     }
 
-    if (auto VisibleElement = element->FirstChildElement("Visible")) {
-      visible = VisibleElement->BoolAttribute("Visible");
+    DESERIALIZE_PROPERTY(element, context, m_geometryName);
+    DESERIALIZE_PROPERTY(element, context, visible);
+    DESERIALIZE_PROPERTY(element, context, m_geometrySource);
+
+    std::string typeStr;
+    if (SerializerUtils::ReadAttribute(element, "geometryType", typeStr)) {
+      m_geometryType = (typeStr == "Primitive") ? GeometryType::PrimitiveType : GeometryType::ObjImport;
     }
 
-    if (auto GeometrySourceElement = element->FirstChildElement("GeometrySource")) {
-      m_geometrySource = GeometrySourceElement->Attribute("GeometrySourceElement");
-
-      const char* geometryTypeStr = GeometrySourceElement->Attribute("GeometryType");
-      if (geometryTypeStr) {
-        // Map string to GeometryType using a switch or a lookup function
-        if (std::strcmp(geometryTypeStr, "PrimitiveType") == 0) {
-          m_geometryType = GeometryType::PrimitiveType;
-        } else if (std::strcmp(geometryTypeStr, "ObjImport") == 0) {
-          m_geometryType = GeometryType::ObjImport;
-        } else {
-          // Handle invalid input
-          throw std::invalid_argument("Invalid GeometryType attribute value");
-        }
-      }
-
-      const char* geometryPrimitiveMeshTypeStr = GeometrySourceElement->Attribute("PrimitiveMeshType");
-      if (std::strcmp(geometryPrimitiveMeshTypeStr, "cube") == 0) {
-        m_meshType = content_tools::PrimitiveMeshType::cube;
-      } else {
-        m_meshType = content_tools::PrimitiveMeshType::uv_sphere;
-      }
+    std::string primitiveType;
+    if (SerializerUtils::ReadAttribute(element, "primitiveType", primitiveType)) {
+      m_meshType = (primitiveType == "cube") ? content_tools::PrimitiveMeshType::cube : content_tools::PrimitiveMeshType::uv_sphere;
     }
 
-    return true; // Return true if deserialization was successful
+    return !context.HasErrors();
   }
+
+  Version GetVersion() const override { return { 1, 1, 0};};
+
 private:
   std::string m_geometryName;
   bool visible = true;
