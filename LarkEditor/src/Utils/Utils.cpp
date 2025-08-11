@@ -2,6 +2,9 @@
 #include "imgui.h"
 #include <iostream>
 #include <filesystem>
+#include <fstream>  // Add this include
+#include <optional> // Add this include for std::optional
+#include <vector>   // Add this include for std::vector
 #include <string>
 #include "GLFW/glfw3.h"
 
@@ -14,6 +17,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <pwd.h>
 #include <unistd.h>
+#include <climits>  // Add this for PATH_MAX
 #endif
 
 bool Utils::s_showEnginePathPopup = false;
@@ -206,7 +210,7 @@ std::optional<fs::path> Utils::GetBundlePath() {
     }
 
     CFRelease(bundleURL);
-    return fs::path(path);
+    return std::make_optional(fs::path(path));
 #else
     return std::nullopt;
 #endif
@@ -331,7 +335,7 @@ bool Utils::ShowSetEnginePathPopup() {
 
         if (ImGui::Button("Set Path", ImVec2(120, 0))) {
             if (pathValid) {
-                SetEnvironmentVariable("LARK_ENGINE", pathBuffer);
+                SetEnvVar("LARK_ENGINE", pathBuffer);  // Changed from SetEnvironmentVariable
                 pathSet = true;
                 s_showEnginePathPopup = false;
                 ImGui::CloseCurrentPopup();
