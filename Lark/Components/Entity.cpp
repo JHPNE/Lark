@@ -2,6 +2,7 @@
 #include "Transform.h"
 #include "Script.h"
 #include "Geometry.h"
+#include "Physics.h"
 
 namespace lark::game_entity {
 	// private alternative to static
@@ -9,6 +10,7 @@ namespace lark::game_entity {
 		util::vector<transform::component> transforms;
 		util::vector<script::component> scripts;
 		util::vector<geometry::component> geometries;
+		util::vector<physics::component> physics_container;
 
 		std::vector<id::generation_type> generations;
 		util::deque<entity_id> free_ids;
@@ -18,7 +20,6 @@ namespace lark::game_entity {
 
 	entity create(entity_info info) {
 		assert(info.transform); // transform is required
-		if (!info.transform) return {};
 
 		entity_id id;
 		if (free_ids.size() > id::min_deleted_elements) {
@@ -37,6 +38,7 @@ namespace lark::game_entity {
 			transforms.emplace_back();
 			scripts.emplace_back();
 			geometries.emplace_back();
+			physics_container.emplace_back();
 		}
 
 		const entity new_entity{ id };
@@ -61,6 +63,10 @@ namespace lark::game_entity {
 		}
 
 		// check if geometry is existing then drone component is available
+		if (info.physics) {
+			assert(!physics_container[index].is_valid());
+			physics_container[index] = physics::create(*info.physics, new_entity);
+		}
 
 		if (new_entity.is_valid()) {
 			active_entities.push_back(new_entity.get_id());
@@ -84,6 +90,12 @@ namespace lark::game_entity {
 			auto geometry_copy = geometries[index];
 			geometries[index] = {};
 			geometry::remove(geometry_copy);
+		}
+
+		if (physics_container[index].is_valid()) {
+			auto physics_copy = physics_container[index];
+			physics_container[index] = {};
+			physics::remove(physics_copy);
 		}
 
 		transform::remove(transforms[index]);
@@ -125,5 +137,10 @@ namespace lark::game_entity {
 	geometry::component entity::geometry() const {
 		assert(is_alive(_id));
 		return geometries[id::index(_id)];
+	}
+
+	physics::component entity::physics() const {
+		assert(is_alive(_id));
+		return physics_container[id::index(_id)];
 	}
 }

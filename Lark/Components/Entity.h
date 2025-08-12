@@ -17,6 +17,7 @@ namespace lark {
     INIT_INFO(transform);
     INIT_INFO(script);
     INIT_INFO(geometry);
+    INIT_INFO(physics);
     #undef INIT_INFO
 
     namespace game_entity {
@@ -31,6 +32,7 @@ namespace lark {
             transform::init_info* transform{ nullptr };  ///< Transform component initialization info
             script::init_info* script{ nullptr };       ///< Script component initialization info
             geometry::init_info* geometry{ nullptr };   ///< Geometry component initialization info
+            physics::init_info* physics{ nullptr };   ///< Physics component initialization info
         };
 
         /**

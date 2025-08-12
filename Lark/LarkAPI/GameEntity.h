@@ -5,6 +5,7 @@
 #include "TransformComponent.h"
 #include "ScriptComponent.h"
 #include "GeometryComponent.h"
+#include "PhysicsComponent.h"
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <pybind11/embed.h>
@@ -24,6 +25,7 @@ namespace lark {
 			transform::component transform() const;
 			script::component script() const;
 			geometry::component geometry() const;
+			physics::component physics() const;
 		private:
 			entity_id _id;
 		};
@@ -47,6 +49,14 @@ namespace lark {
 				return std::make_unique<geometry_class>(entity);
 			}
 		}
+	}
+
+	namespace physics {
+		class entity_physics : public game_entity::entity {
+			public:
+				virtual ~entity_physics() = default;
+			private:
+		};
 	}
 
 	namespace script {
