@@ -244,19 +244,12 @@ namespace editor {
 
 				// Run Button
 				if (ImGui::Button("Run")) {
-					if (Loop::Initialize()) {
-						Loop::SetRunning(true);
-						Loop::Run();
-					}
-
+					Loop::StartAsync();
 				}
 
 				// Run Button
 				if (ImGui::Button("Stop")) {
-					if (Loop::Initialize()) {
-						Loop::SetRunning(false);
-						Loop::Stop();
-					}
+					Loop::Stop();
 				}
 
 				if (ImGui::Button("Create Plane")) {

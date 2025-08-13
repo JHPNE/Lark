@@ -8,6 +8,7 @@ namespace lark::physics {
             drones::DroneState current_state;
             drones::ControlInput current_control;
             game_entity::entity_id entity_id;
+            std::shared_ptr<wind::IWindProfile> wind_profile;
             bool is_valid{false};
         };
 
@@ -68,7 +69,7 @@ namespace lark::physics {
             initial_state,
             drones::ControlInput{},
             entity.get_id(),
-            true
+            info.wind_profile
         });
 
         id_mapping[id::index(id)] = index;

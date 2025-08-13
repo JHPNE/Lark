@@ -6,6 +6,7 @@
 #pragma once
 #include "ComponentCommon.h"
 #include "Physics/DroneTypes.h"
+#include "Physics/Wind.h"
 
 namespace lark::physics {
 
@@ -19,7 +20,7 @@ namespace lark::physics {
         drones::MotorProperties motor;
         std::vector<drones::RotorParameters> rotors;
         drones::ControlMode control_mode{drones::ControlMode::MOTOR_SPEEDS};
-        bool enable_wind{true};
+        std::shared_ptr<wind::IWindProfile> wind_profile{std::make_unique<wind::NoWind>()};
     };
 
     /**

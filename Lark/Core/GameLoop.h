@@ -102,6 +102,12 @@ namespace lark {
      */
     void update_script_components(f32 dt);
 
+    /**
+     * @brief Updates script components with variable timestep
+     * @param dt Variable timestep duration
+     */
+    void update_physics_component(f32 dt);
+
     Config _config;                 ///< Game loop configuration
     bool _initialized{ false };     ///< Initialization state
     f32 _accumulated_time{ 0.0f };  ///< Accumulated time for fixed updates

@@ -1,6 +1,7 @@
 #pragma once
 #include "EngineAPI.h"
 #include <iostream>  // for error reporting if needed
+#include <thread>
 
 class Loop {
 public:
@@ -30,9 +31,16 @@ public:
         GameLoop_Shutdown();
     }
 
+    static void StartAsync() {
+        if (_loopThread.joinable()) return;
+        _loopThread = std::thread([] {
+            Run();
+        });
+    }
+
     static void Stop() {
         _running = false;  // Signal the loop to stop
-        GameLoop_Shutdown();
+        if (_loopThread.joinable()) _loopThread.join();
     }
 
     static bool SetRunning(bool value) {
@@ -44,4 +52,5 @@ private:
     static inline bool _running = false;
     static inline int target_fps = 60;
     static inline float fixed_time_step = 1.0f / target_fps;
+    static inline std::thread _loopThread;
 };

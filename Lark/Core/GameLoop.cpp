@@ -63,6 +63,7 @@ namespace lark {
         // Fixed timestep updates
         while (_accumulated_time >= _config.fixed_timestep) {
             update_transform_components(_config.fixed_timestep);
+            update_physics_component(_config.fixed_timestep);
             _accumulated_time -= _config.fixed_timestep;
         }
 
@@ -127,4 +128,14 @@ namespace lark {
         }
     }
 
+    void GameLoop::update_physics_component(f32 dt) {
+        const auto& active_entities = game_entity::get_active_entities();
+        for (const auto& entity_id : active_entities) {
+            game_entity::entity entity{ entity_id };
+            auto physics = entity.physics();
+            if (physics.is_valid()) {
+                // Update script
+            }
+        }
+    }
 } //namespace lark
