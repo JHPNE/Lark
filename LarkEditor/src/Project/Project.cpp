@@ -299,7 +299,7 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
             SerializerUtils::ReadAttribute(entityElement, "id", entityId);
             SerializerUtils::ReadAttribute(entityElement, "name", entityName);
 
-            const std::shared_ptr<GameEntity> entity = scene->CreateEntityInternal(entityName);
+            const std::shared_ptr<GameEntity> entity = scene->CreateEntityInternal(entityName );
             if (!entity) continue;
 
             for (auto *compElement = entityElement->FirstChildElement();
@@ -320,7 +320,7 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
             }
 
             // Now create the engine entity with all components
-            scene->FinalizeEntityCreation(entity);
+            scene->UpdateEntity(entity.get()->GetID());
         }
         m_scenes.push_back(scene);
     }

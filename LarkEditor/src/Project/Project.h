@@ -138,7 +138,7 @@ private:
         auto* geometry = entity->AddComponent<Geometry>(&geometryInit);
         if (geometry) {
             geometry->Deserialize(compElement, context);
-            geometry->loadGeometry();
+            //geometry->loadGeometry();
         }
     }
 

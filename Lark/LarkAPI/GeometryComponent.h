@@ -15,7 +15,7 @@ namespace lark::geometry {
     constexpr geometry_id get_id() const { return _id; }
     constexpr bool is_valid() const { return id::is_valid(_id); }
 
-    tools::scene* get_scene() const;
+    std::shared_ptr<tools::scene> get_scene() const;
     tools::mesh* get_mesh() const;
     tools::lod_group* get_lod_group() const;
 

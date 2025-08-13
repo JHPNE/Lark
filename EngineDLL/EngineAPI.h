@@ -34,6 +34,7 @@ extern "C" {
 
     ENGINE_API lark::id::id_type CreateGameEntity(game_entity_descriptor* e);
     ENGINE_API bool RemoveGameEntity(lark::id::id_type id);
+    ENGINE_API bool UpdateGameEntity(lark::id::id_type id, game_entity_descriptor* e);
 
     // Function to get script creator by name using engine's registration system
     ENGINE_API lark::script::detail::script_creator GetScriptCreator(const char* name);
@@ -63,6 +64,9 @@ extern "C" {
     // Function to modify vertex positions of an entity's geometry
     ENGINE_API bool ModifyEntityVertexPositions(lark::id::id_type entity_id, std::vector<glm::vec3>& new_positions);
     ENGINE_API bool GetModifiedMeshData(lark::id::id_type entity_id, content_tools::SceneData* data);
+
+    ENGINE_API std::shared_ptr<lark::tools::scene> ConvertEditorSceneToEngineScene(lark::editor::scene* editorScene);
+
 #ifdef __cplusplus
 }
 #endif

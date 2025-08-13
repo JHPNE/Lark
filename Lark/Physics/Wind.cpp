@@ -1,5 +1,7 @@
 #include "Wind.h"
 
+#include "Utils/MathTypes.h"
+
 namespace lark::physics::wind {
     DrydenGust::DrydenGust(const  Parameters& p)
         : params{p}
@@ -107,15 +109,15 @@ namespace lark::physics::wind {
 
         // Compute filter gains K from transfer functions
         // Per Wikipedia: G_ug(s) = sigma_u * sqrt(2*L_u/(pi*V)) * 1/(1 + L_u*s/V)
-        float K_u = sigma_u * std::sqrt(2.0f * L_u / (M_PI * V));
+        float K_u = sigma_u * std::sqrt(2.0f * L_u / (math::pi* V));
         float T_u = L_u / V;
 
         // Per Wikipedia: G_vg(s) = sigma_v * sqrt(2*L_v/(pi*V)) * (1 + sqrt(3)*L_v*s/V)/(1 + 2*L_v*s/V)^2
-        float K_v = sigma_v * std::sqrt(2.0f * L_v / (M_PI * V));
+        float K_v = sigma_v * std::sqrt(2.0f * L_v / (math::pi * V));
         float T_v = 2.0f * L_v / V;  // Note the factor of 2 in denominator
 
         // Same for w
-        float K_w = sigma_w * std::sqrt(2.0f * L_w / (M_PI * V));
+        float K_w = sigma_w * std::sqrt(2.0f * L_w / (math::pi * V));
         float T_w = 2.0f * L_w / V;
 
         // Apply filters

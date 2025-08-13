@@ -43,7 +43,7 @@ namespace lark::api {
         if (!geometry.is_valid() || !geometry.is_dynamic()) return false;
 
         // Get the current mesh data
-        auto* scene = geometry.get_scene();
+        auto scene = geometry.get_scene();
         if (!scene) return false;
 
         // Pack the current mesh data into the output buffer

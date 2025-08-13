@@ -1,5 +1,6 @@
 #include "TrajectorySystem.h"
 #include <algorithm>
+#include <stdexcept>
 
 #include "Utils/MathTypes.h"
 
@@ -194,7 +195,8 @@ namespace lark::physics::trajectory {
             for (int j = 0; j < derivative; ++j) {
                 coeff *= (i - j);
             }
-            result += coeff * coeffs[i] * std::pow(t, i - derivative);
+
+            // result += coeff * coeffs[i] * std::pow(t, i - derivative);
         }
 
         return result;

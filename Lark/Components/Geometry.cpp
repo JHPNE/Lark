@@ -7,8 +7,7 @@ namespace lark::geometry {
         struct geometry_data {
             bool is_valid{ false };
             bool is_dynamic{ false };
-            tools::scene* scene{ nullptr };
-            game_entity::entity_id entity_id{};
+            std::shared_ptr<tools::scene> scene{ nullptr };
         };
 
         util::vector<geometry_data> geometries;
@@ -16,7 +15,7 @@ namespace lark::geometry {
         util::vector<id::generation_type> generations;
         std::deque<geometry_id> free_ids;
 
-        bool exists(geometry_id id) {
+        bool exists(const geometry_id id) {
             assert(id::is_valid(id));
             const id::id_type index{ id::index(id) };
             assert(index < generations.size() && 
@@ -52,7 +51,6 @@ namespace lark::geometry {
             true,
             info.is_dynamic,
             info.scene,
-            entity.get_id()
         });
         
         id_mapping[id::index(id)] = index;
@@ -87,7 +85,7 @@ namespace lark::geometry {
     }
 
     // Update the component methods to use the new data structure
-    tools::scene* component::get_scene() const {
+    std::shared_ptr<tools::scene> component::get_scene() const {
         assert(is_valid() && exists(_id));
         return geometries[id_mapping[id::index(_id)]].scene;
     }

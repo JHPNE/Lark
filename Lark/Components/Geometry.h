@@ -4,7 +4,7 @@
 
 namespace lark::geometry {
     struct init_info {
-        tools::scene* scene{ nullptr };  ///< Scene containing the geometry data
+        std::shared_ptr<tools::scene> scene{ nullptr };  ///< Scene containing the geometry data
         bool is_dynamic{ false };        ///< Whether the geometry should be dynamic
     };
 

@@ -55,6 +55,15 @@ namespace lark {
         void remove(entity_id id);
 
         /**
+         * @brief updates an entity and all its components
+         * @param id ID of the entity to update
+         * @param info information that needs to be updated
+         *
+         * Properly updates components attached to the entity
+         */
+        bool updateEntity(entity_id id, entity_info info);
+
+        /**
          * @brief Checks if an entity is still valid and active
          * @param id ID of the entity to check
          * @return true if the entity is alive, false otherwise

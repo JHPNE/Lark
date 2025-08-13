@@ -180,11 +180,11 @@ public:
         }
 
         // Now create the engine entity with all components
-        FinalizeEntityCreation(entity);
         return entity;
     }
 
-    void FinalizeEntityCreation(std::shared_ptr<GameEntity> entity) {
+    void UpdateEntity(uint32_t entityId) {
+        auto entity = GetEntity(entityId);
         game_entity_descriptor desc{};
 
         // Fill transform
@@ -209,16 +209,7 @@ public:
             }
         }
 
-        // Create or update the engine entity
-        if (entity->GetID() >= 1000000) { // It's a temporary ID
-            uint32_t newId = CreateGameEntity(&desc);
-            entity->SetID(newId);
-        } else {
-            // Entity already exists in engine, need to recreate it
-            RemoveGameEntity(entity->GetID());
-            uint32_t newId = CreateGameEntity(&desc);
-            entity->SetID(newId);
-        }
+        if (UpdateGameEntity(entityId, &desc)) printf("WOWOWOW");
     }
 
     std::shared_ptr<GameEntity> GetEntity(uint32_t entityId) const {

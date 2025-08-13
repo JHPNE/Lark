@@ -112,6 +112,44 @@ namespace lark::game_entity {
 		}
 	}
 
+	bool updateEntity(entity_id id, entity_info info) {
+		const id::id_type index{ id::index(id) };
+		assert(is_alive(id));
+
+		const entity updated_entity{ id };
+
+		// check if there is any script content
+		if (info.script && info.script->script_creator) {
+			// check if there is already and existing script for that id then delete it
+			if (scripts[index].is_valid()) {
+				// delete part
+				auto script_copy = scripts[index];
+				scripts[index] = {};
+				script::remove(script_copy);
+			}
+
+			// creating new part
+			assert(!scripts[index].is_valid());
+			scripts[index] = script::create(*info.script, updated_entity);
+			assert(scripts[index].is_valid());
+		}
+
+		if (info.geometry && info.geometry->scene) {
+
+			if (geometries[index].is_valid()) {
+				auto geometry_copy = geometries[index];
+				geometries[index] = {};
+				geometry::remove(geometry_copy);
+			}
+
+			assert(!geometries[index].is_valid());
+			geometries[index] = geometry::create(*info.geometry, updated_entity);
+			assert(geometries[index].is_valid());
+		}
+
+		return true;
+	}
+
 	const util::vector<entity_id>& get_active_entities() {
 		return active_entities;
 	}

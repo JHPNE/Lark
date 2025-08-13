@@ -40,10 +40,8 @@ namespace {
             return info;
 
         info.is_dynamic = false;
-        info.scene = new lark::tools::scene();
-
-        info.scene->name = geometry.scene->name;
         util::vector<lark::tools::lod_group> lod_groups;
+
         for (auto comp_lod_group : geometry.scene->lod_groups) {
             lark::tools::lod_group lod_group;
             lod_group.name = comp_lod_group.name;
@@ -176,6 +174,29 @@ extern "C" {
     ENGINE_API bool RemoveGameEntity(id::id_type id) {
         remove_entity(id);
         return true;
+    }
+
+    ENGINE_API bool UpdateGameEntity(id::id_type id, game_entity_descriptor* e) {
+        assert(e);
+        transform::init_info transform_info = to_engine_transform(e->transform);
+        script::init_info script_info = to_engine_script(e->script);
+        geometry::init_info geometry_info = to_engine_geometry(e->geometry);
+
+        game_entity::entity_info entity_info{
+            &transform_info,
+            &script_info,
+            &geometry_info
+        };
+
+        return game_entity::updateEntity(id, entity_info);
+    }
+
+    ENGINE_API std::shared_ptr<lark::tools::scene> ConvertEditorSceneToEngineScene(lark::editor::scene* editorScene) {
+        if (!editorScene) return nullptr;
+
+        auto engineScene = std::make_shared<lark::tools::scene>();
+        // Copy relevant data from editorScene to engineScene
+        return engineScene;
     }
 
     ENGINE_API script::detail::script_creator GetScriptCreator(const char* name) {

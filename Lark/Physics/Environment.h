@@ -34,7 +34,7 @@ namespace lark::physics {
                 std::string message;
             };
 
-            explicit Environment(const Config& config = Config{});
+            explicit Environment(const Config& config = Config{500.0f, 5.0f,{0.0f, 0.0f, -9.81f} , 5, true, 0.25f});
             ~Environment();
 
             game_entity::entity_id spawn_drone(
@@ -67,8 +67,6 @@ namespace lark::physics {
                 std::unique_ptr<drones::IDrone> drone;
                 std::unique_ptr<drones::Controller> controller;
                 std::shared_ptr<trajectory::ITrajectory> trajectory;
-                std::unique_ptr<sensors::IMU> imu;
-                std::unique_ptr<sensors::MotionCapture> mocap;
                 drones::DroneState state;
                 float trajectory_time{0.0f};
                 float control_accumulator{0.0f};
