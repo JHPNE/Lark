@@ -76,24 +76,16 @@ public:
     std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name, bool createEngineEntity = true ) {
         std::shared_ptr<GameEntity> entity;
 
-        if (createEngineEntity) {
-            // Create basic engine entity with just transform
-            game_entity_descriptor desc{};
-            desc.transform.position[0] = desc.transform.position[1] = desc.transform.position[2] = 0.f;
-            std::memset(desc.transform.rotation, 0, sizeof(float) * 3);
-            desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
+        // Create basic engine entity with just transform
+        game_entity_descriptor desc{};
+        desc.transform.position[0] = desc.transform.position[1] = desc.transform.position[2] = 0.f;
+        std::memset(desc.transform.rotation, 0, sizeof(float) * 3);
+        desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
 
-            uint32_t entityId = CreateGameEntity(&desc);
-            entity = std::shared_ptr<GameEntity>(
-                new GameEntity(name, entityId, shared_from_this())
-            );
-        } else {
-            // Deferred path for deserialization - don't create engine entity yet
-            static uint32_t tempId = 1000000; // High number to avoid conflicts
-            entity = std::shared_ptr<GameEntity>(
-                new GameEntity(name, tempId++, shared_from_this())
-            );
-        }
+        uint32_t entityId = CreateGameEntity(&desc);
+        entity = std::shared_ptr<GameEntity>(
+            new GameEntity(name, entityId, shared_from_this())
+        );
 
         entity->SetActive(m_isActive);
         m_entities.push_back(entity);
@@ -171,15 +163,12 @@ public:
 
     std::shared_ptr<GameEntity> CreateEntityWithGeometry(const std::string& name,
                                                          const GeometryInitializer& geomInit) {
-        auto entity = CreateEntityInternal(name, false); // Don't create engine entity yet
+        auto entity = CreateEntityInternal(name); // Don't create engine entity yet
         if (!entity) return nullptr;
 
-        auto* geometry = entity->AddComponent<Geometry>(&geomInit);
-        if (geometry) {
-            geometry->loadGeometry();
-        }
+        entity->AddComponent<Geometry>(&geomInit);
+        UpdateEntity(entity->GetID());
 
-        // Now create the engine entity with all components
         return entity;
     }
 

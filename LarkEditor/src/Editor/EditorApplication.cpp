@@ -257,9 +257,9 @@ namespace editor {
 					geomInit.geometryName = "uv_sphere";
 					geomInit.geometryType = GeometryType::PrimitiveType;
 					geomInit.visible = true;
-					geomInit.meshType = content_tools::PrimitiveMeshType::cylinder;
+					geomInit.meshType = content_tools::PrimitiveMeshType::uv_sphere;
 
-					auto entity = project->GetActiveScene()->CreateEntityWithGeometry("cylinder", geomInit);
+					auto entity = project->GetActiveScene()->CreateEntityWithGeometry("uv_sphere", geomInit);
 					if (entity) {
 						GeometryViewerView::Get().AddGeometry(entity->GetID());
 					}

@@ -299,7 +299,7 @@ bool Project::Deserialize(const tinyxml2::XMLElement* element, SerializationCont
             SerializerUtils::ReadAttribute(entityElement, "id", entityId);
             SerializerUtils::ReadAttribute(entityElement, "name", entityName);
 
-            const std::shared_ptr<GameEntity> entity = scene->CreateEntityInternal(entityName );
+            const std::shared_ptr<GameEntity> entity = scene->CreateEntityInternal(entityName);
             if (!entity) continue;
 
             for (auto *compElement = entityElement->FirstChildElement();

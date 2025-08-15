@@ -128,7 +128,7 @@ void ComponentView::Draw() {
                     }
 
                     if(ImGui::Button("Weird Out Geometry", ImVec2(120, 0))) {
-                        lark::editor::Geometry::randomModificationVertexes(selectedEntity->GetID(), 559, geometry->GetScene()->lod_groups[0].meshes[0].positions);
+                        lark::editor::Geometry::randomModificationVertexes(selectedEntity->GetID(), geometry->GetScene()->lod_groups[0].meshes[0].vertices.size(), geometry->GetScene()->lod_groups[0].meshes[0].positions);
                         GeometryViewerView::Get().UpdateGeometry(selectedEntity->GetID());
                     };
 

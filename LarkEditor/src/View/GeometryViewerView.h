@@ -89,6 +89,22 @@ private:
             
             // Update the engine transform
             SetEntityTransform(geometry->entity_id, transform_data);
+
+            // Update component
+            auto activeScene = project->GetActiveScene();
+            if (activeScene) {
+                auto entity = activeScene->GetEntity(geometry->entity_id);
+                if (entity) {
+                    auto* transform = entity->GetComponent<Transform>();
+                    if (transform) {
+                        transform->SetPosition(position.x, position.y, position.z);
+                        transform->SetRotation(euler.x, euler.y, euler.z);
+                        transform->SetScale(scale.x, scale.y, scale.z);
+                        printf("[UpdateTransformFromGuizmo] Updated component for entity %u\n",
+                               geometry->entity_id);
+                    }
+                }
+            }
         }
     }
 

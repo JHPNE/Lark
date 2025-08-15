@@ -63,7 +63,7 @@ void SceneView::Draw() {
 
                 // Add Entity Button
                 if (ImGui::Button(("+ Add Entity##" + std::to_string(scene->GetID())).c_str())) {
-                    scene->CreateEntityInternal("Empty Entity", false);
+                    scene->CreateEntityInternal("Empty Entity");
                 }
 
                 // List all entities in the scene

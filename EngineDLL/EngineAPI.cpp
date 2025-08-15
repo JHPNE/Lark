@@ -40,6 +40,7 @@ namespace {
             return info;
 
         info.is_dynamic = false;
+        info.scene = std::make_shared<lark::tools::scene>();
         util::vector<lark::tools::lod_group> lod_groups;
 
         for (auto comp_lod_group : geometry.scene->lod_groups) {
@@ -83,6 +84,10 @@ namespace {
         }
 
         info.scene->lod_groups = lod_groups;
+
+        if (!geometry.scene->name.empty()) {
+            info.scene->name = geometry.scene->name;
+        }
 
         return info;
     }

@@ -80,6 +80,19 @@ void GeometryViewerView::UpdateGeometry(uint32_t id) {
     geometry->FromRawData(sceneData.buffer, sceneData.buffer_size);
     auto scene = geometry->GetScene();
 
+    // Update Component aswell
+    auto activeScene = project->GetActiveScene();
+    if (activeScene) {
+        auto entity = activeScene->GetEntity(id);
+        if (entity) {
+            auto* geomComponent = entity->GetComponent<Geometry>();
+            if (geomComponent && scene) {
+                geomComponent->SetScene(*scene);  // Update the component!
+                printf("[UpdateGeometry] Updated component's scene data for entity %u\n", id);
+            }
+        }
+    }
+
     auto buffers = GeometryRenderer::CreateBuffersFromGeometry(scene);
     if (!buffers) {
         printf("[UpdatedGeometry] Failed to create buffers for entity %u.\n", id);
