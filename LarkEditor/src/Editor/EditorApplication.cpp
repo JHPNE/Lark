@@ -16,6 +16,7 @@
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "core/Loop.h"
 #include "../View/Style.h"
+#include "View/PrimitiveMeshSelectionView.h"
 
 namespace editor {
 
@@ -160,6 +161,9 @@ namespace editor {
 
 			GeometryViewerView::Get().SetActiveProject(loadedProject);
 			GeometryViewerView::Get().Draw();
+
+			PrimitiveMeshSelectionView::Get().SetActiveProject(loadedProject);
+			PrimitiveMeshSelectionView::Get().Draw();
 		}
 	}
 
@@ -251,25 +255,6 @@ namespace editor {
 				if (ImGui::Button("Stop")) {
 					Loop::Stop();
 				}
-
-				if (ImGui::Button("Create Plane")) {
-					GeometryInitializer geomInit;
-					geomInit.geometryName = "uv_sphere";
-					geomInit.geometryType = GeometryType::PrimitiveType;
-					geomInit.visible = true;
-					geomInit.meshType = content_tools::PrimitiveMeshType::uv_sphere;
-
-					auto entity = project->GetActiveScene()->CreateEntityWithGeometry("uv_sphere", geomInit);
-					if (entity) {
-						GeometryViewerView::Get().AddGeometry(entity->GetID());
-					}
-				}
-
-			    if (ImGui::Button("Load Obj")) {
-			        m_showGeometryCreation = true;
-			    }
-
-
 			}
 
 

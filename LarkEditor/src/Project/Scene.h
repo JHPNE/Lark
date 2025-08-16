@@ -73,7 +73,7 @@ public:
         return entity;
     }
 
-    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name, bool createEngineEntity = true ) {
+    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name) {
         std::shared_ptr<GameEntity> entity;
 
         // Create basic engine entity with just transform
