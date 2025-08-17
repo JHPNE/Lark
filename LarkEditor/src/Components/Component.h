@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 
-#include "Structures.h"
+#include "EngineAPI.h"
 #include "Utils/MathUtils.h"
 
 class GameEntity;

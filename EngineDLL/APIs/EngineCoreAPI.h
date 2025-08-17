@@ -17,6 +17,6 @@
     #pragma warning Unknown platform - default to no export/import
 #endif
 
-namespace engine {
-    void cleanup_engine_systems();
-}
+#include "Structures/Structures.h"
+#include "EngineUtilities.h"
+

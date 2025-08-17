@@ -1,4 +1,5 @@
 #pragma once
+#include "Entity.h"
 #include "../Geometry/MeshPrimitives.h"
 #include "../Geometry/Geometry.h"
 #include "../Geometry/GeometryImporter.h"

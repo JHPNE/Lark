@@ -110,7 +110,7 @@ private:
 
     bool GetGeometryTransform(ViewportGeometry* geom, transform_component& transform);
 
-    lark::editor::scene* GetScene(std::shared_ptr<Project> project, uint32_t id) {
+    content_tools::scene* GetScene(std::shared_ptr<Project> project, uint32_t id) {
         if (!project) {
             printf("[AddGeometry] No active project.\n");
             return nullptr;

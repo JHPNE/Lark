@@ -12,7 +12,7 @@ class Geometry : public Asset {
 public:
     Geometry() : Asset(AssetType::Mesh) {}
 
-    lark::editor::scene* GetScene(size_t index = 0) {
+    content_tools::scene* GetScene(size_t index = 0) {
         if (index < scenes.size()) {
             return &scenes[index];
         }
@@ -44,11 +44,11 @@ public:
 
         printf("[Geometry::FromRawData] Scene: %s, LOD count: %u\n", scene_name.c_str(), lod_count);
 
-        lark::editor::scene main_scene;
+        content_tools::scene main_scene;
         main_scene.name = scene_name;
 
         for (u32 lod_idx = 0; lod_idx < lod_count; ++lod_idx) {
-            lark::editor::lod_group lod_group;
+            content_tools::lod_group lod_group;
 
             // Read LOD group name length
             u32 group_name_length{0};
@@ -71,7 +71,7 @@ public:
             printf("[Geometry::FromRawData] LOD Group '%s' has %u meshes\n", lod_name.c_str(), mesh_count);
 
             for (u32 mesh_idx = 0; mesh_idx < mesh_count; ++mesh_idx) {
-                lark::editor::mesh mesh;
+                content_tools::mesh mesh;
 
                 // Mesh name length
                 u32 mesh_name_length{0};
@@ -125,7 +125,7 @@ public:
 
                 // Read vertices
                 if (vertex_count > 0) {
-                    std::vector<lark::tools::packed_vertex::vertex_static> packed_verts(vertex_count);
+                    std::vector<content_tools::vertex_static> packed_verts(vertex_count);
                     memcpy(packed_verts.data(), &data[at], vertex_count * vertex_size);
                     at += vertex_count * vertex_size;
 
@@ -295,7 +295,7 @@ public:
         modifyVertexes(id, vertices);
     }
 private:
-    std::vector<lark::editor::scene> scenes;
+    std::vector<content_tools::scene> scenes;
 };
 
 } // namespace lark::editor

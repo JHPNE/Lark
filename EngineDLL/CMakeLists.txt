@@ -1,13 +1,9 @@
 set(PROJECT_NAME EngineDLL)
 
 # Explicitly list source files
-set(SOURCE_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/EngineAPI.cpp"
-)
-
-set(HEADER_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/Common.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/EngineAPI.h"
+file(GLOB_RECURSE SOURCE_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 )
 
 # Create shared library

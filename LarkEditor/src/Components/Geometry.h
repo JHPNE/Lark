@@ -32,8 +32,8 @@ public:
   void SetGeometrySource(const std::string &source) { m_geometrySource = source; };
   std::string GetGeometrySource() const { return m_geometrySource; };
   void SetGeometryType(GeometryType type) { m_geometryType = type; };
-  void SetScene(lark::editor::scene scene) {m_scene = scene; };
-  lark::editor::scene* GetScene() {return &m_scene; };
+  void SetScene(content_tools::scene scene) {m_scene = scene; };
+  content_tools::scene* GetScene() {return &m_scene; };
   GeometryType GetGeometryType() const { return m_geometryType; };
   content_tools::PrimitiveMeshType GetPrimitiveMeshType() const { return m_meshType; };
 
@@ -41,7 +41,7 @@ public:
     m_meshType = type;
   }
 
-  void HandleVerticeSerialization(const lark::editor::mesh &meshes, tinyxml2::XMLElement *meshesElement, const SerializationContext & context) const {
+  void HandleVerticeSerialization(const content_tools::mesh &meshes, tinyxml2::XMLElement *meshesElement, const SerializationContext & context) const {
      // handle vertices
         for (const auto& vertex: meshes.vertices) {
           auto vertexElement = context.document.NewElement("Vertex");
@@ -107,7 +107,7 @@ public:
         }
   };
 
-  void HandleMeshPositionSerialization(const lark::editor::mesh &mesh, tinyxml2::XMLElement *meshElement, const SerializationContext & context) const {
+  void HandleMeshPositionSerialization(const content_tools::mesh &mesh, tinyxml2::XMLElement *meshElement, const SerializationContext & context) const {
     auto meshPositions = context.document.NewElement("MeshPositions");
     for (auto position : mesh.positions) {
       SerializerUtils::WriteAttribute(meshPositions, "position.b", position.b);
@@ -123,7 +123,7 @@ public:
     meshElement->LinkEndChild(meshPositions);
   };
 
-  void HandleMeshNormalSerialization(const lark::editor::mesh &mesh, tinyxml2::XMLElement *meshElement, const SerializationContext & context) const {
+  void HandleMeshNormalSerialization(const content_tools::mesh &mesh, tinyxml2::XMLElement *meshElement, const SerializationContext & context) const {
     auto meshNormals = context.document.NewElement("MeshNormal");
     for (auto normal: mesh.normals) {
       SerializerUtils::WriteAttribute(meshNormals, "normal.b", normal.b);
@@ -217,7 +217,7 @@ public:
              lodGroupElement;
              lodGroupElement = lodGroupElement->NextSiblingElement("LODGroup")) {
 
-          lark::editor::lod_group lod_group;
+          content_tools::lod_group lod_group;
           SerializerUtils::ReadAttribute(lodGroupElement, "name", lod_group.name);
 
           auto meshesElement = lodGroupElement->FirstChildElement("Meshes");
@@ -226,7 +226,7 @@ public:
                  meshElement;
                  meshElement = meshElement->NextSiblingElement("Mesh")) {
 
-              lark::editor::mesh mesh;
+              content_tools::mesh mesh;
               if (DeserializeMesh(mesh, meshElement, context)) {
                 lod_group.meshes.push_back(std::move(mesh));
               }
@@ -248,10 +248,10 @@ private:
   bool visible = true;
   std::string m_geometrySource;
   GeometryType m_geometryType;
-  lark::editor::scene m_scene;
+  content_tools::scene m_scene;
   content_tools::PrimitiveMeshType m_meshType;
 
-  void SerializeMesh(const lark::editor::mesh& mesh, tinyxml2::XMLElement* parentElement,
+  void SerializeMesh(const content_tools::mesh& mesh, tinyxml2::XMLElement* parentElement,
                      SerializationContext& context) const {
     auto meshElement = context.document.NewElement("Mesh");
     SerializerUtils::WriteAttribute(meshElement, "name", mesh.name);
@@ -311,7 +311,7 @@ private:
     parentElement->LinkEndChild(meshElement);
   }
 
-  bool DeserializeMesh(lark::editor::mesh& mesh, const tinyxml2::XMLElement* meshElement,
+  bool DeserializeMesh(content_tools::mesh& mesh, const tinyxml2::XMLElement* meshElement,
                        SerializationContext& context) const {
     SerializerUtils::ReadAttribute(meshElement, "name", mesh.name);
     SerializerUtils::ReadAttribute(meshElement, "lod_id", mesh.lod_id);
@@ -332,7 +332,7 @@ private:
            vElement;
            vElement = vElement->NextSiblingElement("V")) {
 
-        lark::editor::vertex v;
+        content_tools::vertex v;
 
         // Position
         SerializerUtils::ReadAttribute(vElement, "px", v.position.x);
