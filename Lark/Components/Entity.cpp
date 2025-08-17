@@ -118,6 +118,17 @@ namespace lark::game_entity {
 
 		const entity updated_entity{ id };
 
+		auto transform_comp = updated_entity.transform();
+		if (!transform_comp.is_valid()) return false;
+
+		transform_comp.set_position(math::v3(info.transform->position[0], info.transform->position[1], info.transform->position[2]));
+
+		math::v3 euler(info.transform->rotation[0], info.transform->rotation[1], info.transform->rotation[2]);
+		glm::quat quat = glm::quat(glm::radians(euler));
+		transform_comp.set_rotation(math::v4(quat.x, quat.y, quat.z, quat.w));
+
+		transform_comp.set_scale(math::v3(info.transform->scale[0], info.transform->scale[1], info.transform->scale[2]));
+
 		// check if there is any script content
 		if (info.script && info.script->script_creator) {
 			// check if there is already and existing script for that id then delete it

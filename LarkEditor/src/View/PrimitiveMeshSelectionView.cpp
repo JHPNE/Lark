@@ -6,7 +6,6 @@
 #include "Components/Geometry.h"
 #include "View/GeometryViewerView.h"
 #include "View/Style.h"
-#include "Utils/Etc/Logger.h"
 #include "Geometry/Geometry.h"
 
 void PrimitiveMeshSelectionView::SetActiveProject(std::shared_ptr<Project> activeProject) {
@@ -193,11 +192,6 @@ void PrimitiveMeshSelectionView::CreatePrimitiveMesh() {
         m_lod
     );
 
-    if (!geometry) {
-        Logger::Get().Log(MessageType::Error, "Failed to create primitive mesh");
-        return;
-    }
-
     // Setup geometry initializer
     GeometryInitializer geomInit;
     geomInit.geometryName = meshName;
@@ -224,9 +218,6 @@ void PrimitiveMeshSelectionView::CreatePrimitiveMesh() {
         GeometryViewerView::Get().AddGeometry(entity->GetID());
 
         // Log success
-        Logger::Get().Log(MessageType::Info, "Created primitive mesh: " + meshName);
         m_lastCreatedName = meshName;
-    } else {
-        Logger::Get().Log(MessageType::Error, "Failed to create entity for mesh");
     }
 }
