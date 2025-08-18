@@ -50,6 +50,10 @@ namespace lark::drones {
       [[nodiscard]] std::optional<std::string> validateControl(
           const ControlInput& control) const override;
 
+      [[nodiscard]] InertiaProperties getInertialProperties() const override {
+         return inertialProps;
+      }
+
     private:
       // Physical properties (immutable after construction)
       const InertiaProperties inertialProps;

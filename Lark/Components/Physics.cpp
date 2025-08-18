@@ -1,14 +1,23 @@
 #include "Physics.h"
+
+#include <utility>
+
+#include "Physics/Controller.h"
+#include "Physics/Environment.h"
 #include "Physics/Multirotor.h"
 
 namespace lark::physics {
     namespace {
         struct physics_data {
             std::unique_ptr<drones::IDrone> drone;
+            std::unique_ptr<drones::Controller> controller;
+            std::shared_ptr<trajectory::ITrajectory> trajectory;
             drones::DroneState current_state;
             drones::ControlInput current_control;
             game_entity::entity_id entity_id;
-            std::shared_ptr<wind::IWindProfile> wind_profile;
+            float trajectory_time{0.0f};
+            float control_update_time{0.0f};
+            float control_rate{100.0f}; // Hz
             bool is_valid{false};
         };
 
@@ -16,6 +25,7 @@ namespace lark::physics {
         util::vector<id::id_type> id_mapping;
         util::vector<id::generation_type> generations;
         std::deque<physics_id> free_ids;
+        float simulation_time{0.0f};
 
         bool exists(physics_id id) {
             assert(id::is_valid(id));
@@ -29,6 +39,11 @@ namespace lark::physics {
 
     component create(init_info info, game_entity::entity entity) {
         assert(entity.is_valid());
+
+        // Ensure physics world is initialized
+        if (!Environment::getInstance().isInitialized()) {
+            Environment::getInstance().initialize();
+        }
 
         physics_id id{};
 
@@ -54,22 +69,36 @@ namespace lark::physics {
             info.control_mode
         );
 
+        // Create controller
+        auto controller = std::make_unique<drones::Controller>(
+            info.inertia,
+            drones::ControllerGains{} // Default gains, can be set later
+        );
+
         // Initialize state
         drones::DroneState initial_state;
         auto transform = entity.transform();
-        initial_state.position = transform.position();
-        initial_state.velocity = glm::vec3(0.0f);
-        initial_state.orientation = glm::quat(transform.rotation());
-        initial_state.angular_velocity = glm::vec3(0.0f);
-        initial_state.wind = glm::vec3(0.0f);
-        initial_state.rotor_speeds.resize(info.rotors.size(), 0.0f);
+
+        if (transform.is_valid()) {
+            initial_state.position = transform.position();
+            initial_state.orientation = glm::quat(transform.rotation());
+            initial_state.velocity = glm::vec3(0.0f);
+            initial_state.angular_velocity = glm::vec3(0.0f);
+            initial_state.wind = glm::vec3(0.0f);
+            initial_state.rotor_speeds.resize(info.rotors.size(), 0.0f);
+        }
 
         physics_components.emplace_back(physics_data{
             std::move(drone),
+            std::move(controller),
+            nullptr, // No trajectory initially
             initial_state,
             drones::ControlInput{},
             entity.get_id(),
-            info.wind_profile
+            0.0f,
+            0.0f,
+            100.0f,
+            true
         });
 
         id_mapping[id::index(id)] = index;
@@ -104,13 +133,55 @@ namespace lark::physics {
         assert(is_valid() && exists(_id));
         auto& data = physics_components[id_mapping[id::index(_id)]];
 
-        if (data.drone && data.is_valid) {
-            data.current_state = data.drone->step(
+        if (!data.drone || !data.is_valid) return;
+
+        // Get world settings
+        const auto& world = Environment::getInstance();
+        const auto& settings = world.getSettings();
+
+        // Update wind
+        data.current_state.wind = world.getWindAt(simulation_time, data.current_state.position);
+
+        // Update control if we have a trajectory
+        data.control_update_time += dt;
+
+        if (data.trajectory && data.control_update_time >= 1.0f / data.control_rate) {
+            data.trajectory_time += data.control_update_time;
+            data.control_update_time = 0.0f;
+
+            auto flat_output = data.trajectory->update(data.trajectory_time);
+
+            // Check if trajectory is complete
+            if (data.trajectory->isComplete(data.trajectory_time)) {
+                // Hold last position
+                flat_output.velocity = glm::vec3(0.0f);
+                flat_output.acceleration = glm::vec3(0.0f);
+            }
+
+            data.current_control = data.controller->computeControl(
+                data.drone->getControlMode(),
                 data.current_state,
-                data.current_control,
-                dt
+                flat_output
             );
         }
+
+        // Step the drone simulation
+        data.current_state = data.drone->step(
+            data.current_state,
+            data.current_control,
+            dt
+        );
+
+        // Update entity transform
+        game_entity::entity entity{data.entity_id};
+        auto transform = entity.transform();
+        if (transform.is_valid()) {
+            transform.set_position(data.current_state.position);
+            // TODO: use helper or something
+            transform.set_rotation(math::v4(data.current_state.orientation.x, data.current_state.orientation.y, data.current_state.orientation.z, data.current_state.orientation.w));
+        }
+
+        simulation_time += dt;
     }
 
     void component::set_control_input(const drones::ControlInput& input) {
@@ -123,9 +194,25 @@ namespace lark::physics {
         return physics_components[id_mapping[id::index(_id)]].current_state;
     }
 
-    void component::apply_wind(const glm::vec3& wind) {
+    void component::set_trajectory(std::shared_ptr<trajectory::ITrajectory> trajectory) {
         assert(is_valid() && exists(_id));
-        physics_components[id_mapping[id::index(_id)]].current_state.wind = wind;
+        auto& data = physics_components[id_mapping[id::index(_id)]];
+        data.trajectory = std::move(trajectory);
+        data.trajectory_time = 0.0f;
+    }
+
+    void component::set_controller_gains(const drones::ControllerGains& gains) {
+        assert(is_valid() && exists(_id));
+        auto& data = physics_components[id_mapping[id::index(_id)]];
+        data.controller = std::make_unique<drones::Controller>(
+            data.drone->getInertialProperties(),
+            gains
+        );
+    }
+
+    void component::set_control_mode(drones::ControlMode mode) {
+        assert(is_valid() && exists(_id));
+        physics_components[id_mapping[id::index(_id)]].drone->setControlMode(mode);
     }
 
     void shutdown() {
@@ -133,6 +220,7 @@ namespace lark::physics {
         id_mapping.clear();
         generations.clear();
         free_ids.clear();
+        simulation_time = 0.0f;
+        Environment::getInstance().shutdown();
     }
 }
-

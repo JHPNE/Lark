@@ -20,7 +20,6 @@ namespace lark::physics {
         drones::MotorProperties motor;
         std::vector<drones::RotorParameters> rotors;
         drones::ControlMode control_mode{drones::ControlMode::MOTOR_SPEEDS};
-        std::shared_ptr<wind::IWindProfile> wind_profile{std::make_unique<wind::NoWind>()};
     };
 
     /**

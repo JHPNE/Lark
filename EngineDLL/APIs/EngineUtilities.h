@@ -14,6 +14,7 @@ namespace engine {
     transform::init_info to_engine_transform(const transform_component& transform);
     script::init_info to_engine_script(const script_component& script);
     geometry::init_info to_engine_geometry(const geometry_component& geometry);
+    physics::init_info to_engine_physics(const physics_component& physics);
 
     game_entity::entity entity_from_id(id::id_type id);
     bool is_entity_valid(id::id_type id);

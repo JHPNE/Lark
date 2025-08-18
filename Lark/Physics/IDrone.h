@@ -78,6 +78,8 @@ namespace lark::drones {
      */
     [[nodiscard]] virtual size_t getRotorCount() const = 0;
 
+    [[nodiscard]] virtual InertiaProperties getInertialProperties() const = 0;
+
     /**
      * @brief Validates if a given state is physically possible
      *

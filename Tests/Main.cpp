@@ -1,6 +1,4 @@
-#include "UtilTests/LoggingTest.h"
-#include "PhysicsTests/MultirotorTest.h"
-#include "PhysicsTests/ControlTest.h"
+#include "PhysicsTests/IntegrationTest.h"
 #include <gtest/gtest.h>
 
 int main(int argc, char** argv) {

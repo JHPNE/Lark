@@ -134,7 +134,7 @@ namespace lark {
             game_entity::entity entity{ entity_id };
             auto physics = entity.physics();
             if (physics.is_valid()) {
-                // Update script
+                physics.step(dt);
             }
         }
     }

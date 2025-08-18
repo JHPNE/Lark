@@ -2,6 +2,7 @@
 #include "Geometry.h"
 #include "Transform.h"
 #include "Script.h"
+#include "Physics.h"
 #include "Core/GameLoop.h"
 #include "Geometry/MeshPrimitives.h"
 #include <glm/glm.hpp>
@@ -95,6 +96,54 @@ namespace engine {
 
         return info;
     }
+
+    physics::init_info to_engine_physics(const physics_component &physics) {
+        lark::physics::init_info info{};
+
+        // Convert inertia properties
+        info.inertia.mass = physics.inertia.mass;
+        info.inertia.Ixx = physics.inertia.Ixx;
+        info.inertia.Iyy = physics.inertia.Iyy;
+        info.inertia.Izz = physics.inertia.Izz;
+        info.inertia.Ixy = physics.inertia.Ixy;
+        info.inertia.Iyz = physics.inertia.Iyz;
+        info.inertia.Ixz = physics.inertia.Ixz;
+
+        // Convert aerodynamic properties
+        info.aerodynamic.dragCoeffX = physics.aerodynamic.dragCoeffX;
+        info.aerodynamic.dragCoeffY = physics.aerodynamic.dragCoeffY;
+        info.aerodynamic.dragCoeffZ = physics.aerodynamic.dragCoeffZ;
+        info.aerodynamic.enableAerodynamics = physics.aerodynamic.enableAerodynamics;
+
+        // Convert motor properties
+        info.motor.responseTime = physics.motor.responseTime;
+        info.motor.noiseStdDev = physics.motor.noiseStdDev;
+        info.motor.bodyRateGain = physics.motor.bodyRateGain;
+        info.motor.velocityGain = physics.motor.velocityGain;
+        info.motor.attitudePGain = physics.motor.attitudePGain;
+        info.motor.attitudeDGain = physics.motor.attitudeDGain;
+
+        // Convert rotor parameters
+        for (const auto& rotor : physics.rotors) {
+            lark::drones::RotorParameters engine_rotor;
+            engine_rotor.thrustCoeff = rotor.thrustCoeff;
+            engine_rotor.torqueCoeff = rotor.torqueCoeff;
+            engine_rotor.dragCoeff = rotor.dragCoeff;
+            engine_rotor.inflowCoeff = rotor.inflowCoeff;
+            engine_rotor.flapCoeff = rotor.flapCoeff;
+            engine_rotor.position = rotor.position;
+            engine_rotor.direction = rotor.direction;
+            engine_rotor.minSpeed = rotor.minSpeed;
+            engine_rotor.maxSpeed = rotor.maxSpeed;
+            info.rotors.push_back(engine_rotor);
+        }
+
+        // Convert control mode
+        info.control_mode = static_cast<lark::drones::ControlMode>(physics.control_mode);
+
+        return info;
+    }
+
 
     game_entity::entity entity_from_id(id::id_type id) {
         return game_entity::entity{ game_entity::entity_id(id) };
