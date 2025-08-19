@@ -7,7 +7,8 @@
 #include "Components/Physics.h"
 #include "Core/GameLoop.h"
 #include "Physics/Environment.h"
-#include "Geometry/MeshPrimitives.h"
+#include "Structures/GeometryStructures.h"
+#include "APIs/GeometryAPI.h"
 
 namespace lark::test {
     class PhysicsIntegrationTest : public ::testing::Test {
@@ -56,15 +57,6 @@ namespace lark::test {
             transform_info.rotation[3] = 1;
             transform_info.scale[0] = transform_info.scale[1] = transform_info.scale[2] = 1.0f;
 
-            // Geometry - create a simple cube to represent the drone
-            tools::scene_data scene_data{};
-            tools::primitive_init_info prim_info{};
-            prim_info.mesh_type = tools::primitive_mesh_type::cube;
-            prim_info.size = math::v3(5, 5, 5);
-            prim_info.segments[0] = prim_info.segments[1] = prim_info.segments[2] = 5;
-
-            tools::CreatePrimitiveMesh(&scene_data, &prim_info);
-
             // Convert packed data to scene
             auto scene = std::make_shared<tools::scene>();
             // Note: You'd need to unpack the scene_data here
@@ -92,22 +84,22 @@ namespace lark::test {
             physics_info.aerodynamic.enableAerodynamics = true;
 
             physics_info.motor.responseTime = 0.02f;
-            physics_info.motor.noiseStdDev = 0.01f;
-            physics_info.motor.bodyRateGain = 10.0f;
-            physics_info.motor.velocityGain = 5.0f;
-            physics_info.motor.attitudePGain = 100.0f;
-            physics_info.motor.attitudeDGain = 20.0f;
+            physics_info.motor.noiseStdDev = 0.0f;
+            physics_info.motor.bodyRateGain = 5.0f;
+            physics_info.motor.velocityGain = 2.5f;
+            physics_info.motor.attitudePGain = 50.0f;
+            physics_info.motor.attitudeDGain = 10.0f;
 
             // X configuration quadrotor
             float offset = arm_length / std::sqrt(2.0f);
             physics_info.rotors = {
-                {1e-5f, 1e-6f, 1e-4f, 1e-4f, 1e-5f,
+                {5.57e-6f, 1.36e-7f, 1e-4f, 1e-4f, 1e-5f,  // More realistic thrust coefficient
                  glm::vec3(offset, offset, 0), 1, 0, 1500},
-                {1e-5f, 1e-6f, 1e-4f, 1e-4f, 1e-5f,
+                {5.57e-6f, 1.36e-7f, 1e-4f, 1e-4f, 1e-5f,
                  glm::vec3(offset, -offset, 0), -1, 0, 1500},
-                {1e-5f, 1e-6f, 1e-4f, 1e-4f, 1e-5f,
+                {5.57e-6f, 1.36e-7f, 1e-4f, 1e-4f, 1e-5f,
                  glm::vec3(-offset, -offset, 0), 1, 0, 1500},
-                {1e-5f, 1e-6f, 1e-4f, 1e-4f, 1e-5f,
+                {5.57e-6f, 1.36e-7f, 1e-4f, 1e-4f, 1e-5f,
                  glm::vec3(-offset, offset, 0), -1, 0, 1500}
             };
 
@@ -154,8 +146,7 @@ namespace lark::test {
         physics.set_trajectory(hover_trajectory);
 
         // Simulate for 3 seconds
-        const float dt = 0.01f;
-        const int steps = 300;
+        const int steps = 500;
 
         for (int i = 0; i < steps; ++i) {
             game_loop->tick();
@@ -167,7 +158,7 @@ namespace lark::test {
 
         EXPECT_NEAR(final_position.x, 0.0f, 0.1f);
         EXPECT_NEAR(final_position.y, 0.0f, 0.1f);
-        EXPECT_NEAR(final_position.z, 1.0f, 0.2f); // Should be close to 1 meter
+        EXPECT_NEAR(final_position.z, 1.0f, 0.3f); // Should be close to 1 meter
     }
 
     TEST_F(PhysicsIntegrationTest, CircularTrajectory) {

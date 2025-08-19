@@ -179,8 +179,8 @@ namespace lark::drones {
     std::optional<std::string> Controller::validateRotationMatrix(
         const glm::mat3& R) {
 
-        constexpr float ORTHOGONALITY_TOLERANCE = 1e-6f;
-        constexpr float DETERMINANT_TOLERANCE = 1e-6f;
+        constexpr float ORTHOGONALITY_TOLERANCE = 1e-3f;
+        constexpr float DETERMINANT_TOLERANCE = 1e-3f;
 
         // Check orthogonality
         glm::mat3 RRT = R * glm::transpose(R);

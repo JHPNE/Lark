@@ -60,14 +60,8 @@ namespace lark {
         _current_delta_time = calculate_delta_time();
         _accumulated_time += _current_delta_time;
 
-        // Fixed timestep updates
-        while (_accumulated_time >= _config.fixed_timestep) {
-            update_transform_components(_config.fixed_timestep);
-            update_physics_component(_config.fixed_timestep);
-            _accumulated_time -= _config.fixed_timestep;
-        }
-
-        // Variable timestep updates
+        update_transform_components(_config.fixed_timestep);
+        update_physics_component(_config.fixed_timestep);
         update_script_components(_current_delta_time);
 
         // Update FPS counter

@@ -19,13 +19,13 @@ namespace lark::physics {
             float control_update_time{0.0f};
             float control_rate{100.0f}; // Hz
             bool is_valid{false};
+            float simulation_time{0.0f};
         };
 
         util::vector<physics_data> physics_components;
         util::vector<id::id_type> id_mapping;
         util::vector<id::generation_type> generations;
         std::deque<physics_id> free_ids;
-        float simulation_time{0.0f};
 
         bool exists(physics_id id) {
             assert(id::is_valid(id));
@@ -69,10 +69,17 @@ namespace lark::physics {
             info.control_mode
         );
 
+        drones::ControllerGains gains;
+        gains.kPosition = glm::vec3(3.0f, 3.0f, 6.0f);  // Reduced from {6.5f, 6.5f, 15.0f}
+        gains.kVelocity = glm::vec3(2.0f, 2.0f, 4.0f);  // Reduced from {4.0f, 4.0f, 9.0f}
+        gains.kAttitudeP = 200.0f;  // Reduced from 544.0f
+        gains.kAttitudeD = 20.0f;   // Reduced from 46.64f
+        gains.kVelocityP = 0.5f;    // Reduced from 0.65f
+
         // Create controller
         auto controller = std::make_unique<drones::Controller>(
             info.inertia,
-            drones::ControllerGains{} // Default gains, can be set later
+            gains
         );
 
         // Initialize state
@@ -81,7 +88,10 @@ namespace lark::physics {
 
         if (transform.is_valid()) {
             initial_state.position = transform.position();
-            initial_state.orientation = glm::quat(transform.rotation());
+
+            math::v4 rot = transform.rotation();
+            initial_state.orientation = glm::quat(rot.w, rot.x, rot.y, rot.z);
+
             initial_state.velocity = glm::vec3(0.0f);
             initial_state.angular_velocity = glm::vec3(0.0f);
             initial_state.wind = glm::vec3(0.0f);
@@ -98,7 +108,8 @@ namespace lark::physics {
             0.0f,
             0.0f,
             100.0f,
-            true
+            true,
+            0.0f
         });
 
         id_mapping[id::index(id)] = index;
@@ -140,7 +151,7 @@ namespace lark::physics {
         const auto& settings = world.getSettings();
 
         // Update wind
-        data.current_state.wind = world.getWindAt(simulation_time, data.current_state.position);
+        data.current_state.wind = world.getWindAt(data.simulation_time, data.current_state.position);
 
         // Update control if we have a trajectory
         data.control_update_time += dt;
@@ -178,10 +189,16 @@ namespace lark::physics {
         if (transform.is_valid()) {
             transform.set_position(data.current_state.position);
             // TODO: use helper or something
-            transform.set_rotation(math::v4(data.current_state.orientation.x, data.current_state.orientation.y, data.current_state.orientation.z, data.current_state.orientation.w));
+            // Maintain quaternion order (x, y, z, w) for vec4
+            transform.set_rotation(math::v4(
+                data.current_state.orientation.x,
+                data.current_state.orientation.y,
+                data.current_state.orientation.z,
+                data.current_state.orientation.w
+            ));
         }
 
-        simulation_time += dt;
+        data.simulation_time += dt;
     }
 
     void component::set_control_input(const drones::ControlInput& input) {
@@ -220,7 +237,6 @@ namespace lark::physics {
         id_mapping.clear();
         generations.clear();
         free_ids.clear();
-        simulation_time = 0.0f;
         Environment::getInstance().shutdown();
     }
 }
