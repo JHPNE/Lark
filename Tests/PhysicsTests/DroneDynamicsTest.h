@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
-#include "PhysicExtension/Vehicles/Multirotor.h"
-#include "PhysicExtension/Vehicles/DroneStructure.h"
-#include "PhysicExtension/Vehicles/DroneState.h"
+#include "PhysicExtension/Utils/DroneDynamics.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <cmath>
@@ -59,26 +57,6 @@ namespace lark::drones::test {
             return params;
         }
 
-        DroneState createInitialState() {
-            DroneState state;
-            state.position = {0.0f, 0.0f, 0.0f};
-            state.velocity = {0.0f, 0.0f, 0.0f};
-            state.attitude = {1.0f, 0.0f, 0.0f, 0.0f}; // Identity quaternion
-            state.body_rates = {0.0f, 0.0f, 0.0f};
-            state.wind = {0.0f, 0.0f, 0.0f};
-            state.rotor_speeds = {0.0f, 0.0f, 0.0f, 0.0f};
-            return state;
-        }
-
-        // Helper to access private members (you might want to make generateControlAllocationMatrix public or add a getter)
-        void testControlAllocationMatrix(Multirotor& drone) {
-            // Since the method is private, we need to either:
-            // 1. Make it public for testing
-            // 2. Add a friend class declaration
-            // 3. Add public getter methods
-            // For now, I'll show what the tests should verify
-        }
-
         bool matrix_near(const glm::mat4& a, const glm::mat4& b, float tolerance = 1e-5f) {
             for (int i = 0; i < 4; ++i) {
                 for (int j = 0; j < 4; ++j) {
@@ -125,14 +103,12 @@ namespace lark::drones::test {
 
     TEST_F(MultirotorTest, ConstructorInitialization) {
         QuadParams params = createHummingbirdParams();
-        DroneState state = createInitialState();
-        ControlAbstraction control = ControlAbstraction::CMD_CTBR;
 
-        Multirotor drone(params, state, control);
+        DroneDynamics drone_dynamics(params);
 
         // Test weight calculation
         math::v3 expected_weight = {0.0f, 0.0f, -0.500f * 9.81f};
-        EXPECT_VEC3_NEAR(drone.GetWeight(), expected_weight, 1e-5f);
+        EXPECT_VEC3_NEAR(drone_dynamics.GetWeight(), expected_weight, 1e-5f);
 
         // Test torque-thrust ratio
         float expected_ratio = params.rotor_properties.k_m / params.rotor_properties.k_eta;
@@ -171,10 +147,8 @@ namespace lark::drones::test {
 
     TEST_F(MultirotorTest, ControlAllocationMatrixStructure) {
         QuadParams params = createHummingbirdParams();
-        DroneState state = createInitialState();
-        ControlAbstraction control = ControlAbstraction::CMD_MOTOR_THRUSTS;
 
-        Multirotor drone(params, state, control);
+        DroneDynamics drone_dynamics(params);
 
         // The expected f_to_TM matrix should be:
         // Column 0 (Rotor 1): [1, y1, -x1, k_m/k_eta * dir1]
@@ -182,7 +156,7 @@ namespace lark::drones::test {
         // Column 2 (Rotor 3): [1, y3, -x3, k_m/k_eta * dir3]
         // Column 3 (Rotor 4): [1, y4, -x4, k_m/k_eta * dir4]
 
-        math::m4x4 expected_f_to_TM = drone.GetControlAllocationMatrix();
+        math::m4x4 expected_f_to_TM = drone_dynamics.GetControlAllocationMatrix();
 
         // Verify specific values for Hummingbird configuration
         const float d = 0.17f;

@@ -143,13 +143,21 @@ namespace lark::drones {
         float rotor_speed_max;
         // rad/s
         float motor_noise_std;
-
     };
+
+    struct ControlGains {
+        math::v3 kp_pos = {6.5f, 6.5f, 15.0f};
+        math::v3 kd_pos = {4.0f, 4.0f, 9.0f};
+        float kp_att = 544.0f;
+        float kd_att = 46.64f;
+        math::v3 kp_vel = {0.65f, 0.65f, 1.5f};  // 0.1 * kp_pos
+    };
+
     struct LowerLevelControllerProperties {
         // The body rate P gain (for cmd_ctbr)
-        int k_w;
+        float k_w;
         // The *world* velocity P gain (for cmd_vel)
-        int k_v;
+        float k_v;
         // The attitude P gain (for cmd_vel, cmd_acc, and cmd_ctatt)
         int kp_att;
         // The attitude D gain (for cmd_vel, cmd_acc, and cmd_ctatt)
@@ -167,6 +175,20 @@ namespace lark::drones {
         AeroDynamicsProperties aero_dynamics_properties;
         RotorProperties rotor_properties;
         MotorProperties motor_properties;
+        ControlGains control_gains;
         LowerLevelControllerProperties lower_level_controller_properties;
+    };
+
+    struct TrajectoryPoint {
+        // Position trajectory
+        math::v3 position;           // meters
+        math::v3 velocity;           // m/s  (x_dot in Python)
+        math::v3 acceleration;       // m/s² (x_ddot in Python)
+        math::v3 jerk;              // m/s³ (x_dddot - optional, not used in basic SE3)
+        math::v3 snap;              // m/s⁴ (x_ddddot - optional, not used in basic SE3)
+
+        // Yaw trajectory
+        float yaw;                   // radians
+        float yaw_dot;              // rad/s (yaw rate)
     };
 }

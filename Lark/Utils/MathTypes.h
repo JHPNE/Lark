@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace lark::math {
 	constexpr float pi = 3.1415926535897932384626433832795f;
@@ -88,4 +89,31 @@ namespace lark::math {
 		auto test = quat_dot_vec - quat_err * quat_err_grad;
 		return {test.w, test.x, test.y, test.z};
 	}
+
+	inline v3 normalize(const math::v3& x) {
+		float length = sqrt(x.x*x.x + x.y*x.y + x.z*x.z);
+		assert(length != 0);
+		return x / length;  // Divide each component by the length
+	}
+
+	inline v3 vee_map(const math::m3x3& S) {
+		// Extract the vector from the skew-symmetric matrix
+		float x = -S[1][2];  // From position (1,2): -(-x) = x
+		float y =  S[0][2];  // From position (0,2): y
+		float z = -S[0][1];  // From position (0,1): -(z) = -z
+		return v3(x, y, z);
+	}
+
+	inline m3x3 quaternionToRotationMatrix(const v4& q) {
+		// Assuming q is [x, y, z, w] format
+		glm::quat quaternion(q.w, q.x, q.y, q.z);  // GLM uses (w,x,y,z) order
+		return mat3_cast(quaternion);
+	}
+
+	inline v4 rotationMatrixToQuaternion(const m3x3& R) {
+		glm::quat q = quat_cast(R);
+		// GLM returns quaternion as (w,x,y,z), but if you need (x,y,z,w):
+		return v4(q.x, q.y, q.z, q.w);
+	}
+
 }
