@@ -1,3 +1,4 @@
+#pragma once
 #include <array>
 #include "Utils/MathTypes.h"
 
@@ -139,7 +140,7 @@ namespace lark::drones {
         // rad/s
         float rotor_speed_min;
         // rad/s
-        float rotor_speed_maxt;
+        float rotor_speed_max;
         // rad/s
         float motor_noise_std;
 

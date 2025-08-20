@@ -1,3 +1,4 @@
+#pragma once
 #include "Utils/MathTypes.h"
 
 namespace lark::drones {
