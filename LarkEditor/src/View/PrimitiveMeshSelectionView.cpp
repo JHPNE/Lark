@@ -144,13 +144,6 @@ void PrimitiveMeshSelectionView::Draw() {
         CreatePrimitiveMesh();
     }
 
-    // Display last created mesh info
-    if (!m_lastCreatedName.empty()) {
-        ImGui::Spacing();
-        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
-                          "Created: %s", m_lastCreatedName.c_str());
-    }
-
     ImGui::End();
 }
 

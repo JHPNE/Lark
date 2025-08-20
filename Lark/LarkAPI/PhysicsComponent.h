@@ -1,7 +1,5 @@
 #pragma once
 #include "../Components/ComponentCommon.h"
-#include "Physics/DroneTypes.h"
-#include "Physics/TrajectorySystem.h"
 
 namespace lark::physics {
 
@@ -16,12 +14,6 @@ namespace lark::physics {
 
         // Physics operations
         void step(float dt);
-        void set_control_input(const drones::ControlInput& input);
-        [[nodiscard]] drones::DroneState get_state() const;
-
-        void set_trajectory(std::shared_ptr<trajectory::ITrajectory> trajectory);
-        void set_controller_gains(const drones::ControllerGains& gains);
-        void set_control_mode(drones::ControlMode mode);
 
     private:
         physics_id _id;

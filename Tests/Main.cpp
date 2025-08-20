@@ -1,4 +1,4 @@
-#include "PhysicsTests/IntegrationTest.h"
+#include "PhysicsTests/MathTest.h"
 #include <gtest/gtest.h>
 
 int main(int argc, char** argv) {

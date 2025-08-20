@@ -5,8 +5,6 @@
 
 #pragma once
 #include "ComponentCommon.h"
-#include "Physics/DroneTypes.h"
-#include "Physics/Wind.h"
 
 namespace lark::physics {
 
@@ -15,11 +13,6 @@ namespace lark::physics {
      * @brief Initialization information for creating a physics component
      */
     struct init_info {
-        drones::InertiaProperties inertia;
-        drones::AerodynamicProperties aerodynamic;
-        drones::MotorProperties motor;
-        std::vector<drones::RotorParameters> rotors;
-        drones::ControlMode control_mode{drones::ControlMode::MOTOR_SPEEDS};
     };
 
     /**
