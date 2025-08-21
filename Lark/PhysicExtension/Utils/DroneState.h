@@ -8,10 +8,11 @@ namespace lark::drones {
         math::v3 velocity;
         // Quat q
         math::v4 attitude;
+        // w
         math::v3 body_rates;
         math::v3 wind;
         math::v4 rotor_speeds;
-        math::v3 angular_velocity;
+
     };
 
     enum class ControlAbstraction {

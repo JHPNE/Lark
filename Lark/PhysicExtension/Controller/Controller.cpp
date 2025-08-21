@@ -36,12 +36,12 @@ namespace lark::drones {
 
      // Angular velocity error
      math::v3 w_des = {0, 0, desired.yaw_dot};
-     math::v3 w_err = state.angular_velocity - w_des;
+     math::v3 w_err = state.body_rates - w_des;
 
      // Desired torque
      math::v3 u2 = m_dynamics.GetInertiaMatrix() *
          (m_dynamics.GetQuadParams().control_gains.kp_att * att_err - m_dynamics.GetQuadParams().control_gains.kd_att * w_err) +
-             glm::cross(state.angular_velocity, m_dynamics.GetInertiaMatrix() * state.angular_velocity);
+             glm::cross(state.body_rates, m_dynamics.GetInertiaMatrix() * state.body_rates);
 
      math::v3 cmd_w = -m_dynamics.GetQuadParams().control_gains.kp_att * att_err - m_dynamics.GetQuadParams().control_gains.kd_att * w_err;
 

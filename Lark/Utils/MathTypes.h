@@ -104,6 +104,14 @@ namespace lark::math {
 		return v3(x, y, z);
 	}
 
+	inline m3x3 hatMap(const v3& v) {
+		return {
+			 0,    -v.z,   v.y,
+			 v.z,   0,    -v.x,
+			-v.y,   v.x,   0
+		};
+	}
+
 	inline m3x3 quaternionToRotationMatrix(const v4& q) {
 		// Assuming q is [x, y, z, w] format
 		glm::quat quaternion(q.w, q.x, q.y, q.z);  // GLM uses (w,x,y,z) order

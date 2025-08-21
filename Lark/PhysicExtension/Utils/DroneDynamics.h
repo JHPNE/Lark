@@ -18,6 +18,7 @@ namespace lark::drones {
             m_rotor_drag_matrix = m_quad_params.rotor_properties.GetRotorDragMatrix();
             
             generateControlAllocationMatrix();
+            extractRotorGeometry();
         }
 
         // Getters for shared properties
@@ -28,6 +29,7 @@ namespace lark::drones {
         const math::m3x3& GetInertiaMatrix() const { return m_inertia_matrix; }
         const math::m3x3& GetInverseInertia() const { return m_inverse_inertia; }
         const QuadParams& GetQuadParams() const { return m_quad_params; }
+        const glm::mat4x3 GetRotorGeometry() const { return m_rotor_geometry;}
 
     private:
         void generateControlAllocationMatrix() {
@@ -45,6 +47,24 @@ namespace lark::drones {
             TM_to_f = glm::inverse(f_to_TM);
         }
 
+        void extractRotorGeometry() {
+            // If rotor_positions is std::array<math::v3, 4>
+            // Convert to a 4x3 matrix for easier linear algebra operations
+
+            glm::mat4x3 rotor_geometry;  // 4 rotors, 3 coordinates each
+
+            for (size_t i = 0; i < m_quad_params.geometric_properties.num_rotors; ++i) {
+                math::v3 r = m_quad_params.geometric_properties.rotor_positions[i];
+
+                // Set row i to rotor position
+                rotor_geometry[i][0] = r.x;
+                rotor_geometry[i][1] = r.y;
+                rotor_geometry[i][2] = r.z;
+            }
+
+            m_rotor_geometry = rotor_geometry;
+        }
+
     private:
         QuadParams m_quad_params;
         math::v3 m_weight;
@@ -55,5 +75,6 @@ namespace lark::drones {
         math::m3x3 m_inverse_inertia;
         math::m3x3 m_drag_matrix;
         math::m3x3 m_rotor_drag_matrix;
+        glm::mat4x3 m_rotor_geometry;
     };
 }
