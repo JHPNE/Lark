@@ -33,6 +33,7 @@ endif()
 target_link_libraries(${PROJECT_NAME} PUBLIC
     glad
     glm
+    Eigen3::Eigen
     Python::Python
     pybind11::pybind11
     BulletDynamics

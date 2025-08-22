@@ -18,8 +18,8 @@ namespace lark::drones {
         }
 
         void step(DroneState state, ControlInput input, float dt);
-        void s_dot_fn(DroneState state, math::v4 cmd_rotor_speeds);
-        void ComputeBodyWrench(math::v3 body_rate, math::v4 rotor_speeds, math::v3 body_airspeed_vector);
+        void s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds);
+        std::pair<Vector3f, Vector3f> ComputeBodyWrench(const Vector3f& body_rate, Vector4f rotor_speeds, const Vector3f& body_airspeed_vector);
 
         const DroneState& GetState() const { return m_state; }
         
@@ -30,23 +30,21 @@ namespace lark::drones {
         bool m_aero;
         bool m_enable_ground;
 
-        math::v4 GetCMDMotorSpeeds(DroneState state, ControlInput input);
-        // Method 1: Manual column-wise addition
-        glm::mat3x4 computeLocalAirspeeds(const math::v3& body_airspeed_vector,
-                                          const math::v3& body_rates,
-                                          const glm::mat4x3& rotor_geometry) {
+        Vector4f GetCMDMotorSpeeds(DroneState state, ControlInput input);
 
-            math::m3x3 omega_hat = math::hatMap(body_rates);
-            glm::mat3x4 rotor_geometry_T = glm::transpose(rotor_geometry);
-            glm::mat3x4 rotation_velocities = omega_hat * rotor_geometry_T;
+        Vector3f GetCMDMoment(DroneState state, Vector3f att_err) {
+            // Split the complex moment calculation into sub-terms
+            Vector3f attitude_term = -m_dynamics.GetQuadParams().control_gains.kp_att * att_err;
+            Vector3f rate_term = -m_dynamics.GetQuadParams().control_gains.kd_att * state.body_rates;
+            Vector3f control_input = attitude_term + rate_term;
+            Vector3f inertia_control = m_dynamics.GetInertiaMatrix() * control_input;
 
-            glm::mat3x4 local_airspeeds;
-            for (int i = 0; i < 4; ++i) {
-                // Add body_airspeed_vector to each column
-                local_airspeeds[i] = body_airspeed_vector + rotation_velocities[i];
-            }
+            // Compute the gyroscopic term separately
+            Vector3f inertia_omega = m_dynamics.GetInertiaMatrix() * state.body_rates;
+            Vector3f gyroscopic_term = state.body_rates.cross(inertia_omega);
 
-            return local_airspeeds;
+            // Final moment
+            return inertia_control + gyroscopic_term;
         }
     };
 }

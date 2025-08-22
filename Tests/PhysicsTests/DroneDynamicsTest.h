@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 #include "PhysicExtension/Utils/DroneDynamics.h"
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_access.hpp>
-#include <cmath>
+#include "PhysicExtension/Controller/Controller.h"
+#include "PhysicExtension/Vehicles/Multirotor.h"
 
 namespace lark::drones::test {
+    using namespace physics_math;
 
     class MultirotorTest : public ::testing::Test {
     protected:
@@ -23,10 +23,10 @@ namespace lark::drones::test {
 
             params.geometric_properties.rotor_radius = 0.10f;
             params.geometric_properties.rotor_positions = {
-                math::v3{ d * sqrt2_2,  d * sqrt2_2, 0.0f},  // Front-right
-                math::v3{ d * sqrt2_2, -d * sqrt2_2, 0.0f},  // Back-right
-                math::v3{-d * sqrt2_2, -d * sqrt2_2, 0.0f},  // Back-left
-                math::v3{-d * sqrt2_2,  d * sqrt2_2, 0.0f}   // Front-left
+                Vector3f{ d * sqrt2_2,  d * sqrt2_2, 0.0f},  // Front-right
+                Vector3f{ d * sqrt2_2, -d * sqrt2_2, 0.0f},  // Back-right
+                Vector3f{-d * sqrt2_2, -d * sqrt2_2, 0.0f},  // Back-left
+                Vector3f{-d * sqrt2_2,  d * sqrt2_2, 0.0f}   // Front-left
             };
             params.geometric_properties.rotor_directions = {1, -1, 1, -1};
             params.geometric_properties.imu_position = {0.0f, 0.0f, 0.0f};
@@ -57,10 +57,10 @@ namespace lark::drones::test {
             return params;
         }
 
-        bool matrix_near(const glm::mat4& a, const glm::mat4& b, float tolerance = 1e-5f) {
+        bool matrix_near(const Matrix4f& a, const Matrix4f& b, float tolerance = 1e-5f) {
             for (int i = 0; i < 4; ++i) {
                 for (int j = 0; j < 4; ++j) {
-                    if (std::abs(a[i][j] - b[i][j]) > tolerance) {
+                    if (std::abs(a(i,j) - b(i,j)) > tolerance) {
                         return false;
                     }
                 }
@@ -69,32 +69,32 @@ namespace lark::drones::test {
         }
 
         // Helper function to compare vec3 vectors
-        bool vec3_near(const math::v3& a, const math::v3& b, float tolerance = 1e-5f) {
-            return std::abs(a.x - b.x) < tolerance &&
-                   std::abs(a.y - b.y) < tolerance &&
-                   std::abs(a.z - b.z) < tolerance;
+        bool vec3_near(const Vector3f& a, const Vector3f& b, float tolerance = 1e-5f) {
+            return std::abs(a.x() - b.x()) < tolerance &&
+                   std::abs(a.y() - b.y()) < tolerance &&
+                   std::abs(a.z() - b.z()) < tolerance;
         }
 
         // Alternative: Use this macro for more detailed failure messages
-        void EXPECT_VEC3_NEAR(const math::v3& actual, const math::v3& expected, float tolerance = 1e-5f) {
-            EXPECT_NEAR(actual.x, expected.x, tolerance) << "X component mismatch";
-            EXPECT_NEAR(actual.y, expected.y, tolerance) << "Y component mismatch";
-            EXPECT_NEAR(actual.z, expected.z, tolerance) << "Z component mismatch";
+        void EXPECT_VEC3_NEAR(const Vector3f& actual, const Vector3f& expected, float tolerance = 1e-5f) {
+            EXPECT_NEAR(actual.x(), expected.x(), tolerance) << "X component mismatch";
+            EXPECT_NEAR(actual.y(), expected.y(), tolerance) << "Y component mismatch";
+            EXPECT_NEAR(actual.z(), expected.z(), tolerance) << "Z component mismatch";
         }
 
         // Helper for vec4 comparisons (for rotor speeds, quaternions)
-        void EXPECT_VEC4_NEAR(const math::v4& actual, const math::v4& expected, float tolerance = 1e-5f) {
-            EXPECT_NEAR(actual.x, expected.x, tolerance) << "X component mismatch";
-            EXPECT_NEAR(actual.y, expected.y, tolerance) << "Y component mismatch";
-            EXPECT_NEAR(actual.z, expected.z, tolerance) << "Z component mismatch";
-            EXPECT_NEAR(actual.w, expected.w, tolerance) << "W component mismatch";
+        void EXPECT_VEC4_NEAR(const Vector4f& actual, const Vector4f& expected, float tolerance = 1e-5f) {
+            EXPECT_NEAR(actual.x(), expected.x(), tolerance) << "X component mismatch";
+            EXPECT_NEAR(actual.y(), expected.y(), tolerance) << "Y component mismatch";
+            EXPECT_NEAR(actual.z(), expected.z(), tolerance) << "Z component mismatch";
+            EXPECT_NEAR(actual.w(), expected.w(), tolerance) << "W component mismatch";
         }
 
         // Helper for mat3x3 comparisons
-        void EXPECT_MAT3_NEAR(const math::m3x3& actual, const math::m3x3& expected, float tolerance = 1e-5f) {
+        void EXPECT_MAT3_NEAR(const Matrix3f& actual, const Matrix3f& expected, float tolerance = 1e-5f) {
             for (int i = 0; i < 3; ++i) {
                 for (int j = 0; j < 3; ++j) {
-                    EXPECT_NEAR(actual[i][j], expected[i][j], tolerance)
+                    EXPECT_NEAR(actual(i,j), expected(i,j), tolerance)
                         << "Matrix element [" << i << "][" << j << "] mismatch";
                 }
             }
@@ -107,7 +107,7 @@ namespace lark::drones::test {
         DroneDynamics drone_dynamics(params);
 
         // Test weight calculation
-        math::v3 expected_weight = {0.0f, 0.0f, -0.500f * 9.81f};
+        Vector3f expected_weight = {0.0f, 0.0f, -0.500f * 9.81f};
         EXPECT_VEC3_NEAR(drone_dynamics.GetWeight(), expected_weight, 1e-5f);
 
         // Test torque-thrust ratio
@@ -119,14 +119,13 @@ namespace lark::drones::test {
         QuadParams params = createHummingbirdParams();
 
         // Test the inertia matrix construction
-        math::m3x3 inertia = params.inertia_properties.GetInertiaMatrix();
+        Matrix3f inertia = params.inertia_properties.GetInertiaMatrix();
 
         // Expected inertia matrix for Hummingbird (diagonal since products are zero)
-        math::m3x3 expected = {
-            3.65e-3f, 0.0f, 0.0f,
-            0.0f, 3.68e-3f, 0.0f,
-            0.0f, 0.0f, 7.03e-3f
-        };
+        Matrix3f expected;
+        expected << 3.65e-3f, 0.0f, 0.0f,
+                    0.0f, 3.68e-3f, 0.0f,
+                    0.0f, 0.0f, 7.03e-3f;
 
         EXPECT_MAT3_NEAR(inertia, expected, 1e-10f);
     }
@@ -134,13 +133,12 @@ namespace lark::drones::test {
     TEST_F(MultirotorTest, DragMatrixVerification) {
         QuadParams params = createHummingbirdParams();
 
-        math::m3x3 drag_matrix = params.aero_dynamics_properties.GetDragMatrix();
+        Matrix3f drag_matrix = params.aero_dynamics_properties.GetDragMatrix();
 
-        math::m3x3 expected = {
-            0.5e-2f, 0.0f, 0.0f,
-            0.0f, 0.5e-2f, 0.0f,
-            0.0f, 0.0f, 1e-2f
-        };
+        Matrix3f expected;
+        expected << 0.5e-2f, 0.0f, 0.0f,
+                    0.0f, 0.5e-2f, 0.0f,
+                    0.0f, 0.0f, 1e-2f;
 
         EXPECT_MAT3_NEAR(drag_matrix, expected, 1e-10f);
     }
@@ -156,23 +154,23 @@ namespace lark::drones::test {
         // Column 2 (Rotor 3): [1, y3, -x3, k_m/k_eta * dir3]
         // Column 3 (Rotor 4): [1, y4, -x4, k_m/k_eta * dir4]
 
-        math::m4x4 expected_f_to_TM = drone_dynamics.GetControlAllocationMatrix();
+        Matrix4f expected_f_to_TM = drone_dynamics.GetControlAllocationMatrix();
 
         // Verify specific values for Hummingbird configuration
         const float d = 0.17f;
         const float sqrt2_2 = 0.70710678118f;
 
         // Check thrust row (should be all 1s)
-        EXPECT_FLOAT_EQ(expected_f_to_TM[0][0], 1.0f);
-        EXPECT_FLOAT_EQ(expected_f_to_TM[1][0], 1.0f);
-        EXPECT_FLOAT_EQ(expected_f_to_TM[2][0], 1.0f);
-        EXPECT_FLOAT_EQ(expected_f_to_TM[3][0], 1.0f);
+        EXPECT_FLOAT_EQ(expected_f_to_TM(0,0), 1.0f);
+        EXPECT_FLOAT_EQ(expected_f_to_TM(1,0), 1.0f);
+        EXPECT_FLOAT_EQ(expected_f_to_TM(2,0), 1.0f);
+        EXPECT_FLOAT_EQ(expected_f_to_TM(3,0), 1.0f);
 
         // Check roll moments
-        EXPECT_NEAR(expected_f_to_TM[0][1], d * sqrt2_2, 1e-6f);  // Rotor 1
-        EXPECT_NEAR(expected_f_to_TM[1][1], -d * sqrt2_2, 1e-6f); // Rotor 2
-        EXPECT_NEAR(expected_f_to_TM[2][1], -d * sqrt2_2, 1e-6f); // Rotor 3
-        EXPECT_NEAR(expected_f_to_TM[3][1], d * sqrt2_2, 1e-6f);  // Rotor 4
+        EXPECT_NEAR(expected_f_to_TM(0,1), d * sqrt2_2, 1e-6f);  // Rotor 1
+        EXPECT_NEAR(expected_f_to_TM(1,1), -d * sqrt2_2, 1e-6f); // Rotor 2
+        EXPECT_NEAR(expected_f_to_TM(2,1), -d * sqrt2_2, 1e-6f); // Rotor 3
+        EXPECT_NEAR(expected_f_to_TM(3,1), d * sqrt2_2, 1e-6f);  // Rotor 4
     }
 
 }

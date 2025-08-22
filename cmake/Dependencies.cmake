@@ -163,6 +163,43 @@ FetchContent_Declare(
         GIT_TAG 0.9.9.8
 )
 
+# Add BEFORE fetching Eigen
+if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Force skip Eigen's math library tests
+    set(EIGEN_TEST_CXX11 OFF CACHE BOOL "" FORCE)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
+    # Manually specify math library linking
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lm")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lm")
+endif()
+
+# Eigen with header-only option
+FetchContent_Declare(
+        eigen
+        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+        GIT_TAG 3.4.0
+        CONFIGURE_COMMAND ""  # Skip configuration
+        BUILD_COMMAND ""      # Skip build
+)
+
+FetchContent_GetProperties(eigen)
+if(NOT eigen_POPULATED)
+    FetchContent_Populate(eigen)
+    # Add Eigen as an interface library (header-only)
+    add_library(eigen INTERFACE)
+    target_include_directories(eigen INTERFACE ${eigen_SOURCE_DIR})
+    add_library(Eigen3::Eigen ALIAS eigen)
+endif()
+
+set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
+set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(eigen)
+
 FetchContent_Declare(
         imguizmo
         GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git

@@ -1,8 +1,9 @@
 #pragma once
 #include <array>
-#include "Utils/MathTypes.h"
+#include "PhysicExtension/Utils/PhysicsMath.h"
 
 namespace lark::drones {
+    using namespace physics_math;
 
     struct InertiaProperties {
         /// @brief Total mass of the drone in kilograms
@@ -13,7 +14,7 @@ namespace lark::drones {
         ///   x: Ixx - resistance to rotation around X-axis (roll)
         ///   y: Iyy - resistance to rotation around Y-axis (pitch)
         ///   z: Izz - resistance to rotation around Z-axis (yaw)
-        math::v3 principal_inertia;  // [Ixx, Iyy, Izz] in kg*m^2
+        Vector3f principal_inertia;  // [Ixx, Iyy, Izz] in kg*m^2
 
         /// @brief Products of inertia in kg*m^2
         /// @details Off-diagonal elements of the inertia tensor:
@@ -21,21 +22,21 @@ namespace lark::drones {
         ///   y: Iyz - coupling between Y and Z axis rotations
         ///   z: Ixz - coupling between X and Z axis rotations
         /// @note For symmetric drones, these are typically zero
-        math::v3 product_inertia;   // [Ixy, Iyz, Ixz] in kg*m^2
+        Vector3f product_inertia;   // [Ixy, Iyz, Ixz] in kg*m^2
 
-        [[nodiscard]] math::m3x3 GetInertiaMatrix() const {
-            return {
-                principal_inertia.x, product_inertia.x, product_inertia.z,
-                product_inertia.x, principal_inertia.y, product_inertia.y,
-                product_inertia.z, product_inertia.y, principal_inertia.z
-                };
-        };
-
-        [[nodiscard]] math::m3x3 GetInverseInertiaMatrix() const {
-            return glm::inverse(GetInertiaMatrix());
+        [[nodiscard]] Matrix3f GetInertiaMatrix() {
+            Matrix3f I;
+            I << principal_inertia.x(), product_inertia.x(), product_inertia.z(),
+                 product_inertia.x(), principal_inertia.y(), product_inertia.y(),
+                 product_inertia.z(), product_inertia.y(), principal_inertia.z();
+            return I;
         }
 
-        [[nodiscard]] math::v3 GetWeight() const {
+        [[nodiscard]] Matrix3f GetInverseInertiaMatrix() {
+            return GetInertiaMatrix().inverse();
+        }
+
+        [[nodiscard]] Vector3f GetWeight() const {
             return {0, 0, -mass * 9.81f};
         }
     };
@@ -53,25 +54,25 @@ namespace lark::drones {
         ///   - Y: right direction
         ///   - Z: down direction
         /// Standard quadcopter X-configuration at 45° angles
-        std::array<math::v3, num_rotors> rotor_positions;  // meters
+        std::array<Vector3f, num_rotors> rotor_positions;  // meters
 
         /// @brief Rotor spin directions for torque balancing
         /// @details Motor rotation directions to balance yaw torque:
         ///   +1: Counter-clockwise (CCW) when viewed from above
         ///   -1: Clockwise (CW) when viewed from above
         /// Typical pattern: [CCW, CW, CCW, CW] for X-configuration
-        std::array<int, num_rotors> rotor_directions;
+        Vector4f rotor_directions;
 
         /// @brief IMU sensor position relative to center of mass
         /// @details Location of inertial measurement unit in body frame
-        math::v3 imu_position;  // meters
+        Vector3f imu_position;  // meters
 
         /// @brief Arm length from center to rotor (derived parameter)
         /// @note This is typically √2 * distance to rotor in X-config
         float arm_length() const {
             // Calculate from first rotor position (assuming symmetric)
-            return std::sqrt(rotor_positions[0].x * rotor_positions[0].x +
-                            rotor_positions[0].y * rotor_positions[0].y);
+            return std::sqrt(rotor_positions[0].x() * rotor_positions[0].x() +
+                            rotor_positions[0].y() * rotor_positions[0].y());
         }
     };
 
@@ -79,14 +80,10 @@ namespace lark::drones {
         /// parasitic drag in body x axis, N/(m/s)**2
         /// parasitic drag in body y axis, N/(m/s)**2
         /// parasitic drag in body z axis, N/(m/s)**2
-        math::v3 parasitic_drag;
+        Vector3f parasitic_drag;
 
-        [[nodiscard]] math::m3x3 GetDragMatrix() const {
-            return {
-                parasitic_drag.x, 0, 0,
-                0, parasitic_drag.y, 0,
-                0, 0, parasitic_drag.z
-            };
+        [[nodiscard]] Matrix3f GetDragMatrix() const {
+            return parasitic_drag.asDiagonal();
         }
     };
 
@@ -125,12 +122,8 @@ namespace lark::drones {
             return k_m/k_eta;
         }
 
-        [[nodiscard]] math::m3x3 GetRotorDragMatrix() const {
-            return {
-                k_d, 0, 0,
-                0, k_d, 0,
-                0, 0, k_z
-            };
+        [[nodiscard]] Matrix3f GetRotorDragMatrix() const {
+            return Vector3f(k_d, k_d, k_z).asDiagonal();
         }
     };
 
@@ -146,11 +139,11 @@ namespace lark::drones {
     };
 
     struct ControlGains {
-        math::v3 kp_pos = {6.5f, 6.5f, 15.0f};
-        math::v3 kd_pos = {4.0f, 4.0f, 9.0f};
+        Vector3f kp_pos = {6.5f, 6.5f, 15.0f};
+        Vector3f kd_pos = {4.0f, 4.0f, 9.0f};
         float kp_att = 544.0f;
         float kd_att = 46.64f;
-        math::v3 kp_vel = {0.65f, 0.65f, 1.5f};  // 0.1 * kp_pos
+        Vector3f kp_vel = {0.65f, 0.65f, 1.5f};  // 0.1 * kp_pos
     };
 
     struct LowerLevelControllerProperties {
@@ -181,11 +174,11 @@ namespace lark::drones {
 
     struct TrajectoryPoint {
         // Position trajectory
-        math::v3 position;           // meters
-        math::v3 velocity;           // m/s  (x_dot in Python)
-        math::v3 acceleration;       // m/s² (x_ddot in Python)
-        math::v3 jerk;              // m/s³ (x_dddot - optional, not used in basic SE3)
-        math::v3 snap;              // m/s⁴ (x_ddddot - optional, not used in basic SE3)
+        Vector3f position;           // meters
+        Vector3f velocity;           // m/s  (x_dot in Python)
+        Vector3f acceleration;       // m/s² (x_ddot in Python)
+        Vector3f jerk;              // m/s³ (x_dddot - optional, not used in basic SE3)
+        Vector3f snap;              // m/s⁴ (x_ddddot - optional, not used in basic SE3)
 
         // Yaw trajectory
         float yaw;                   // radians

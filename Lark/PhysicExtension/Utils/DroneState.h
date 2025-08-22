@@ -1,18 +1,16 @@
 #pragma once
-#include "Utils/MathTypes.h"
+#include "PhysicExtension/Utils/PhysicsMath.h"
 
 namespace lark::drones {
+    using namespace lark::physics_math;
 
     struct DroneState {
-        math::v3 position;
-        math::v3 velocity;
-        // Quat q
-        math::v4 attitude;
-        // w
-        math::v3 body_rates;
-        math::v3 wind;
-        math::v4 rotor_speeds;
-
+        Vector3f position;
+        Vector3f velocity;
+        Vector4f attitude;  // Quaternion [x,y,z,w]
+        Vector3f body_rates; // w
+        Vector3f wind;
+        Vector4f rotor_speeds;
     };
 
     enum class ControlAbstraction {
@@ -39,32 +37,30 @@ namespace lark::drones {
     };
 
     struct ControlInput {
-        // Motor-level commands
-        math::v4 cmd_motor_speeds;    // rad/s - for CMD_MOTOR_SPEEDS
-        math::v4 cmd_motor_thrusts;   // N - for CMD_MOTOR_THRUSTS
+        // Motor level commands
+        Vector4f cmd_motor_speeds; // rad/s - for CMD_MOTOR_SPEEDS
+        Vector4f cmd_motor_thrusts; // N - for CMD_MOTOR_THRUSTS
 
         // Force and moment commands
-        float cmd_thrust;              // N - collective thrust for CMD_CTBR, CMD_CTBM, CMD_CTATT
-        math::v3 cmd_moment;           // N⋅m - for CMD_CTBM
+        float cmd_thrust; // N - collective thrust for CMD_CTBR, CMD_CTBM, CMD_CTATT
+        Vector3f cmd_moment;           // N⋅m - for CMD_CTBM
 
         // Attitude commands
-        math::v4 cmd_q;                // quaternion [x,y,z,w] - for CMD_CTATT
-        math::v3 cmd_w;                // rad/s - body rates for CMD_CTBR
+        Vector4f cmd_q;                // quaternion [x,y,z,w] - for CMD_CTATT
+        Vector3f cmd_w;                // rad/s - body rates for CMD_CTBR
 
         // High-level commands
-        math::v3 cmd_v;                // m/s - velocity in world frame for CMD_VEL
-        math::v3 cmd_acc;              // m/s² - acceleration in world frame for CMD_ACC
+        Vector3f cmd_v;                // m/s - velocity in world frame for CMD_VEL
+        Vector3f cmd_acc;              // m/s² - acceleration in world frame for CMD_ACC
 
-
-        // Constructor for easy initialization
         ControlInput() :
-            cmd_motor_speeds(0.0f),
-            cmd_motor_thrusts(0.0f),
+            cmd_motor_speeds(Vector4f::Zero()),
+            cmd_motor_thrusts(Vector4f::Zero()),
             cmd_thrust(0.0f),
-            cmd_moment(0.0f),
-            cmd_q(0.0f, 0.0f, 0.0f, 0.0f), // identity quaternion
-            cmd_w(0.0f),
-            cmd_v(0.0f),
-            cmd_acc(0.0f){}
+            cmd_moment(Vector3f::Zero()),
+            cmd_q(0.0f, 0.0f, 0.0f, 1.0f), // identity quaternion
+            cmd_w(Vector3f::Zero()),
+            cmd_v(Vector3f::Zero()),
+            cmd_acc(Vector3f::Zero()) {}
     };
 }

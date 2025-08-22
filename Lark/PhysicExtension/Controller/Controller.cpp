@@ -1,62 +1,74 @@
 #include "Controller.h"
-#include <glm/gtx/quaternion.hpp>
-
 
 namespace lark::drones {
  ControlInput Control::computeMotorCommands(const DroneState& state,
                                       const TrajectoryPoint& desired) const {
      ControlInput input = ControlInput();
 
-     math::v3 pos_err = state.position - desired.position;
-     math::v3 dpos_err = state.velocity - desired.velocity;
+     Vector3f pos_err = state.position - desired.position;
+     Vector3f dpos_err = state.velocity - desired.velocity;
 
-     math::v3 F_des = m_dynamics.GetQuadParams().inertia_properties.mass *
-         (-m_dynamics.GetQuadParams().control_gains.kp_pos * pos_err
-             - m_dynamics.GetQuadParams().control_gains.kd_pos * dpos_err
-             + desired.acceleration + math::v3(0,0,9.81f));
+     Vector3f neg_kp_pos = -m_dynamics.GetQuadParams().control_gains.kp_pos;
+     Vector3f term1 = neg_kp_pos.cwiseProduct(pos_err);
+
+     Vector3f neg_kd_pos = -m_dynamics.GetQuadParams().control_gains.kd_pos;
+     Vector3f term2 = neg_kd_pos.cwiseProduct(dpos_err);
+     Vector3f term3 = {0, 0, 9.81f};
+     Vector3f subterm = desired.acceleration + term3;
+     auto combinedTerm = term1 + term2 + subterm;
+
+     Vector3f F_des = m_dynamics.GetQuadParams().inertia_properties.mass * combinedTerm;
 
      // Get current body z-axis in world frame
-     math::m3x3 R = math::quaternionToRotationMatrix(state.attitude);
-     math::v3 b3 = R * math::v3(0, 0, 1);  // Third column of R
+     Matrix3f R = quaternionToRotationMatrix(state.attitude);
+     Vector3f b3 = R.col(2);  // Third column of R
 
      // Project desired force onto current thrust direction
-     float u1 = glm::dot(F_des, b3);  // This is our collective thrust command
+     float u1 = F_des.dot(b3);  // Collective thrust command
 
-     // orientation
-     math::v3 b3_des = math::normalize(F_des);
+     // Orientation
+     Vector3f b3_des = F_des.normalized();
      float yaw_des = desired.yaw;
-     math::v3 c1_des = {glm::cos(yaw_des), glm::sin(yaw_des), 0};
-     math::v3 b2_des = math::normalize(glm::cross(b3_des, c1_des));
-     math::v3 b1_des = glm::cross(b2_des, b3_des);
-     math::m3x3 R_des = glm::transpose(math::m3x3(b1_des, b2_des, b3_des));
+     Vector3f c1_des(std::cos(yaw_des), std::sin(yaw_des), 0);
+     Vector3f b2_des = b3_des.cross(c1_des).normalized();
+     Vector3f b1_des = b2_des.cross(b3_des);
+
+     Matrix3f R_des;
+     R_des.col(0) = b1_des;
+     R_des.col(1) = b2_des;
+     R_des.col(2) = b3_des;
+     R_des.transposeInPlace();
 
      // Orientation error
-     math::m3x3 S_err = 0.5f * (glm::transpose(R_des) * R - glm::transpose(R) * R_des);
-     math::v3 att_err = math::vee_map(S_err);
+     auto t = R_des.transpose().cwiseProduct(R) - R.transpose().cwiseProduct(R_des);
+     Matrix3f S_err = 0.5f * t;
+     Vector3f att_err = veeMap(S_err);
 
      // Angular velocity error
-     math::v3 w_des = {0, 0, desired.yaw_dot};
-     math::v3 w_err = state.body_rates - w_des;
+     Vector3f w_des(0, 0, desired.yaw_dot);
+     Vector3f w_err = state.body_rates - w_des;
 
      // Desired torque
-     math::v3 u2 = m_dynamics.GetInertiaMatrix() *
-         (m_dynamics.GetQuadParams().control_gains.kp_att * att_err - m_dynamics.GetQuadParams().control_gains.kd_att * w_err) +
-             glm::cross(state.body_rates, m_dynamics.GetInertiaMatrix() * state.body_rates);
+     Vector3f u2 = m_dynamics.GetInertiaMatrix() *
+            (m_dynamics.GetQuadParams().control_gains.kp_att * att_err
+             - m_dynamics.GetQuadParams().control_gains.kd_att * w_err) +
+            state.body_rates.cross(m_dynamics.GetInertiaMatrix() * state.body_rates);
 
-     math::v3 cmd_w = -m_dynamics.GetQuadParams().control_gains.kp_att * att_err - m_dynamics.GetQuadParams().control_gains.kd_att * w_err;
+     Vector3f cmd_w = -m_dynamics.GetQuadParams().control_gains.kp_att * att_err
+                         - m_dynamics.GetQuadParams().control_gains.kd_att * w_err;
 
-     math::v4 TM = {u1, u2[0], u2[1], u2[2]};
-     math::v4 cmd_rotor_thrust = m_dynamics.GetInverseControlAllocationMatrix() * TM;
-     math::v4 cmd_motor_speeds = cmd_rotor_thrust / m_dynamics.GetQuadParams().rotor_properties.k_eta;
-     cmd_motor_speeds = glm::sign(cmd_motor_speeds) * glm::sqrt(glm::abs(cmd_motor_speeds));
+     Vector4f TM(u1, u2.x(), u2.y(), u2.z());
+     Vector4f cmd_rotor_thrust = m_dynamics.GetInverseControlAllocationMatrix() * TM;
+     Vector4f cmd_motor_speeds = cmd_rotor_thrust / m_dynamics.GetQuadParams().rotor_properties.k_eta;
+     cmd_motor_speeds = cmd_motor_speeds.cwiseSign().cwiseProduct(cmd_motor_speeds.cwiseAbs().cwiseSqrt());
 
      input.cmd_thrust = u1;
      input.cmd_moment = u2;
      input.cmd_w = cmd_w;
-     input.cmd_q = math::rotationMatrixToQuaternion(R_des);
-     input.cmd_v = -m_dynamics.GetQuadParams().control_gains.kp_vel*pos_err + desired.velocity;
-     input.cmd_acc = F_des/m_dynamics.GetQuadParams().inertia_properties.mass;
-
+     input.cmd_q = rotationMatrixToQuaternion(R_des);
+     auto b = -m_dynamics.GetQuadParams().control_gains.kp_vel.cwiseProduct(pos_err);
+     input.cmd_v = b + desired.velocity;
+     input.cmd_acc = F_des / m_dynamics.GetQuadParams().inertia_properties.mass;
      return input;
  };
 }

@@ -1,150 +1,213 @@
 #include "Multirotor.h"
 
 namespace lark::drones {
-    math::v4 Multirotor::GetCMDMotorSpeeds(DroneState state, ControlInput input) {
+    Vector4f Multirotor::GetCMDMotorSpeeds(DroneState state, ControlInput input) {
         float cmd_thrust;
-        math::v3 cmd_moment, att_err, F_des;
-        math::m3x3 R, R_des, S_err;
+        Vector3f cmd_moment, att_err, F_des, b3, c1_des;
+        Matrix3f R, R_des, S_err;
+
         switch (m_control_abstraction) {
             case ControlAbstraction::CMD_MOTOR_SPEEDS:
                 return input.cmd_motor_speeds;
 
-            case ControlAbstraction::CMD_MOTOR_THRUSTS:
-                math::v4 motor_speeds = input.cmd_motor_thrusts/m_dynamics.GetQuadParams().rotor_properties.k_eta;
-                return glm::sign(motor_speeds) * glm::sqrt(glm::abs(motor_speeds));
+            case ControlAbstraction::CMD_MOTOR_THRUSTS: {
+                Vector4f motor_speeds = input.cmd_motor_thrusts/m_dynamics.GetQuadParams().rotor_properties.k_eta;
+                return motor_speeds.cwiseSign().cwiseProduct(motor_speeds.cwiseAbs().cwiseSqrt());
+            }
 
             case ControlAbstraction::CMD_CTBM:
                 cmd_thrust = input.cmd_thrust;
                 cmd_moment = input.cmd_moment;
+                break;  // ADD BREAK
 
-            case ControlAbstraction::CMD_CTBR:
+            case ControlAbstraction::CMD_CTBR: {  // ADD BRACES
                 cmd_thrust = input.cmd_thrust;
-
-                // First compute the error between the desired body rates and the actual body rates given by state.
-                math::v3 w_err = state.body_rates - input.cmd_w;
-
-                math::v3 w_dot_cmd = -m_dynamics.GetQuadParams().lower_level_controller_properties.k_w * w_err;
-
+                Vector3f w_err = state.body_rates - input.cmd_w;
+                Vector3f w_dot_cmd = -m_dynamics.GetQuadParams().lower_level_controller_properties.k_w * w_err;
                 cmd_moment = m_dynamics.GetInertiaMatrix() * w_dot_cmd;
-            case ControlAbstraction::CMD_VEL:
-                math::v3 v_err = state.velocity - input.cmd_v;
-                math::v3 a_cmd = -m_dynamics.GetQuadParams().lower_level_controller_properties.k_v * v_err;
+                break;  // ADD BREAK
+            }
 
-                F_des = m_dynamics.GetQuadParams().inertia_properties.mass * (a_cmd + math::v3(0, 0, 9.81f));
+            case ControlAbstraction::CMD_VEL: {  // ADD BRACES
+                Vector3f v_err = state.velocity - input.cmd_v;
+                Vector3f a_cmd = -m_dynamics.GetQuadParams().lower_level_controller_properties.k_v * v_err;
 
-                R = math::quaternionToRotationMatrix(state.attitude);
-                math::v3 b3 = R * math::v3(0, 0, 1);
-                cmd_thrust = glm::dot(F_des, b3);
+                Vector3f subterm = a_cmd + Vector3f(0, 0, 9.81f);
 
-                math::v3 b3_des = glm::normalize(F_des);
-                math::v3 c1_des(1.0f, 0.0f, 0.0f);  // Fixed forward direction
-                math::v3 b2_des = glm::normalize(glm::cross(b3_des, c1_des));
-                math::v3 b1_des = glm::cross(b2_des, b3_des);
+                F_des = m_dynamics.GetQuadParams().inertia_properties.mass * subterm;
 
-                R_des = glm::transpose(math::m3x3(b1_des, b2_des, b3_des));
+                R = quaternionToRotationMatrix(state.attitude);
+                b3 = R.col(2);
+                cmd_thrust = F_des.dot(b3);
 
+                Vector3f b3_des = F_des.normalized();
+                c1_des = Vector3f(1.0f, 0.0f, 0.0f);
+                Vector3f b2_des = b3_des.cross(c1_des).normalized();
+                Vector3f b1_des = b2_des.cross(b3_des);
 
-                // Orientation error
-                S_err = 0.5f * (glm::transpose(R_des) * R - glm::transpose(R) * R_des);
-                att_err = math::vee_map(S_err);
+                R_des.col(0) = b1_des;
+                R_des.col(1) = b2_des;
+                R_des.col(2) = b3_des;
+                R_des.transposeInPlace();
 
+                Matrix3f subMatrix =  R_des.transpose() * R - R.transpose() * R_des;
+                S_err = 0.5f * (subMatrix);
+                att_err = veeMap(S_err);
 
-                cmd_moment = m_dynamics.GetInertiaMatrix() *
-                    (-m_dynamics.GetQuadParams().control_gains.kp_att*att_err - m_dynamics.GetQuadParams().control_gains.kd_att*state.body_rates) +
-                        glm::cross(state.body_rates, m_dynamics.GetInertiaMatrix() * state.body_rates);
+                cmd_moment = GetCMDMoment(state, att_err);
+                break;  // ADD BREAK
+            }
 
-            case ControlAbstraction::CMD_CTATT:
-
+            case ControlAbstraction::CMD_CTATT: {  // ADD BRACES
                 cmd_thrust = input.cmd_thrust;
+                R = quaternionToRotationMatrix(state.attitude);
+                R_des = quaternionToRotationMatrix(input.cmd_q);
 
-                R = math::quaternionToRotationMatrix(state.attitude);
-                R_des = math::quaternionToRotationMatrix(input.cmd_q);
+                Matrix3f subMatrix = R_des.transpose() * R - R.transpose() * R_des;
+                S_err = 0.5f * (subMatrix);
+                att_err = veeMap(S_err);
 
-                S_err = 0.5f * (glm::transpose(R_des) * R - glm::transpose(R) * R_des);
-                att_err = math::vee_map(S_err);
+                cmd_moment = GetCMDMoment(state, att_err);
+                break;
+            }
 
-                cmd_moment = m_dynamics.GetInertiaMatrix() *
-                    (-m_dynamics.GetQuadParams().control_gains.kp_att * att_err - m_dynamics.GetQuadParams().control_gains.kd_att*state.body_rates) +
-                    glm::cross(state.body_rates, m_dynamics.GetInertiaMatrix() * state.body_rates);
+            case ControlAbstraction::CMD_ACC: {  // ADD BRACES
+                F_des = input.cmd_acc * m_dynamics.GetQuadParams().inertia_properties.mass;
+                R = quaternionToRotationMatrix(state.attitude);
+                b3 = R.col(2);
+                cmd_thrust = F_des.dot(b3);
 
-            case ControlAbstraction::CMD_ACC:
-                F_des = input.cmd_acc * m_dynamics.GetInertiaMatrix();
-                R = math::quaternionToRotationMatrix(state.attitude);
-                b3 = R * math::v3(0, 0, 1);
-                cmd_thrust = glm::dot(F_des, b3);
+                Vector3f b3_des = F_des.normalized();
+                c1_des = Vector3f(1.0f, 0.0f, 0.0f);
+                Vector3f b2_des = b3_des.cross(c1_des).normalized();
+                Vector3f b1_des = b2_des.cross(b3_des);
 
-                b3_des = math::normalize(F_des);
-                c1_des = math::v3(1, 0, 0);
-                b2_des = math::normalize(glm::cross(b3_des, c1_des));
-                b1_des = glm::cross(b2_des, b3_des);
+                R_des.col(0) = b1_des;
+                R_des.col(1) = b2_des;
+                R_des.col(2) = b3_des;
+                R_des.transposeInPlace();
 
-                R_des = glm::transpose(math::m3x3(b1_des, b2_des, b3_des));
+                Matrix3f subMatrix = R_des.transpose() * R - R.transpose() * R_des;
+                S_err = 0.5f * (subMatrix);
+                att_err = veeMap(S_err);
 
+                cmd_moment = GetCMDMoment(state, att_err);
+                break;
+            }
 
-                S_err = 0.5f * (glm::transpose(R_des) * R - glm::transpose(R) * R_des);
-                att_err = math::vee_map(S_err);
-
-                cmd_moment = m_dynamics.GetInertiaMatrix() *
-                    (-m_dynamics.GetQuadParams().control_gains.kp_att * att_err - m_dynamics.GetQuadParams().control_gains.kd_att*state.body_rates) +
-                    glm::cross(state.body_rates, m_dynamics.GetInertiaMatrix() * state.body_rates);
+            default:
+                cmd_thrust = 0.0f;
+                cmd_moment = Vector3f::Zero();
+                break;
         }
 
-        math::v4 TM(input.cmd_thrust, cmd_moment.x, cmd_moment.y, cmd_moment.z);
-        math::v4 cmd_motor_forces = m_dynamics.GetInverseControlAllocationMatrix() * TM;
-        math::v4 cmd_motor_speeds = cmd_motor_forces / m_dynamics.GetQuadParams().rotor_properties.k_eta;
-        cmd_motor_speeds = glm::sign(cmd_motor_speeds) * glm::sqrt(glm::abs(cmd_motor_speeds));
+        Vector4f TM(cmd_thrust, cmd_moment.x(), cmd_moment.y(), cmd_moment.z());
+        Vector4f cmd_motor_forces = m_dynamics.GetInverseControlAllocationMatrix() * TM;
+        Vector4f cmd_motor_speeds = cmd_motor_forces / m_dynamics.GetQuadParams().rotor_properties.k_eta;
+        cmd_motor_speeds = cmd_motor_speeds.cwiseSign().cwiseProduct(cmd_motor_speeds.cwiseAbs().cwiseSqrt());
 
         return cmd_motor_speeds;
-
     }
 
-    void Multirotor::ComputeBodyWrench(math::v3 body_rate, math::v4 rotor_speeds, math::v3 body_airspeed_vector) {
-        // Fix for local_airspeeds (3x4 matrix - 3 components for 4 rotors)
-        glm::mat3x4 local_airspeeds = math::hatMap(body_rate) * glm::transpose(m_dynamics.GetRotorGeometry());
+    std::pair<Vector3f, Vector3f> Multirotor::ComputeBodyWrench(const Vector3f& body_rate, Vector4f rotor_speeds, const Vector3f& body_airspeed_vector) {
+        // Compute local airspeeds (3x4 matrix - 3 components for 4 rotors)
+        Eigen::Matrix<float, 3, Eigen::Dynamic> local_airspeeds(3, m_dynamics.GetRotorGeometry().cols());
 
-        // Add body_airspeed_vector to each COLUMN (each rotor)
-        for (int i = 0; i < 4; ++i) {  // 4 rotors, not 3
-            local_airspeeds[i] += body_airspeed_vector;
+        auto replicated_airspeed = body_airspeed_vector.replicate(1, m_dynamics.GetRotorGeometry().cols()).cast<float>();
+        auto rotational_velocity = hatMap(body_rate) * m_dynamics.GetRotorGeometry();
+        local_airspeeds =  replicated_airspeed + rotational_velocity;
+
+        // Compute the thrust of each rotor
+        Eigen::Vector3d thrust_direction(0, 0, m_dynamics.GetQuadParams().rotor_properties.k_eta);
+        Eigen::Matrix<float, 3, Eigen::Dynamic> T(3, rotor_speeds.size());
+
+        for (int i = 0; i < rotor_speeds.size(); ++i) {
+            float rotor_speed_squared = rotor_speeds(i) * rotor_speeds(i);
+            Vector3f thrust_vector = thrust_direction * rotor_speed_squared;
+            T.col(i) = thrust_vector;
         }
 
-        // Compute T matrix - thrust vector for each rotor
-        // T = [0, 0, k_eta]^T * rotor_speeds^2 for each rotor
-        glm::mat3x4 T(0.0f);  // Initialize to zeros
-        float k_eta = m_dynamics.GetQuadParams().rotor_properties.k_eta;
+        Vector3f D = Vector3f::Zero();
+        Eigen::Matrix<float, 3, Eigen::Dynamic> H = Eigen::Matrix<float, 3, Eigen::Dynamic>::Zero(3, rotor_speeds.size());
+        Eigen::Matrix<float, 3, Eigen::Dynamic> M_flap = Eigen::Matrix<float, 3, Eigen::Dynamic>::Zero(3, rotor_speeds.size());
 
-        for (int i = 0; i < 4; ++i) {
-            // Only z-component is non-zero (thrust is along rotor axis)
-            T[i].z = k_eta * rotor_speeds[i] * rotor_speeds[i];
-            // T[i].x = 0;  // Already zero from initialization
-            // T[i].y = 0;  // Already zero from initialization
-        }    }
+        if (m_aero) {
+            float airspeed_magnitude = body_airspeed_vector.norm();
+            Matrix3f drag_matrix = m_dynamics.GetQuadParams().aero_dynamics_properties.GetDragMatrix();
+            Vector3f drag_direction = drag_matrix * body_airspeed_vector;
+            D = -airspeed_magnitude * drag_direction;
 
+            // H force calculation
+            for (int i = 0; i < rotor_speeds.size(); ++i) {
+                H.col(i) = -rotor_speeds(i) * (m_dynamics.GetQuadParams().rotor_properties.GetRotorDragMatrix() * local_airspeeds.col(i));
+            }
 
-    void Multirotor::s_dot_fn(DroneState state, math::v4 cmd_rotor_speeds) {
-        math::v4 rotor_speeds = state.rotor_speeds;
-        math::v3 inertia_velocity = state.velocity;
-        math::v3 wind_velocity = state.wind;
+            // Pitching flapping moment acting at each propeller hub
+            Vector3f z_unit(0, 0, 1);
+            for (int i = 0; i < m_dynamics.GetQuadParams().geometric_properties.num_rotors; ++i) {
+                Matrix3f hat_local = hatMap(local_airspeeds.col(i));
+                M_flap.col(i) = -m_dynamics.GetQuadParams().rotor_properties.k_flap * rotor_speeds(i) * (hat_local * z_unit);
+            }
 
-        math::m3x3 R = math::quaternionToRotationMatrix(state.attitude);
+            // Translational lift
+            for (int i = 0; i < rotor_speeds.size(); ++i) {
+                float xy_squared = local_airspeeds.col(i).head<2>().squaredNorm();
+                T(2, i) += m_dynamics.GetQuadParams().rotor_properties.k_h * xy_squared;
+            }
+        }
 
-        math::v4 rotor_accel = (1/m_dynamics.GetQuadParams().motor_properties.tau_m) * (cmd_rotor_speeds - rotor_speeds);
+        // Compute the moments due to the rotor thrusts, rotor drag, and rotor drag torques
+        Vector3f M_force = Vector3f::Zero();
+        for (int i = 0; i < m_dynamics.GetQuadParams().geometric_properties.num_rotors; ++i) {
+            Vector3f rotor_position = m_dynamics.GetRotorGeometry().col(i);
+            Matrix3f rotor_position_hat = hatMap(rotor_position);
+            Vector3f total_rotor_force = T.col(i) + H.col(i);
+            Vector3f moment_contribution = rotor_position_hat * total_rotor_force;
+            M_force -= moment_contribution;
+        }
 
-        math::v3 x_dot = state.velocity;
+        // Yaw moments
+        Eigen::Matrix<float, 3, Eigen::Dynamic> M_yaw(3, m_dynamics.GetQuadParams().geometric_properties.num_rotors);
+        M_yaw.setZero();
+        for (int i = 0; i < rotor_speeds.size(); ++i) {
+            M_yaw(2, i) = m_dynamics.GetQuadParams().geometric_properties.rotor_directions(i) *
+                          m_dynamics.GetQuadParams().rotor_properties.k_m * rotor_speeds(i) * rotor_speeds(i);
+        }
 
-        glm::quat q_dot = math::quat_dot(glm::quat(state.attitude), state.body_rates);
+        // Sum all elements to compute the total body wrench
+        Vector3f thrust_sum = T.rowwise().sum();
+        Vector3f h_force_sum = H.rowwise().sum();
+        Vector3f a = (thrust_sum + h_force_sum);
+        Vector3f FtotB =  a + D;
 
-        math::v3 body_airspeed_vector = glm::transpose(R) * (inertia_velocity - wind_velocity);
+        Vector3f yaw_moment_sum = M_yaw.rowwise().sum();
+        Vector3f flap_moment_sum = M_flap.rowwise().sum();
+        Vector3f b = M_force + yaw_moment_sum;
+        Vector3f MtotB = b + flap_moment_sum;
 
-
-
-
+        return std::make_pair(FtotB, MtotB);
 
     }
+
+    void Multirotor::s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds) {
+        Vector4f rotor_speeds = state.rotor_speeds;
+        Vector3f inertia_velocity = state.velocity;
+        Vector3f wind_velocity = state.wind;
+
+        Matrix3f R = quaternionToRotationMatrix(state.attitude);
+    }
+
+
+
 
 
     void Multirotor::step(DroneState state, ControlInput input, float dt) {
-        math::v3 cmd_rotor_speeds = GetCMDMotorSpeeds(state, input);
-        cmd_rotor_speeds = clamp(cmd_rotor_speeds, m_dynamics.GetQuadParams().motor_properties.rotor_speed_min, m_dynamics.GetQuadParams().motor_properties.rotor_speed_max);
+        Vector4f cmd_rotor_speeds = GetCMDMotorSpeeds(state, input);
+
+        // Clamp rotor speeds
+        cmd_rotor_speeds = cmd_rotor_speeds.cwiseMax(m_dynamics.GetQuadParams().motor_properties.rotor_speed_min)
+                                           .cwiseMin(m_dynamics.GetQuadParams().motor_properties.rotor_speed_max);
+
     }
 
 }
