@@ -1,5 +1,7 @@
 #include "Multirotor.h"
 
+#include <random>
+
 namespace lark::drones {
     Vector4f Multirotor::GetCMDMotorSpeeds(DroneState state, ControlInput input) {
         float cmd_thrust;
@@ -111,25 +113,24 @@ namespace lark::drones {
 
     std::pair<Vector3f, Vector3f> Multirotor::ComputeBodyWrench(const Vector3f& body_rate, Vector4f rotor_speeds, const Vector3f& body_airspeed_vector) {
         // Compute local airspeeds (3x4 matrix - 3 components for 4 rotors)
-        Eigen::Matrix<float, 3, Eigen::Dynamic> local_airspeeds(3, m_dynamics.GetRotorGeometry().cols());
+        // We need 3x4 for the multiplication, so transpose it
+        auto geometry_transposed = m_dynamics.GetRotorGeometry().transpose();
 
-        auto replicated_airspeed = body_airspeed_vector.replicate(1, m_dynamics.GetRotorGeometry().cols()).cast<float>();
-        auto rotational_velocity = hatMap(body_rate) * m_dynamics.GetRotorGeometry();
+        Eigen::Matrix<float, 3, Eigen::Dynamic> local_airspeeds(3, geometry_transposed.cols());
+
+        auto replicated_airspeed = body_airspeed_vector.replicate(1, geometry_transposed.cols()).cast<float>();
+        auto rotational_velocity = hatMap(body_rate) * geometry_transposed;
         local_airspeeds =  replicated_airspeed + rotational_velocity;
 
-        // Compute the thrust of each rotor
-        Eigen::Vector3d thrust_direction(0, 0, m_dynamics.GetQuadParams().rotor_properties.k_eta);
-        Eigen::Matrix<float, 3, Eigen::Dynamic> T(3, rotor_speeds.size());
 
-        for (int i = 0; i < rotor_speeds.size(); ++i) {
-            float rotor_speed_squared = rotor_speeds(i) * rotor_speeds(i);
-            Vector3f thrust_vector = thrust_direction * rotor_speed_squared;
-            T.col(i) = thrust_vector;
-        }
+        Eigen::Matrix3Xf T = Eigen::Matrix3Xf::Zero(3, rotor_speeds.size());
+        auto test = m_dynamics.GetQuadParams().rotor_properties.k_eta * rotor_speeds.array().square();
+        T.row(2) = test;
+
 
         Vector3f D = Vector3f::Zero();
-        Eigen::Matrix<float, 3, Eigen::Dynamic> H = Eigen::Matrix<float, 3, Eigen::Dynamic>::Zero(3, rotor_speeds.size());
-        Eigen::Matrix<float, 3, Eigen::Dynamic> M_flap = Eigen::Matrix<float, 3, Eigen::Dynamic>::Zero(3, rotor_speeds.size());
+        Eigen::Matrix3f H = Matrix3f::Zero(3, rotor_speeds.size());
+        Eigen::Matrix3f M_flap = Matrix3f::Zero(3, rotor_speeds.size());
 
         if (m_aero) {
             float airspeed_magnitude = body_airspeed_vector.norm();
@@ -159,7 +160,7 @@ namespace lark::drones {
         // Compute the moments due to the rotor thrusts, rotor drag, and rotor drag torques
         Vector3f M_force = Vector3f::Zero();
         for (int i = 0; i < m_dynamics.GetQuadParams().geometric_properties.num_rotors; ++i) {
-            Vector3f rotor_position = m_dynamics.GetRotorGeometry().col(i);
+            Vector3f rotor_position = geometry_transposed.col(i);  // Now this works - getting a 3x1 column
             Matrix3f rotor_position_hat = hatMap(rotor_position);
             Vector3f total_rotor_force = T.col(i) + H.col(i);
             Vector3f moment_contribution = rotor_position_hat * total_rotor_force;
@@ -186,19 +187,66 @@ namespace lark::drones {
         Vector3f MtotB = b + flap_moment_sum;
 
         return std::make_pair(FtotB, MtotB);
-
     }
 
-    void Multirotor::s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds) {
+    Eigen::VectorXf Multirotor::s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds) {
         Vector4f rotor_speeds = state.rotor_speeds;
         Vector3f inertia_velocity = state.velocity;
         Vector3f wind_velocity = state.wind;
 
         Matrix3f R = quaternionToRotationMatrix(state.attitude);
+
+        // rotor speeds derivative
+        float tau_scalar = 1.0f/m_dynamics.GetQuadParams().motor_properties.tau_m;
+        Vector4f rotor_diff = cmd_rotor_speeds - rotor_speeds;
+        Vector4f rotor_accel = tau_scalar * rotor_diff;
+
+        // position derivative
+        Vector3f x_dot = state.velocity;
+
+        // orientation derivative
+        Vector4f q_dot = quatDot(state.attitude, state.body_rates);
+
+        Vector3f velocity_diff = inertia_velocity - wind_velocity;
+
+        Vector3f body_airspeed_vector = R.transpose() * velocity_diff;
+
+        std::pair<Vector3f, Vector3f> pairs = ComputeBodyWrench(state.body_rates, rotor_speeds, body_airspeed_vector);
+        Vector3f FtotB = pairs.first;
+        Vector3f MtotB = pairs.second;
+
+        Vector3f Ftot = R * FtotB;
+
+        if (m_enable_ground) {
+            Ftot -= m_dynamics.GetWeight();
+        }
+
+        // velocity derivative
+        auto v_dot = (m_dynamics.GetWeight() + Ftot) / m_dynamics.GetQuadParams().inertia_properties.mass;
+
+        Vector3f wind_dot = Vector3f::Zero();
+
+        // Angular velocity derivative
+        Vector3f w = state.body_rates;
+        Matrix3f w_hat = hatMap(w);
+        Vector3f inertia_body_rates = m_dynamics.GetInertiaMatrix() * w;
+        Vector3f test = w_hat * inertia_body_rates;
+
+        Vector3f test2 = MtotB - test;
+        Vector3f w_dot = m_dynamics.GetInverseInertia() * test2;
+
+
+        Eigen::VectorXf s_dot = Eigen::VectorXf::Zero(16 + m_dynamics.GetQuadParams().geometric_properties.num_rotors);
+
+        s_dot.segment<3>(0) = x_dot;
+        s_dot.segment<3>(3) = v_dot;
+        s_dot.segment<4>(6) = q_dot;
+        s_dot.segment<3>(10) = w_dot;
+        s_dot.segment<3>(13) = wind_dot;
+        s_dot.segment(16, m_dynamics.GetQuadParams().geometric_properties.num_rotors) = rotor_accel;
+
+        return s_dot;
     }
-
-
-
 
 
     void Multirotor::step(DroneState state, ControlInput input, float dt) {
@@ -207,6 +255,37 @@ namespace lark::drones {
         // Clamp rotor speeds
         cmd_rotor_speeds = cmd_rotor_speeds.cwiseMax(m_dynamics.GetQuadParams().motor_properties.rotor_speed_min)
                                            .cwiseMin(m_dynamics.GetQuadParams().motor_properties.rotor_speed_max);
+
+        // Pack state into vector
+        Eigen::VectorXf s = PackState(state);
+
+        // Compute state derivative
+        Eigen::VectorXf s_dot = s_dot_fn(state, cmd_rotor_speeds);
+
+        // Integration (Euler method for simplicity - RK45 would require external library)
+        auto a = s + s_dot * dt;
+        s = a;
+
+        // Unpack state back into struct
+        state = UnpackState(s);
+
+        // Re-normalize quaternion
+        state.attitude.normalize();
+
+        // Add noise to motor speeds (if motor_noise > 0)
+        if (m_dynamics.GetQuadParams().motor_properties.motor_noise_std > 0) {
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::normal_distribution<float> noise(0.0f, std::abs(m_dynamics.GetQuadParams().motor_properties.motor_noise_std));
+
+            for (int i = 0; i < state.rotor_speeds.size(); ++i) {
+                state.rotor_speeds(i) += noise(gen);
+            }
+        }
+
+        // Clamp rotor speeds after noise
+        state.rotor_speeds = state.rotor_speeds.cwiseMax(m_dynamics.GetQuadParams().motor_properties.rotor_speed_min)
+                                               .cwiseMin(m_dynamics.GetQuadParams().motor_properties.rotor_speed_max);
 
     }
 
