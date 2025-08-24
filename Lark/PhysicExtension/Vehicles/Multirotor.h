@@ -17,7 +17,7 @@ namespace lark::drones {
               m_enable_ground(enable_ground) {
         }
 
-        void step(DroneState state, ControlInput input, float dt);
+        DroneState step(DroneState state, ControlInput input, float dt);
         Eigen::VectorXf s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds);
         std::pair<Vector3f, Vector3f> ComputeBodyWrench(const Vector3f& body_rate, Vector4f rotor_speeds, const Vector3f& body_airspeed_vector);
 

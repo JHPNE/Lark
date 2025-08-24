@@ -249,7 +249,7 @@ namespace lark::drones {
     }
 
 
-    void Multirotor::step(DroneState state, ControlInput input, float dt) {
+    DroneState Multirotor::step(DroneState state, ControlInput input, float dt) {
         Vector4f cmd_rotor_speeds = GetCMDMotorSpeeds(state, input);
 
         // Clamp rotor speeds
@@ -287,6 +287,7 @@ namespace lark::drones {
         state.rotor_speeds = state.rotor_speeds.cwiseMax(m_dynamics.GetQuadParams().motor_properties.rotor_speed_min)
                                                .cwiseMin(m_dynamics.GetQuadParams().motor_properties.rotor_speed_max);
 
+        return state;
     }
 
 }

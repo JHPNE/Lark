@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 #include "PhysicExtension/Utils/DroneDynamics.h"
-#include "PhysicExtension/Controller/Controller.h"
-#include "PhysicExtension/Vehicles/Multirotor.h"
 
 namespace lark::drones::test {
     using namespace physics_math;
