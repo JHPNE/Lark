@@ -40,7 +40,9 @@ namespace lark::drones {
      R_des.transposeInPlace();
 
      // Orientation error
-     auto t = R_des.transpose().cwiseProduct(R) - R.transpose().cwiseProduct(R_des);
+     Matrix3f test = R_des.transpose() * R;
+     Matrix3f test2 = R.transpose() * R_des;
+     Matrix3f t = test - test2;
      Matrix3f S_err = 0.5f * t;
      Vector3f att_err = veeMap(S_err);
 
@@ -50,7 +52,7 @@ namespace lark::drones {
 
      // Desired torque
      Vector3f u2 = m_dynamics.GetInertiaMatrix() *
-            (m_dynamics.GetQuadParams().control_gains.kp_att * att_err
+            (-m_dynamics.GetQuadParams().control_gains.kp_att * att_err
              - m_dynamics.GetQuadParams().control_gains.kd_att * w_err) +
             state.body_rates.cross(m_dynamics.GetInertiaMatrix() * state.body_rates);
 
@@ -58,14 +60,17 @@ namespace lark::drones {
                          - m_dynamics.GetQuadParams().control_gains.kd_att * w_err;
 
      Vector4f TM(u1, u2.x(), u2.y(), u2.z());
-     Vector4f cmd_rotor_thrust = m_dynamics.GetInverseControlAllocationMatrix() * TM;
+     Matrix4f TM_to_f = m_dynamics.GetInverseControlAllocationMatrix();
+     Vector4f cmd_rotor_thrust = TM_to_f.transpose() * TM;
      Vector4f cmd_motor_speeds = cmd_rotor_thrust / m_dynamics.GetQuadParams().rotor_properties.k_eta;
      cmd_motor_speeds = cmd_motor_speeds.cwiseSign().cwiseProduct(cmd_motor_speeds.cwiseAbs().cwiseSqrt());
 
+     input.cmd_motor_speeds = cmd_motor_speeds;
+     input.cmd_motor_thrusts = cmd_rotor_thrust;
      input.cmd_thrust = u1;
      input.cmd_moment = u2;
      input.cmd_w = cmd_w;
-     input.cmd_q = rotationMatrixToQuaternion(R_des);
+     input.cmd_q = rotationMatrixToQuaternion(R_des.transpose());
      auto b = -m_dynamics.GetQuadParams().control_gains.kp_vel.cwiseProduct(pos_err);
      input.cmd_v = b + desired.velocity;
      input.cmd_acc = F_des / m_dynamics.GetQuadParams().inertia_properties.mass;

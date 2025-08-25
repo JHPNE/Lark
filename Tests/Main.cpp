@@ -1,5 +1,6 @@
 #include "PhysicsTests/MathTest.h"
 #include "PhysicsTests/DroneDynamicsTest.h"
+#include "PhysicsTests/ControllerTest.h"
 #include <gtest/gtest.h>
 
 int main(int argc, char** argv) {

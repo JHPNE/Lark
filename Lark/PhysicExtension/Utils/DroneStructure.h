@@ -183,5 +183,6 @@ namespace lark::drones {
         // Yaw trajectory
         float yaw;                   // radians
         float yaw_dot;              // rad/s (yaw rate)
+        float yaw_ddot;
     };
 }

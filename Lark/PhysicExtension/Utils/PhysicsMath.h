@@ -23,7 +23,7 @@ namespace lark::physics_math {
     }
     
     inline Vector3f veeMap(const Matrix3f& S) {
-        return Vector3f(-S(1,2), S(0,2), -S(0,1));
+        return Vector3f(-S(2,1), S(2,0), -S(1,0));
     }
     
     inline Matrix3f quaternionToRotationMatrix(const Vector4f& q) {
