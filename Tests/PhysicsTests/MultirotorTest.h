@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "PhysicExtension/Vehicles/Multirotor.h"
+#include "PhysicExtension/Controller/Controller.h"
 #include "PhysicExtension/Utils/DroneState.h"
 
 namespace lark::drones::test {
@@ -96,3 +97,30 @@ namespace lark::drones::test {
             EXPECT_NEAR(actual(3), expected(3), tolerance) << "Component 3 mismatch";
         }
     };
+
+    TEST_F(MultirotorTest, StateDotTestHummingbird) {
+        QuadParams params = createHummingbirdParams();
+        Control controller(params);
+
+        DroneState state = createState();
+        TrajectoryPoint point = createTrajectoryPoint();
+
+        ControlInput result = controller.computeMotorCommands(state, point);
+
+        Multirotor multirotor(params, state, ControlAbstraction::CMD_MOTOR_SPEEDS);
+        multirotor.stateDot(state, result);
+    }
+
+    TEST_F(MultirotorTest, StepTestHummingbird) {
+        QuadParams params = createHummingbirdParams();
+        Control controller(params);
+
+        DroneState state = createState();
+        TrajectoryPoint point = createTrajectoryPoint();
+
+        ControlInput result = controller.computeMotorCommands(state, point);
+
+        Multirotor multirotor(params, state, ControlAbstraction::CMD_MOTOR_SPEEDS);
+        multirotor.step(state, result);
+    }
+}

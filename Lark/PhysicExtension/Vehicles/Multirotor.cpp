@@ -290,4 +290,19 @@ namespace lark::drones {
         return state;
     }
 
+    Eigen::VectorXf Multirotor::stateDot(DroneState state, ControlInput input, float dt) {
+        Vector4f cmd_motor_speeds = GetCMDMotorSpeeds(state, input);
+        Vector4f cmd_rotor_speeds = cmd_motor_speeds.cwiseMax(m_dynamics.GetQuadParams().motor_properties.rotor_speed_min).cwiseMin(m_dynamics.GetQuadParams().motor_properties.rotor_speed_max);
+
+        Eigen::VectorXf s = PackState(state);
+        Eigen::VectorXf s_dot = s_dot_fn(state, s);
+
+        Eigen::VectorXf v_dot = s_dot.segment<3>(3);  // Extract elements 3, 4, 5
+        Eigen::VectorXf w_dot = s_dot.segment<3>(10); // Extract elements 10, 11, 12
+
+
+        return {v_dot, w_dot};
+    }
+
+
 }
