@@ -4,7 +4,7 @@
 namespace lark::drones::test {
     using namespace physics_math;
 
-    class MultirotorTest : public ::testing::Test {
+    class DroneDynamicsTest : public ::testing::Test {
     protected:
         // Helper to create AscTec Hummingbird parameters
         QuadParams createHummingbirdParams() {
@@ -99,7 +99,7 @@ namespace lark::drones::test {
         }
     };
 
-    TEST_F(MultirotorTest, ConstructorInitialization) {
+    TEST_F(DroneDynamicsTest, ConstructorInitialization) {
         QuadParams params = createHummingbirdParams();
 
         DroneDynamics drone_dynamics(params);
@@ -113,7 +113,7 @@ namespace lark::drones::test {
         EXPECT_NEAR(expected_ratio, 1.36e-07f / 5.57e-06f, 1e-10f);
     }
 
-    TEST_F(MultirotorTest, InertiaMatrixVerification) {
+    TEST_F(DroneDynamicsTest, InertiaMatrixVerification) {
         QuadParams params = createHummingbirdParams();
 
         // Test the inertia matrix construction
@@ -128,7 +128,7 @@ namespace lark::drones::test {
         EXPECT_MAT3_NEAR(inertia, expected, 1e-10f);
     }
 
-    TEST_F(MultirotorTest, DragMatrixVerification) {
+    TEST_F(DroneDynamicsTest, DragMatrixVerification) {
         QuadParams params = createHummingbirdParams();
 
         Matrix3f drag_matrix = params.aero_dynamics_properties.GetDragMatrix();
@@ -141,7 +141,7 @@ namespace lark::drones::test {
         EXPECT_MAT3_NEAR(drag_matrix, expected, 1e-10f);
     }
 
-    TEST_F(MultirotorTest, ControlAllocationMatrixStructure) {
+    TEST_F(DroneDynamicsTest, ControlAllocationMatrixStructure) {
         QuadParams params = createHummingbirdParams();
 
         DroneDynamics drone_dynamics(params);

@@ -1,3 +1,4 @@
+#pragma once
 #include <gtest/gtest.h>
 #include "PhysicExtension/Vehicles/Multirotor.h"
 #include "PhysicExtension/Controller/Controller.h"
@@ -108,7 +109,13 @@ namespace lark::drones::test {
         ControlInput result = controller.computeMotorCommands(state, point);
 
         Multirotor multirotor(params, state, ControlAbstraction::CMD_MOTOR_SPEEDS);
-        multirotor.stateDot(state, result);
+        StateDot actual = multirotor.stateDot(state, result, 0);
+
+        Eigen::Vector3f vdot = {0, 0, 132.73029083};
+        Eigen::Vector3f wdot = {0.0f, -9.694455805196546e-14f, 0.0f};
+
+        EXPECT_VEC3_NEAR(actual.vdot, vdot);
+        EXPECT_VEC3_NEAR(actual.wdot, wdot);
     }
 
     TEST_F(MultirotorTest, StepTestHummingbird) {
@@ -121,6 +128,6 @@ namespace lark::drones::test {
         ControlInput result = controller.computeMotorCommands(state, point);
 
         Multirotor multirotor(params, state, ControlAbstraction::CMD_MOTOR_SPEEDS);
-        multirotor.step(state, result);
+        multirotor.step(state, result, 0);
     }
 }

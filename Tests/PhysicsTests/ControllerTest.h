@@ -1,3 +1,4 @@
+#pragma once
 #include <gtest/gtest.h>
 #include "PhysicExtension/Controller/Controller.h"
 #include "PhysicExtension/Utils/DroneState.h"
