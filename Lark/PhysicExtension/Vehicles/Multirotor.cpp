@@ -1,5 +1,6 @@
 #include "Multirotor.h"
 
+#include <iostream>
 #include <random>
 
 namespace lark::drones {
@@ -114,6 +115,8 @@ namespace lark::drones {
     std::pair<Vector3f, Vector3f> Multirotor::ComputeBodyWrench(const Vector3f& body_rate, Vector4f rotor_speeds, const Vector3f& body_airspeed_vector) {
         // Compute local airspeeds (3x4 matrix - 3 components for 4 rotors)
         // We need 3x4 for the multiplication, so transpose it
+        // In NumPy: (n,1) * (m,) broadcasts → (n,m)
+        // In Eigen: VectorN * VectorM.transpose() → (n,m)
         auto geometry_transposed = m_dynamics.GetRotorGeometry().transpose();
 
         Eigen::Matrix<float, 3, Eigen::Dynamic> local_airspeeds(3, geometry_transposed.cols());
@@ -122,11 +125,11 @@ namespace lark::drones {
         auto rotational_velocity = hatMap(body_rate) * geometry_transposed;
         local_airspeeds =  replicated_airspeed + rotational_velocity;
 
+        // rotor speeds square
+        Eigen::Vector4f rotor_square = rotor_speeds.array().square();
 
-        Eigen::Matrix3Xf T = Eigen::Matrix3Xf::Zero(3, rotor_speeds.size());
-        auto test = m_dynamics.GetQuadParams().rotor_properties.k_eta * rotor_speeds.array().square();
-        T.row(2) = test;
-
+        Eigen::Vector3f Tvec(0,0,m_dynamics.GetQuadParams().rotor_properties.k_eta);
+        Eigen::Matrix<float, 3,4> T = Tvec * rotor_square.transpose();
 
         Vector3f D = Vector3f::Zero();
         Eigen::Matrix3Xf H = Eigen::Matrix3Xf::Zero(3, rotor_speeds.size());
@@ -139,9 +142,8 @@ namespace lark::drones {
             D = -airspeed_magnitude * drag_direction;
 
             // H force calculation
-            for (int i = 0; i < rotor_speeds.size(); ++i) {
-                H.col(i) = -rotor_speeds(i) * (m_dynamics.GetQuadParams().rotor_properties.GetRotorDragMatrix() * local_airspeeds.col(i));
-            }
+            Eigen::Matrix3Xf temp = m_dynamics.GetQuadParams().rotor_properties.GetRotorDragMatrix() * local_airspeeds;
+            H = -temp.array() * rotor_speeds.transpose().replicate(3,1).array();
 
             // Pitching flapping moment acting at each propeller hub
             Vector3f z_unit(0, 0, 1);
@@ -151,29 +153,30 @@ namespace lark::drones {
             }
 
             // Translational lift
-            for (int i = 0; i < rotor_speeds.size(); ++i) {
-                float xy_squared = local_airspeeds.col(i).head<2>().squaredNorm();
-                T(2, i) += m_dynamics.GetQuadParams().rotor_properties.k_h * xy_squared;
-            }
+            Eigen::RowVectorXf xy_squared = local_airspeeds.topRows<2>().colwise().squaredNorm();
+            T.row(2).array() += m_dynamics.GetQuadParams().rotor_properties.k_h * xy_squared.array();
         }
 
         // Compute the moments due to the rotor thrusts, rotor drag, and rotor drag torques
         Vector3f M_force = Vector3f::Zero();
         for (int i = 0; i < m_dynamics.GetQuadParams().geometric_properties.num_rotors; ++i) {
-            Vector3f rotor_position = geometry_transposed.col(i);  // Now this works - getting a 3x1 column
-            Matrix3f rotor_position_hat = hatMap(rotor_position);
-            Vector3f total_rotor_force = T.col(i) + H.col(i);
-            Vector3f moment_contribution = rotor_position_hat * total_rotor_force;
-            M_force -= moment_contribution;
+            Vector3f r = geometry_transposed.col(i);
+            Vector3f f = T.col(i) + H.col(i);
+            Vector3f c = hatMap(r) * f;
+            M_force += c;
         }
 
-        // Yaw moments
-        Eigen::Matrix<float, 3, Eigen::Dynamic> M_yaw(3, m_dynamics.GetQuadParams().geometric_properties.num_rotors);
-        M_yaw.setZero();
-        for (int i = 0; i < rotor_speeds.size(); ++i) {
-            M_yaw(2, i) = m_dynamics.GetQuadParams().geometric_properties.rotor_directions(i) *
-                          m_dynamics.GetQuadParams().rotor_properties.k_m * rotor_speeds(i) * rotor_speeds(i);
-        }
+        M_force = -M_force;
+
+
+        Eigen::Vector3f subterm(0, 0, m_dynamics.GetQuadParams().rotor_properties.k_m);
+        Eigen::Vector4f rotor_dir    = m_dynamics.GetQuadParams().geometric_properties.rotor_directions;
+
+        // scale each column j by rotor_square[j] * rotor_dir[j]
+        Eigen::Vector4f col_scale = rotor_square.cwiseProduct(rotor_dir);
+
+        // (3x4) result
+        Eigen::Matrix<float,3,4> M_yaw = subterm * col_scale.transpose();
 
         // Sum all elements to compute the total body wrench
         Vector3f thrust_sum = T.rowwise().sum();
