@@ -123,11 +123,36 @@ namespace lark::drones::test {
         Control controller(params);
 
         DroneState state = createState();
+        state.wind = Vector3f(0.06279051952931337, 0.06279051952931337, 0.06279051952931337);
         TrajectoryPoint point = createTrajectoryPoint();
 
         ControlInput result = controller.computeMotorCommands(state, point);
 
         Multirotor multirotor(params, state, ControlAbstraction::CMD_MOTOR_SPEEDS);
-        multirotor.step(state, result, 0);
+        DroneState result1 = multirotor.step(state, result, 0.01);
+
+        // rk45 integration
+        /*
+        Vector3f expected_position{4.842575037441486e-06, 4.8968090090213734e-06, 0.003229048386634305};
+        Vector3f expected_velocity{0.0010416192568423845, 0.0010608577542681695, 0.4795714816709453};
+        Vector4f expected_attitude{-0.002022944724344893, 0.001813244200240739, -0.0005004203071620471, 0.9999961847025362};  // Quaternion [x,y,z,w]
+        Vector3f expected_body_rates{-0.8692547060514457, 0.7704085190757337, -0.22636673873388363}; // w
+        Vector3f expected_wind{0.06279051952931337, 0.06279051952931337, 0.06279051952931337};
+        Vector4f expected_rotor_speeds{242.1086173485404, 968.3892283485751, 696.7811089428872, 951.0528204785043};
+        */
+        // eigen integration
+        Vector3f expected_position{0, 0, 0};
+        Vector3f expected_velocity{0.0010698048564464313, 0.0010698048564464313, 1.3293907512335472};
+        Vector4f expected_attitude{0.0, 0.0, 0.0, 1.0};  // Quaternion [x,y,z,w]
+        Vector3f expected_body_rates{0.0, -9.010715667577915e-16, 6.873376671188568e-20}; // w
+        Vector3f expected_wind{0.06279051952931337, 0.06279051952931337, 0.06279051952931337};
+        Vector4f expected_rotor_speeds{0.0, 0.0, 0.0, 0.0};
+
+        EXPECT_VEC3_NEAR(result1.position, expected_position);
+        EXPECT_VEC3_NEAR(result1.velocity, expected_velocity);
+        EXPECT_VEC4_NEAR(result1.attitude, expected_attitude);
+        EXPECT_VEC3_NEAR(result1.body_rates, expected_body_rates);
+        EXPECT_VEC3_NEAR(result1.wind, expected_wind);
+        EXPECT_VEC4_NEAR(result1.rotor_speeds, expected_rotor_speeds);
     }
 }

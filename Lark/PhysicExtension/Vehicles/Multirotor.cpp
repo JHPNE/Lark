@@ -192,7 +192,7 @@ namespace lark::drones {
         return std::make_pair(FtotB, MtotB);
     }
 
-    Eigen::VectorXf Multirotor::s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds) {
+    SDot Multirotor::s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds) {
         Vector4f rotor_speeds = state.rotor_speeds;
         Vector3f inertia_velocity = state.velocity;
         Vector3f wind_velocity = state.wind;
@@ -220,12 +220,12 @@ namespace lark::drones {
 
         Vector3f Ftot = R * FtotB;
 
-        if (m_enable_ground) {
+        if (m_enable_ground and state.position.y() == 0.f) {
             Ftot -= m_dynamics.GetWeight();
         }
 
         // velocity derivative
-        auto v_dot = (m_dynamics.GetWeight() + Ftot) / m_dynamics.GetQuadParams().inertia_properties.mass;
+        Vector3f v_dot = (m_dynamics.GetWeight() + Ftot) / m_dynamics.GetQuadParams().inertia_properties.mass;
 
         Vector3f wind_dot = Vector3f::Zero();
 
@@ -238,17 +238,7 @@ namespace lark::drones {
         Vector3f test2 = MtotB - test;
         Vector3f w_dot = m_dynamics.GetInverseInertia() * test2;
 
-
-        Eigen::VectorXf s_dot = Eigen::VectorXf::Zero(16 + m_dynamics.GetQuadParams().geometric_properties.num_rotors);
-
-        s_dot.segment<3>(0) = x_dot;
-        s_dot.segment<3>(3) = v_dot;
-        s_dot.segment<4>(6) = q_dot;
-        s_dot.segment<3>(10) = w_dot;
-        s_dot.segment<3>(13) = wind_dot;
-        s_dot.segment(16, m_dynamics.GetQuadParams().geometric_properties.num_rotors) = rotor_accel;
-
-        return s_dot;
+        return {x_dot, v_dot, q_dot, w_dot, wind_dot, rotor_accel};
     }
 
 
@@ -259,20 +249,21 @@ namespace lark::drones {
         cmd_rotor_speeds = cmd_rotor_speeds.cwiseMax(m_dynamics.GetQuadParams().motor_properties.rotor_speed_min)
                                            .cwiseMin(m_dynamics.GetQuadParams().motor_properties.rotor_speed_max);
 
-        // Pack state into vector
-        Eigen::VectorXf s = PackState(state);
-
         // Compute state derivative
-        Eigen::VectorXf s_dot = s_dot_fn(state, cmd_rotor_speeds);
+        SDot s_dot = s_dot_fn(state, cmd_rotor_speeds);
 
-        // Integration (Euler method for simplicity - RK45 would require external library)
-        auto a = s + s_dot * dt;
-        s = a;
+        // Euler integration - update each component directly
+        state.position += s_dot.xdot * dt;
+        state.velocity += s_dot.vdot * dt;
+        state.body_rates += s_dot.wdot * dt;
+        state.wind += s_dot.wind_dot * dt;
+        state.rotor_speeds += s_dot.rotor_accel * dt;
 
-        // Unpack state back into struct
-        state = UnpackState(s);
+        // Quaternion integration requires special handling
+        // Convert quaternion derivative to integration
+        state.attitude += s_dot.qdot * dt;
 
-        // Re-normalize quaternion
+       // Re-normalize quaternion
         state.attitude.normalize();
 
         // Add noise to motor speeds (if motor_noise > 0)
@@ -297,10 +288,10 @@ namespace lark::drones {
         Vector4f cmd_motor_speeds = GetCMDMotorSpeeds(state, input);
         Vector4f cmd_rotor_speeds = cmd_motor_speeds.cwiseMax(m_dynamics.GetQuadParams().motor_properties.rotor_speed_min).cwiseMin(m_dynamics.GetQuadParams().motor_properties.rotor_speed_max);
 
-        Eigen::VectorXf s_dot = s_dot_fn(state, cmd_rotor_speeds);
+        SDot s_dot = s_dot_fn(state, cmd_rotor_speeds);
 
-        Eigen::VectorXf v_dot = s_dot.segment<3>(3);  // Extract elements 3, 4, 5
-        Eigen::VectorXf w_dot = s_dot.segment<3>(10); // Extract elements 10, 11, 12
+        Eigen::VectorXf v_dot = s_dot.vdot;  // Extract elements 3, 4, 5
+        Eigen::VectorXf w_dot = s_dot.wdot; // Extract elements 10, 11, 12
 
 
         return {v_dot, w_dot};

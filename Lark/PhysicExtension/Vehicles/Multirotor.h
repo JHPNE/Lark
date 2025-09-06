@@ -8,6 +8,15 @@ namespace lark::drones {
         Eigen::Vector3f wdot;
     };
 
+    struct SDot {
+        Eigen::Vector3f xdot;
+        Eigen::Vector3f vdot;
+        Eigen::Vector4f qdot;
+        Eigen::Vector3f wdot;
+        Eigen::Vector3f wind_dot;
+        Eigen::Vector4f rotor_accel;
+    };
+
     class Multirotor {
     public:
         explicit Multirotor(const QuadParams& quad_params, 
@@ -24,7 +33,7 @@ namespace lark::drones {
 
         DroneState step(DroneState state, ControlInput input, float dt);
         StateDot stateDot(DroneState state, ControlInput input, float dt);
-        Eigen::VectorXf s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds);
+        SDot s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds);
         std::pair<Vector3f, Vector3f> ComputeBodyWrench(const Vector3f& body_rate, Vector4f rotor_speeds, const Vector3f& body_airspeed_vector);
 
         const DroneState& GetState() const { return m_state; }
