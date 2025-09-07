@@ -12,6 +12,8 @@ namespace lark::physics_math {
     using Matrix4x3f = Eigen::Matrix<float, 4, 3>;
     using Matrix3x4f = Eigen::Matrix<float, 3, 4>;
     using Quaternionf = Eigen::Quaternionf;
+
+    inline float PI = 3.141592653589793238462643383280f;
     
     // Utility functions
     inline Matrix3f hatMap(const Vector3f& v) {
