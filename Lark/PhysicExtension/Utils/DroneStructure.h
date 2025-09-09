@@ -171,18 +171,4 @@ namespace lark::drones {
         ControlGains control_gains;
         LowerLevelControllerProperties lower_level_controller_properties;
     };
-
-    struct TrajectoryPoint {
-        // Position trajectory
-        Vector3f position;           // meters
-        Vector3f velocity;           // m/s  (x_dot in Python)
-        Vector3f acceleration;       // m/s² (x_ddot in Python)
-        Vector3f jerk;              // m/s³ (x_dddot - optional, not used in basic SE3)
-        Vector3f snap;              // m/s⁴ (x_ddddot - optional, not used in basic SE3)
-
-        // Yaw trajectory
-        float yaw;                   // radians
-        float yaw_dot;              // rad/s (yaw rate)
-        float yaw_ddot;
-    };
 }

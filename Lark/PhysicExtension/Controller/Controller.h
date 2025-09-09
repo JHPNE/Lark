@@ -1,5 +1,6 @@
 #pragma once
 #include "PhysicExtension/Utils/DroneDynamics.h"
+#include "PhysicExtension/Trajectory/Trajectory.h"
 
 namespace lark::drones {
     class Control{
