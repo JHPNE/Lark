@@ -1,38 +1,44 @@
 #include "PrimitiveMeshSelectionView.h"
 
-#include <imgui.h>
+#include "Components/Geometry.h"
+#include "Geometry/Geometry.h"
 #include "Project/Project.h"
 #include "Project/Scene.h"
-#include "Components/Geometry.h"
 #include "View/GeometryViewerView.h"
 #include "View/Style.h"
-#include "Geometry/Geometry.h"
+#include <imgui.h>
 
-void PrimitiveMeshSelectionView::SetActiveProject(std::shared_ptr<Project> activeProject) {
+void PrimitiveMeshSelectionView::SetActiveProject(std::shared_ptr<Project> activeProject)
+{
     m_project = activeProject;
 }
 
-void PrimitiveMeshSelectionView::SetSegments(uint32_t segments[3]) {
+void PrimitiveMeshSelectionView::SetSegments(uint32_t segments[3])
+{
     m_segments[0] = segments[0];
     m_segments[1] = segments[1];
     m_segments[2] = segments[2];
 }
 
-void PrimitiveMeshSelectionView::Draw() {
-    if (!m_project) return;
+void PrimitiveMeshSelectionView::Draw()
+{
+    if (!m_project)
+        return;
 
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
     window_flags |= ImGuiWindowFlags_NoCollapse;
 
     ImGui::Begin("Primitive Mesh Creator", nullptr, window_flags);
-    DrawWindowGradientBackground(ImVec4(0.10f,0.10f,0.13f,0.30f), ImVec4(0.10f,0.10f,0.13f,0.80f));
+    DrawWindowGradientBackground(ImVec4(0.10f, 0.10f, 0.13f, 0.30f),
+                                 ImVec4(0.10f, 0.10f, 0.13f, 0.80f));
 
     ImGui::Text("Primitive Mesh Settings");
     ImGui::Separator();
 
     std::shared_ptr<Scene> activeScene = m_project->GetActiveScene();
 
-    if (!activeScene) {
+    if (!activeScene)
+    {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No active scene");
         ImGui::End();
         return;
@@ -41,27 +47,29 @@ void PrimitiveMeshSelectionView::Draw() {
     // Mesh Type Selection
     ImGui::Text("Mesh Type:");
 
-    const char* meshTypes[] = { "Cube", "UV Sphere", "Cylinder" };
+    const char *meshTypes[] = {"Cube", "UV Sphere", "Cylinder"};
 
-    if (ImGui::Combo("##MeshType", &m_selectedMeshIndex, meshTypes, IM_ARRAYSIZE(meshTypes))) {
+    if (ImGui::Combo("##MeshType", &m_selectedMeshIndex, meshTypes, IM_ARRAYSIZE(meshTypes)))
+    {
         // Convert combo index to enum and reset segments
-        switch (m_selectedMeshIndex) {
-            case 0:
-                m_selectedMesh = content_tools::PrimitiveMeshType::cube;
-                m_segments[0] = m_segments[1] = m_segments[2] = 1;
-                break;
-            case 1:
-                m_selectedMesh = content_tools::PrimitiveMeshType::uv_sphere;
-                m_segments[0] = 32;  // Longitude segments
-                m_segments[1] = 16;  // Latitude segments
-                m_segments[2] = 1;
-                break;
-            case 2:
-                m_selectedMesh = content_tools::PrimitiveMeshType::cylinder;
-                m_segments[0] = 32;  // Radial segments
-                m_segments[1] = 1;   // Height segments
-                m_segments[2] = 1;   // Cap segments
-                break;
+        switch (m_selectedMeshIndex)
+        {
+        case 0:
+            m_selectedMesh = content_tools::PrimitiveMeshType::cube;
+            m_segments[0] = m_segments[1] = m_segments[2] = 1;
+            break;
+        case 1:
+            m_selectedMesh = content_tools::PrimitiveMeshType::uv_sphere;
+            m_segments[0] = 32; // Longitude segments
+            m_segments[1] = 16; // Latitude segments
+            m_segments[2] = 1;
+            break;
+        case 2:
+            m_selectedMesh = content_tools::PrimitiveMeshType::cylinder;
+            m_segments[0] = 32; // Radial segments
+            m_segments[1] = 1;  // Height segments
+            m_segments[2] = 1;  // Cap segments
+            break;
         }
     }
 
@@ -70,54 +78,58 @@ void PrimitiveMeshSelectionView::Draw() {
     // Segment Controls (vary based on mesh type)
     ImGui::Text("Segments:");
 
-    switch (m_selectedMeshIndex) {
-        case 0:  // Cube
-            {
-                // Convert uint32_t to int for ImGui, then back
-                int segments[3] = {
-                    static_cast<int>(m_segments[0]),
-                    static_cast<int>(m_segments[1]),
-                    static_cast<int>(m_segments[2])
-                };
-                if (ImGui::DragInt3("X/Y/Z##Segments", segments, 1, 1, 10)) {
-                    m_segments[0] = static_cast<uint32_t>(std::max(1, segments[0]));
-                    m_segments[1] = static_cast<uint32_t>(std::max(1, segments[1]));
-                    m_segments[2] = static_cast<uint32_t>(std::max(1, segments[2]));
-                }
-            }
-            break;
+    switch (m_selectedMeshIndex)
+    {
+    case 0: // Cube
+    {
+        // Convert uint32_t to int for ImGui, then back
+        int segments[3] = {static_cast<int>(m_segments[0]), static_cast<int>(m_segments[1]),
+                           static_cast<int>(m_segments[2])};
+        if (ImGui::DragInt3("X/Y/Z##Segments", segments, 1, 1, 10))
+        {
+            m_segments[0] = static_cast<uint32_t>(std::max(1, segments[0]));
+            m_segments[1] = static_cast<uint32_t>(std::max(1, segments[1]));
+            m_segments[2] = static_cast<uint32_t>(std::max(1, segments[2]));
+        }
+    }
+    break;
 
-        case 1:  // UV Sphere
-            {
-                int longitude = static_cast<int>(m_segments[0]);
-                int latitude = static_cast<int>(m_segments[1]);
+    case 1: // UV Sphere
+    {
+        int longitude = static_cast<int>(m_segments[0]);
+        int latitude = static_cast<int>(m_segments[1]);
 
-                if (ImGui::DragInt("Longitude##Segments", &longitude, 1, 8, 64)) {
-                    m_segments[0] = static_cast<uint32_t>(std::max(8, std::min(64, longitude)));
-                }
-                if (ImGui::DragInt("Latitude##Segments", &latitude, 1, 4, 32)) {
-                    m_segments[1] = static_cast<uint32_t>(std::max(4, std::min(32, latitude)));
-                }
-            }
-            break;
+        if (ImGui::DragInt("Longitude##Segments", &longitude, 1, 8, 64))
+        {
+            m_segments[0] = static_cast<uint32_t>(std::max(8, std::min(64, longitude)));
+        }
+        if (ImGui::DragInt("Latitude##Segments", &latitude, 1, 4, 32))
+        {
+            m_segments[1] = static_cast<uint32_t>(std::max(4, std::min(32, latitude)));
+        }
+    }
+    break;
 
-        case 2:  // Cylinder
-            {
-                int radial = static_cast<int>(m_segments[0]);
-                int height = static_cast<int>(m_segments[1]);
-                int cap = static_cast<int>(m_segments[2]);
+    case 2: // Cylinder
+    {
+        int radial = static_cast<int>(m_segments[0]);
+        int height = static_cast<int>(m_segments[1]);
+        int cap = static_cast<int>(m_segments[2]);
 
-                if (ImGui::DragInt("Radial##Segments", &radial, 1, 8, 64)) {
-                    m_segments[0] = static_cast<uint32_t>(std::max(8, std::min(64, radial)));
-                }
-                if (ImGui::DragInt("Height##Segments", &height, 1, 1, 10)) {
-                    m_segments[1] = static_cast<uint32_t>(std::max(1, std::min(10, height)));
-                }
-                if (ImGui::DragInt("Cap##Segments", &cap, 1, 1, 5)) {
-                    m_segments[2] = static_cast<uint32_t>(std::max(1, std::min(5, cap)));
-                }
-            }
-            break;
+        if (ImGui::DragInt("Radial##Segments", &radial, 1, 8, 64))
+        {
+            m_segments[0] = static_cast<uint32_t>(std::max(8, std::min(64, radial)));
+        }
+        if (ImGui::DragInt("Height##Segments", &height, 1, 1, 10))
+        {
+            m_segments[1] = static_cast<uint32_t>(std::max(1, std::min(10, height)));
+        }
+        if (ImGui::DragInt("Cap##Segments", &cap, 1, 1, 5))
+        {
+            m_segments[2] = static_cast<uint32_t>(std::max(1, std::min(5, cap)));
+        }
+    }
+    break;
     }
 
     ImGui::Spacing();
@@ -131,7 +143,8 @@ void PrimitiveMeshSelectionView::Draw() {
     // LOD Level
     ImGui::Text("LOD Level:");
     int lod = static_cast<int>(m_lod);
-    if (ImGui::SliderInt("##LOD", &lod, 0, 4)) {
+    if (ImGui::SliderInt("##LOD", &lod, 0, 4))
+    {
         m_lod = static_cast<uint32_t>(lod);
     }
 
@@ -140,37 +153,42 @@ void PrimitiveMeshSelectionView::Draw() {
     ImGui::Spacing();
 
     // Create Button
-    if (ImGui::Button("Create Mesh", ImVec2(-1, 30))) {
+    if (ImGui::Button("Create Mesh", ImVec2(-1, 30)))
+    {
         CreatePrimitiveMesh();
     }
 
     ImGui::End();
 }
 
-void PrimitiveMeshSelectionView::CreatePrimitiveMesh() {
-    if (!m_project) return;
+void PrimitiveMeshSelectionView::CreatePrimitiveMesh()
+{
+    if (!m_project)
+        return;
 
     auto activeScene = m_project->GetActiveScene();
-    if (!activeScene) {
+    if (!activeScene)
+    {
         Logger::Get().Log(MessageType::Warning, "No active scene to create mesh in");
         return;
     }
 
     // Generate mesh name based on type
     std::string meshName;
-    switch (m_selectedMesh) {
-        case content_tools::PrimitiveMeshType::cube:
-            meshName = "Cube";
-            break;
-        case content_tools::PrimitiveMeshType::uv_sphere:
-            meshName = "Sphere";
-            break;
-        case content_tools::PrimitiveMeshType::cylinder:
-            meshName = "Cylinder";
-            break;
-        default:
-            meshName = "Primitive";
-            break;
+    switch (m_selectedMesh)
+    {
+    case content_tools::PrimitiveMeshType::cube:
+        meshName = "Cube";
+        break;
+    case content_tools::PrimitiveMeshType::uv_sphere:
+        meshName = "Sphere";
+        break;
+    case content_tools::PrimitiveMeshType::cylinder:
+        meshName = "Cylinder";
+        break;
+    default:
+        meshName = "Primitive";
+        break;
     }
 
     // Add a unique suffix based on entity count
@@ -178,12 +196,8 @@ void PrimitiveMeshSelectionView::CreatePrimitiveMesh() {
     meshName += "_" + std::to_string(++meshCounter);
 
     // Create the primitive geometry
-    auto geometry = lark::editor::Geometry::CreatePrimitive(
-        m_selectedMesh,
-        m_size,
-        m_segments,
-        m_lod
-    );
+    auto geometry =
+        lark::editor::Geometry::CreatePrimitive(m_selectedMesh, m_size, m_segments, m_lod);
 
     // Setup geometry initializer
     GeometryInitializer geomInit;
@@ -195,12 +209,14 @@ void PrimitiveMeshSelectionView::CreatePrimitiveMesh() {
     // Create entity with geometry using the specified approach
     auto entity = activeScene->CreateEntityInternal(meshName);
 
-    if (entity) {
+    if (entity)
+    {
         // Add geometry component
-        auto* geomComponent = entity->AddComponent<Geometry>(&geomInit);
+        auto *geomComponent = entity->AddComponent<Geometry>(&geomInit);
 
         // Set the scene data on the geometry component
-        if (geomComponent && geometry->GetScene()) {
+        if (geomComponent && geometry->GetScene())
+        {
             geomComponent->SetScene(*geometry->GetScene());
         }
 

@@ -1,15 +1,18 @@
-#include <filesystem>
-#include "imgui.h"
 #include "Style.h"
+#include "imgui.h"
+#include <filesystem>
 
 namespace fs = std::filesystem;
 
-class FileDialog {
-public:
+class FileDialog
+{
+  public:
     FileDialog() : selectedPath(""), currentPath(fs::current_path()) {}
 
-    bool Show(bool* isOpen) {
-        if (!*isOpen) return false;
+    bool Show(bool *isOpen)
+    {
+        if (!*isOpen)
+            return false;
 
         ImGui::Begin("File Dialog", isOpen, ImGuiWindowFlags_AlwaysAutoResize);
         DrawCurrentPath();
@@ -20,40 +23,48 @@ public:
         return pathSelected;
     }
 
-    const char* GetSelectedPathAsChar() const {
-        return selectedPath.c_str();
-    }
+    const char *GetSelectedPathAsChar() const { return selectedPath.c_str(); }
 
-private:
+  private:
     bool pathSelected = false;
     std::string selectedPath;
     fs::path currentPath;
 
-    void DrawCurrentPath() {
+    void DrawCurrentPath()
+    {
         ImGui::Text("Current Path:");
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(0.26f, 0.59f, 0.98f, 1.0f), "%s", currentPath.string().c_str());
         ImGui::Separator();
     }
 
-    void DrawFileList() {
+    void DrawFileList()
+    {
         ImGui::BeginChild("FileList", ImVec2(400, 300), true);
 
-        if (currentPath.has_parent_path()) {
-            if (ImGui::Selectable("..", false)) {
+        if (currentPath.has_parent_path())
+        {
+            if (ImGui::Selectable("..", false))
+            {
                 currentPath = currentPath.parent_path();
             }
         }
 
-        for (const auto& entry : fs::directory_iterator(currentPath)) {
-            const auto& path = entry.path();
+        for (const auto &entry : fs::directory_iterator(currentPath))
+        {
+            const auto &path = entry.path();
             bool isDir = entry.is_directory();
-            const std::string& label = isDir ? (path.filename().string() + "/") : path.filename().string();
+            const std::string &label =
+                isDir ? (path.filename().string() + "/") : path.filename().string();
 
-            if (ImGui::Selectable(label.c_str(), false)) {
-                if (isDir) {
+            if (ImGui::Selectable(label.c_str(), false))
+            {
+                if (isDir)
+                {
                     currentPath = path;
-                } else {
+                }
+                else
+                {
                     selectedPath = path.string();
                     pathSelected = true;
                 }
@@ -63,16 +74,20 @@ private:
         ImGui::EndChild();
     }
 
-    void DrawControls() {
-        if (ImGui::Button("Cancel")) {
+    void DrawControls()
+    {
+        if (ImGui::Button("Cancel"))
+        {
             pathSelected = false;
             ImGui::CloseCurrentPopup();
         }
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Select")) {
-            if (!selectedPath.empty()) {
+        if (ImGui::Button("Select"))
+        {
+            if (!selectedPath.empty())
+            {
                 pathSelected = true;
                 ImGui::CloseCurrentPopup();
             }
@@ -81,22 +96,27 @@ private:
 };
 
 // Example usage
-void ShowFileDialogExample() {
+void ShowFileDialogExample()
+{
     static bool showDialog = false;
     static FileDialog fileDialog;
 
     ApplyModernDarkStyle();
 
-    if (ImGui::Begin("Main Window")) {
-        if (ImGui::Button("Open File Dialog")) {
+    if (ImGui::Begin("Main Window"))
+    {
+        if (ImGui::Button("Open File Dialog"))
+        {
             showDialog = true;
         }
     }
     ImGui::End();
 
-    if (showDialog) {
-        if (fileDialog.Show(&showDialog)) {
-            const char* selectedPath = fileDialog.GetSelectedPathAsChar();
+    if (showDialog)
+    {
+        if (fileDialog.Show(&showDialog))
+        {
+            const char *selectedPath = fileDialog.GetSelectedPathAsChar();
             // Do something with the selectedPath
         }
     }
