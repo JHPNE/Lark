@@ -1,15 +1,15 @@
 #pragma once
-#include "Core/GameLoop.h"
 #include "EngineCoreAPI.h"
 #include "Geometry.h"
-#include "Geometry/MeshPrimitives.h"
-#include "Script.h"
 #include "Transform.h"
+#include "Script.h"
+#include "Core/GameLoop.h"
+#include "Geometry/MeshPrimitives.h"
+
 
 using namespace lark;
 
-namespace engine
-{
+namespace engine {
 
 // Function declarations (NOT definitions)
 transform::init_info to_engine_transform(const transform_component &transform);

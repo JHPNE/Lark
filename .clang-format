@@ -4,6 +4,9 @@ TabWidth: 4
 UseTab: Never
 ColumnLimit: 100
 
+# Disable header sorting
+SortIncludes: Never
+
 # Always indent inside namespaces
 IndentNamespaceContents: All
 

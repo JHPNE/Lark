@@ -17,5 +17,5 @@
 #pragma warning Unknown platform - default to no export / import
 #endif
 
-#include "EngineUtilities.h"
 #include "Structures/Structures.h"
+#include "EngineUtilities.h"
