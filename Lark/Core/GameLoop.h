@@ -12,6 +12,8 @@
 #include "../Components/Entity.h"
 #include "../Components/Transform.h"
 #include "../Components/Script.h"
+#include "../PhysicExtension/World/World.h"
+#include <PhysicExtension/World/WorldSettings.h>
 
 namespace lark {
 
@@ -120,6 +122,7 @@ namespace lark {
     u32 _frame_count{ 0 };         ///< Frames counted for FPS calculation
     u32 _fps{ 0 };                 ///< Current FPS value
     f32 _fps_time{ 0.0f };         ///< Time accumulated for FPS calculation
+    physics::World world;
   };
 
 } // namespace lark

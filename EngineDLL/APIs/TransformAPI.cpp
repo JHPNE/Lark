@@ -6,7 +6,7 @@
 using namespace lark;
 
 extern "C" {
-ENGINE_API bool SetEntityTransform(lark::id::id_type entity_id, const transform_component& transform) {
+    ENGINE_API bool SetEntityTransform(lark::id::id_type entity_id, const transform_component& transform) {
         if (!engine::is_entity_valid(entity_id)) return false;
 
         auto entity = engine::entity_from_id(entity_id);

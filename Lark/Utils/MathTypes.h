@@ -123,5 +123,4 @@ namespace lark::math {
 		// GLM returns quaternion as (w,x,y,z), but if you need (x,y,z,w):
 		return v4(q.x, q.y, q.z, q.w);
 	}
-
 }

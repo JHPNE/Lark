@@ -13,6 +13,8 @@ namespace lark::physics {
      * @brief Initialization information for creating a physics component
      */
     struct init_info {
+     float test;
+
     };
 
     /**

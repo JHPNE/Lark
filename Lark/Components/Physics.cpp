@@ -1,15 +1,32 @@
 #include "Physics.h"
 
-#include <utility>
+#include "btBulletDynamicsCommon.h"
+#include "PhysicExtension/Controller/Controller.h"
+#include "PhysicExtension/Utils/DroneDynamics.h"
+#include "PhysicExtension/Utils/Wind.h"
+#include "PhysicExtension/Vehicles/Multirotor.h"
+
 namespace lark::physics {
     namespace {
         struct physics_data {
             game_entity::entity_id entity_id;
-            float trajectory_time{0.0f};
-            float control_update_time{0.0f};
-            float control_rate{100.0f}; // Hz
             bool is_valid{false};
-            float simulation_time{0.0f};
+
+            lark::drones::Multirotor vehicle;
+            lark::drones::Control control;
+            std::unique_ptr<lark::drones::Wind> wind;
+            std::unique_ptr<lark::drones::Trajectory> trajectory;
+
+            float sim_time{0.f};
+            lark::drones::DroneState state;
+            lark::drones::ControlInput last_control;
+
+            // Bullet integration
+            btRigidBody* body{nullptr};
+            std::unique_ptr<btCollisionShape> shape;
+            std::unique_ptr<btDefaultMotionState> motion;
+
+            // add maybe vector of states for later
         };
 
         util::vector<physics_data> physics_components;
@@ -43,8 +60,14 @@ namespace lark::physics {
             id_mapping.emplace_back();
             generations.push_back(0);
         }
-
+        assert(id::is_valid(id));
         const id::id_type index{(id::id_type)physics_components.size()};
+
+        /*
+        physics_components.emplace_back(physics_data{
+            lark::drones::Multirotor{}
+        });
+        */
 
 
 
@@ -80,13 +103,46 @@ namespace lark::physics {
         assert(is_valid() && exists(_id));
         auto& data = physics_components[id_mapping[id::index(_id)]];
 
+        // Time
+        data.sim_time += dt;
 
-        // Update wind
-        // Update control if we have a trajectory
-        data.control_update_time += dt;
+        // Wind
+        Eigen::Vector3f w = data.wind->update(data.sim_time, data.state.position);
+        data.state.wind = w;
+
+        // Trajectory
+        lark::drones::TrajectoryPoint point = data.trajectory->update(data.sim_time);
+
+        // Controller
+        data.last_control = data.control.computeMotorCommands(data.state, point);
+
+        // Vehicle Step
+        data.state = data.vehicle.step(data.state, data.last_control, dt);
+
+        // contains torque and centeral force we give to bullet
+        auto [Mtot, Ftot] = data.vehicle.GetPairs();
+
+        data.body->applyCentralForce(btVector3(Ftot.x(), Ftot.y(), Ftot.z()));
+        data.body->applyTorque(btVector3(Mtot.x(), Mtot.y(), Mtot.z()));
+
+        // Other Captures here
+    }
+
+    btRigidBody& component::get_rigid_body() const {
+        assert(is_valid());
+        const id::id_type index = id::index(_id);
+        auto& data = physics_components[id_mapping[id::index(_id)]];
+
+        return *data.body;
+    }
 
 
-        data.simulation_time += dt;
+    drones::DroneState component::get_drone_state() {
+        assert(is_valid());
+        const id::id_type index = id::index(_id);
+        auto& data = physics_components[id_mapping[id::index(_id)]];
+
+        return data.state;
     }
 
 

@@ -37,6 +37,10 @@ namespace lark::drones {
         std::pair<Vector3f, Vector3f> ComputeBodyWrench(const Vector3f& body_rate, Vector4f rotor_speeds, const Vector3f& body_airspeed_vector);
 
         const DroneState& GetState() const { return m_state; }
+
+        const std::pair<Vector3f, Vector3f> GetPairs() const {
+            return {Mtot, Ftot};
+        }
         
     private:
         DroneDynamics m_dynamics;
@@ -44,37 +48,11 @@ namespace lark::drones {
         ControlAbstraction m_control_abstraction;
         bool m_aero;
         bool m_enable_ground;
+        Vector3f Ftot;
+        Vector3f Mtot;
 
         Vector4f GetCMDMotorSpeeds(DroneState state, ControlInput input);
 
-        Eigen::VectorXf PackState(const DroneState& state) {
-            int num_rotors = m_dynamics.GetQuadParams().geometric_properties.num_rotors;
-            Eigen::VectorXf s = Eigen::VectorXf::Zero(16 + num_rotors);
-
-            s.segment<3>(0) = state.position;
-            s.segment<3>(3) = state.velocity;
-            s.segment<4>(6) = state.attitude; // Quaternion as [x,y,z,w]
-            s.segment<3>(10) = state.body_rates;
-            s.segment<3>(13) = state.wind;
-            s.segment(16, num_rotors) = state.rotor_speeds;
-
-            return s;
-        }
-
-        DroneState UnpackState(const Eigen::VectorXf& s) {
-            DroneState state;
-
-            state.position = s.segment<3>(0);
-            state.velocity = s.segment<3>(3);
-            state.attitude = s.segment<4>(6); // w,x,y,z constructor
-            state.body_rates = s.segment<3>(10);
-            state.wind = s.segment<3>(13);
-
-            int num_rotors = m_dynamics.GetQuadParams().geometric_properties.num_rotors;
-            state.rotor_speeds = s.segment(16, num_rotors);
-
-            return state;
-        }
 
         Vector3f GetCMDMoment(DroneState state, Vector3f att_err) {
             // Split the complex moment calculation into sub-terms

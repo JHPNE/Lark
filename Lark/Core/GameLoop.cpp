@@ -1,4 +1,5 @@
 #include "GameLoop.h"
+
 #if defined(_WIN32)
 #include <Windows.h>
 #elif defined(__linux__) || defined(__APPLE__)
@@ -33,8 +34,8 @@ namespace lark {
 
     GameLoop::GameLoop(const Config& config)
         : _config(config)
-        , _frequency(get_frequency())
-    {}
+        , _frequency(get_frequency()) {
+    }
 
     GameLoop::~GameLoop() { shutdown();}
 
@@ -43,6 +44,9 @@ namespace lark {
 
         _prev_time = get_timer_value();
         _initialized = true;
+
+        // Initialize World and Settings
+        world = physics::World();
 
         return true;
     }
@@ -60,8 +64,7 @@ namespace lark {
         _current_delta_time = calculate_delta_time();
         _accumulated_time += _current_delta_time;
 
-        update_transform_components(_config.fixed_timestep);
-        update_physics_component(_config.fixed_timestep);
+        world.update(_current_delta_time);
         update_script_components(_current_delta_time);
 
         // Update FPS counter
@@ -98,18 +101,8 @@ namespace lark {
       return delta_time;
     }
 
+    // TODO: ADD Exit Statuses etc (especially for physics)
 
-    void GameLoop::update_transform_components(f32 dt) {
-        const auto& active_entities = game_entity::get_active_entities();
-        for (const auto& entity_id : active_entities) {
-            game_entity::entity entity{ entity_id };
-            // No need to check is_alive() since we maintain the active list
-            auto transform = entity.transform();
-            if (transform.is_valid()) {
-                // Update transform
-            }
-        }
-    }
 
     void GameLoop::update_script_components(f32 dt) {
         const auto& active_entities = game_entity::get_active_entities();
@@ -122,14 +115,4 @@ namespace lark {
         }
     }
 
-    void GameLoop::update_physics_component(f32 dt) {
-        const auto& active_entities = game_entity::get_active_entities();
-        for (const auto& entity_id : active_entities) {
-            game_entity::entity entity{ entity_id };
-            auto physics = entity.physics();
-            if (physics.is_valid()) {
-                physics.step(dt);
-            }
-        }
-    }
 } //namespace lark

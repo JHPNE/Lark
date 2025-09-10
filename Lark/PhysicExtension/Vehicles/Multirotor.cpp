@@ -1,7 +1,6 @@
 #include "Multirotor.h"
-
-#include <iostream>
 #include <random>
+#include "PhysicExtension/World/WorldSettings.h"
 
 namespace lark::drones {
     Vector4f Multirotor::GetCMDMotorSpeeds(DroneState state, ControlInput input) {
@@ -218,7 +217,9 @@ namespace lark::drones {
         Vector3f FtotB = pairs.first;
         Vector3f MtotB = pairs.second;
 
-        Vector3f Ftot = R * FtotB;
+        // will be used directly in bullet
+        Ftot = R * FtotB;
+        Mtot = R * MtotB;
 
         if (m_enable_ground and state.position.y() == 0.f) {
             Ftot -= m_dynamics.GetWeight();
