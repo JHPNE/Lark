@@ -1,25 +1,28 @@
 #pragma once
 #include "../Project/Project.h"
-#include "../Project/ProjectTemplate.h"
 #include "../Project/ProjectData.h"
+#include "../Project/ProjectTemplate.h"
+#include <filesystem>
 #include <memory>
 #include <vector>
-#include <filesystem>
 
-class ProjectBrowserView {
-public:
-    static ProjectBrowserView& Get() {
+class ProjectBrowserView
+{
+  public:
+    static ProjectBrowserView &Get()
+    {
         static ProjectBrowserView instance;
         return instance;
     }
 
     void Draw();
-    bool& GetShowState() { return m_show; }
+    bool &GetShowState() { return m_show; }
     [[nodiscard]] std::shared_ptr<Project> GetLoadedProject() const { return m_loadedProject; }
-    void SetLoadedProject(const std::shared_ptr<Project>& project) { m_loadedProject = project; }
+    void SetLoadedProject(const std::shared_ptr<Project> &project) { m_loadedProject = project; }
 
-private:
-    ProjectBrowserView() {
+  private:
+    ProjectBrowserView()
+    {
         LoadTemplates();
         LoadRecentProjects();
     }
@@ -34,7 +37,7 @@ private:
     bool ReadProjectData();
     bool WriteProjectData();
     void OpenSelectedProject();
-    bool CreateNewProject();  // Added this method
+    bool CreateNewProject(); // Added this method
 
     // UI state
     bool m_show = false;

@@ -1,6 +1,7 @@
 #pragma once
 
-struct physics_inertia_properties {
+struct physics_inertia_properties
+{
     float mass;
     float Ixx;
     float Iyy;
@@ -10,14 +11,16 @@ struct physics_inertia_properties {
     float Ixz;
 };
 
-struct physics_aerodynamic_properties {
+struct physics_aerodynamic_properties
+{
     float dragCoeffX;
     float dragCoeffY;
     float dragCoeffZ;
     bool enableAerodynamics;
 };
 
-struct physics_motor_properties {
+struct physics_motor_properties
+{
     float responseTime;
     float noiseStdDev;
     float bodyRateGain;
@@ -26,7 +29,8 @@ struct physics_motor_properties {
     float attitudeDGain;
 };
 
-struct physics_rotor_parameters {
+struct physics_rotor_parameters
+{
     float thrustCoeff;
     float torqueCoeff;
     float dragCoeff;
@@ -38,7 +42,8 @@ struct physics_rotor_parameters {
     float maxSpeed;
 };
 
-enum class PhysicsControlMode : uint8_t {
+enum class PhysicsControlMode : uint8_t
+{
     MOTOR_SPEEDS,
     MOTOR_THRUSTS,
     COLLECTIVE_THRUST_BODY_RATES,
@@ -48,7 +53,8 @@ enum class PhysicsControlMode : uint8_t {
     ACCELERATION
 };
 
-struct physics_control_input {
+struct physics_control_input
+{
     PhysicsControlMode mode;
     std::vector<float> motorSpeeds;
     std::vector<float> motorThrusts;
@@ -60,7 +66,8 @@ struct physics_control_input {
     glm::vec3 targetAcceleration;
 };
 
-struct physics_drone_state {
+struct physics_drone_state
+{
     glm::vec3 position;
     glm::vec3 velocity;
     glm::quat orientation;
@@ -69,15 +76,17 @@ struct physics_drone_state {
     std::vector<float> rotor_speeds;
 };
 
-enum class WindType {
+enum class WindType
+{
     NO_WIND,
     CONSTANT_WIND,
     DRYDEN_GUST
 };
 
-struct physics_wind_params {
+struct physics_wind_params
+{
     WindType type;
-    glm::vec3 constant_wind_velocity;  // For CONSTANT_WIND
+    glm::vec3 constant_wind_velocity; // For CONSTANT_WIND
 
     // For DRYDEN_GUST
     glm::vec3 mean_wind;

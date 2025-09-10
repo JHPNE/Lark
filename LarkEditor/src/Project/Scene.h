@@ -16,56 +16,59 @@ using namespace MathUtils;
 // Forward declare Project to avoid circular dependency
 class Project;
 
-class Scene : public std::enable_shared_from_this<Scene> {
-public:
-    Scene(const std::string& name, uint32_t id, std::shared_ptr<Project> owner)
-        : m_name(name)
-        , m_id(id)
-        , m_owner(owner)
-        , m_isActive(false) {}
+class Scene : public std::enable_shared_from_this<Scene>
+{
+  public:
+    Scene(const std::string &name, uint32_t id, std::shared_ptr<Project> owner)
+        : m_name(name), m_id(id), m_owner(owner), m_isActive(false)
+    {
+    }
 
-    const std::string& GetName() const { return m_name; }
+    const std::string &GetName() const { return m_name; }
     uint32_t GetID() const { return m_id; }
     std::shared_ptr<Project> GetOwner() const { return m_owner; }
 
     // Entity Management
-    std::shared_ptr<GameEntity> CreateEntity(const std::string& name) {
+    std::shared_ptr<GameEntity> CreateEntity(const std::string &name)
+    {
         auto entity = CreateEntityInternal(name);
 
-        if (entity) {
+        if (entity)
+        {
             // Store the newly created entity's ID
             uint32_t entityId = entity->GetID();
 
             // Create a capture for the current entity state
-            EntityState entityState{
-                .name = name,
-                .id = entityId,
-                .isActive = entity->IsActive()
-            };
+            EntityState entityState{.name = name, .id = entityId, .isActive = entity->IsActive()};
 
             auto action = std::make_shared<UndoRedoAction>(
                 // Undo function - uses the stored state
-                [this, entityState]() {
+                [this, entityState]()
+                {
                     // Find entity by both ID and name for safety
                     auto entity = std::find_if(m_entities.begin(), m_entities.end(),
-                        [&entityState](const auto& e) {
-                            return e->GetID() == entityState.id || e->GetName() == entityState.name;
-                        });
+                                               [&entityState](const auto &e)
+                                               {
+                                                   return e->GetID() == entityState.id ||
+                                                          e->GetName() == entityState.name;
+                                               });
 
-                    if (entity != m_entities.end()) {
+                    if (entity != m_entities.end())
+                    {
                         RemoveEntityInternal((*entity)->GetID());
                     }
                 },
                 // Redo function - recreates with stored state
-                [this, entityState]() -> std::shared_ptr<GameEntity> {
+                [this, entityState]() -> std::shared_ptr<GameEntity>
+                {
                     auto newEntity = CreateEntityInternal(entityState.name);
-                    if (newEntity) {
+                    if (newEntity)
+                    {
                         newEntity->SetActive(entityState.isActive);
                     }
                     return newEntity;
                 },
-                "Add Entity: " + name
-            );
+                "Add Entity: " + name);
 
             GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
         }
@@ -73,7 +76,8 @@ public:
         return entity;
     }
 
-    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string& name) {
+    std::shared_ptr<GameEntity> CreateEntityInternal(const std::string &name)
+    {
         std::shared_ptr<GameEntity> entity;
 
         // Create basic engine entity with just transform
@@ -83,9 +87,7 @@ public:
         desc.transform.scale[0] = desc.transform.scale[1] = desc.transform.scale[2] = 1.0f;
 
         uint32_t entityId = CreateGameEntity(&desc);
-        entity = std::shared_ptr<GameEntity>(
-            new GameEntity(name, entityId, shared_from_this())
-        );
+        entity = std::shared_ptr<GameEntity>(new GameEntity(name, entityId, shared_from_this()));
 
         entity->SetActive(m_isActive);
         m_entities.push_back(entity);
@@ -93,11 +95,13 @@ public:
         return entity;
     }
 
-    bool RemoveEntityInternal(uint32_t entityId) {
-        auto it = std::find_if(m_entities.begin(), m_entities.end(),
-            [entityId](const auto& entity) { return entity->GetID() == entityId; });
+    bool RemoveEntityInternal(uint32_t entityId)
+    {
+        auto it = std::find_if(m_entities.begin(), m_entities.end(), [entityId](const auto &entity)
+                               { return entity->GetID() == entityId; });
 
-        if (it != m_entities.end()) {
+        if (it != m_entities.end())
+        {
 
             // Uses EngineDLL
             RemoveGameEntity(entityId);
@@ -107,48 +111,55 @@ public:
             Logger::Get().Log(MessageType::Info, "Removed entity: " + removedName);
             return true;
         }
-        Logger::Get().Log(MessageType::Warning, "Failed to remove entity with ID: " + std::to_string(entityId));
+        Logger::Get().Log(MessageType::Warning,
+                          "Failed to remove entity with ID: " + std::to_string(entityId));
         return false;
     }
 
-    bool RemoveEntity(uint32_t entityId) {
+    bool RemoveEntity(uint32_t entityId)
+    {
         // Get the entity before removal to store its data for undo
         auto entity = GetEntity(entityId);
-        if (!entity) {
-            Logger::Get().Log(MessageType::Warning, "Cannot remove entity - ID not found: " + std::to_string(entityId));
+        if (!entity)
+        {
+            Logger::Get().Log(MessageType::Warning,
+                              "Cannot remove entity - ID not found: " + std::to_string(entityId));
             return false;
         }
 
         // Store complete entity state for restoration
         EntityState entityState{
-            .name = entity->GetName(),
-            .id = entity->GetID(),
-            .isActive = entity->IsActive()
-        };
+            .name = entity->GetName(), .id = entity->GetID(), .isActive = entity->IsActive()};
 
-        if (RemoveEntityInternal(entityId)) {
+        if (RemoveEntityInternal(entityId))
+        {
             auto action = std::make_shared<UndoRedoAction>(
                 // Undo function - recreates with stored state
-                [this, entityState]() -> std::shared_ptr<GameEntity> {
+                [this, entityState]() -> std::shared_ptr<GameEntity>
+                {
                     auto restoredEntity = CreateEntityInternal(entityState.name);
-                    if (restoredEntity) {
+                    if (restoredEntity)
+                    {
                         restoredEntity->SetActive(entityState.isActive);
                     }
                     return restoredEntity;
                 },
                 // Redo function - removes by current ID and name
-                [this, entityState]() {
+                [this, entityState]()
+                {
                     auto entity = std::find_if(m_entities.begin(), m_entities.end(),
-                        [&entityState](const auto& e) {
-                            return e->GetID() == entityState.id || e->GetName() == entityState.name;
-                        });
+                                               [&entityState](const auto &e)
+                                               {
+                                                   return e->GetID() == entityState.id ||
+                                                          e->GetName() == entityState.name;
+                                               });
 
-                    if (entity != m_entities.end()) {
+                    if (entity != m_entities.end())
+                    {
                         RemoveEntityInternal((*entity)->GetID());
                     }
                 },
-                "Remove Entity: " + entityState.name
-            );
+                "Remove Entity: " + entityState.name);
 
             GlobalUndoRedo::Instance().GetUndoRedo().Add(action);
             return true;
@@ -157,14 +168,14 @@ public:
         return false;
     }
 
-    void RemoveAllEntities() {
-        m_entities.clear();
-    }
+    void RemoveAllEntities() { m_entities.clear(); }
 
-    std::shared_ptr<GameEntity> CreateEntityWithGeometry(const std::string& name,
-                                                         const GeometryInitializer& geomInit) {
+    std::shared_ptr<GameEntity> CreateEntityWithGeometry(const std::string &name,
+                                                         const GeometryInitializer &geomInit)
+    {
         auto entity = CreateEntityInternal(name); // Don't create engine entity yet
-        if (!entity) return nullptr;
+        if (!entity)
+            return nullptr;
 
         entity->AddComponent<Geometry>(&geomInit);
         UpdateEntity(entity->GetID());
@@ -172,61 +183,69 @@ public:
         return entity;
     }
 
-    void UpdateEntity(uint32_t entityId) {
+    void UpdateEntity(uint32_t entityId)
+    {
         auto entity = GetEntity(entityId);
         game_entity_descriptor desc{};
 
         // Fill transform
-        if (auto* transform = entity->GetComponent<Transform>()) {
-            const auto& pos = transform->GetPosition();
-            const auto& rot = transform->GetRotation();
-            const auto& scale = transform->GetScale();
+        if (auto *transform = entity->GetComponent<Transform>())
+        {
+            const auto &pos = transform->GetPosition();
+            const auto &rot = transform->GetRotation();
+            const auto &scale = transform->GetScale();
             Utils::SetTransform(desc, pos, rot, scale);
         }
 
         // Fill script
-        if (auto* script = entity->GetComponent<Script>()) {
+        if (auto *script = entity->GetComponent<Script>())
+        {
             desc.script.script_creator = GetScriptCreator(script->GetScriptName().c_str());
         }
 
         // Fill geometry
-        if (auto* geometry = entity->GetComponent<Geometry>()) {
+        if (auto *geometry = entity->GetComponent<Geometry>())
+        {
             // Only set geometry descriptor if we have a valid scene
-            if (geometry->GetScene()) {
+            if (geometry->GetScene())
+            {
                 desc.geometry.is_dynamic = false;
                 desc.geometry.scene = geometry->GetScene();
             }
         }
 
-        if (UpdateGameEntity(entityId, &desc)) printf("WOWOWOW");
+        if (UpdateGameEntity(entityId, &desc))
+            printf("WOWOWOW");
     }
 
-    std::shared_ptr<GameEntity> GetEntity(uint32_t entityId) const {
-        auto it = std::find_if(m_entities.begin(), m_entities.end(),
-            [entityId](const auto& entity) { return entity->GetID() == entityId; });
+    std::shared_ptr<GameEntity> GetEntity(uint32_t entityId) const
+    {
+        auto it = std::find_if(m_entities.begin(), m_entities.end(), [entityId](const auto &entity)
+                               { return entity->GetID() == entityId; });
         return (it != m_entities.end()) ? *it : nullptr;
     }
 
-    const std::vector<std::shared_ptr<GameEntity>>& GetEntities() const {
-        return m_entities;
-    }
+    const std::vector<std::shared_ptr<GameEntity>> &GetEntities() const { return m_entities; }
 
     // Undo/Redo
-    UndoRedo& GetUndoRedo() { return m_undoRedo; }
+    UndoRedo &GetUndoRedo() { return m_undoRedo; }
 
     // Active Cycle
-	bool IsActive() const { return m_isActive; }
-    void SetActive(bool active) {
-        if (m_isActive == active) return;
+    bool IsActive() const { return m_isActive; }
+    void SetActive(bool active)
+    {
+        if (m_isActive == active)
+            return;
         m_isActive = active;
 
-        for (auto& entity : m_entities) {
+        for (auto &entity : m_entities)
+        {
             entity->SetActive(active);
         }
     }
 
-private:
-	bool m_isActive;
+  private:
+    bool m_isActive;
     std::string m_name;
     uint32_t m_id;
     std::shared_ptr<Project> m_owner;
@@ -234,7 +253,8 @@ private:
     UndoRedo m_undoRedo;
 
     // Helper struct to store entity state
-    struct EntityState {
+    struct EntityState
+    {
         std::string name;
         uint32_t id;
         bool isActive;
