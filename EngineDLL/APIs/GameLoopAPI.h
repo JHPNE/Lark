@@ -2,8 +2,7 @@
 #include "EngineCoreAPI.h"
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
     ENGINE_API bool GameLoop_Initialize(u32 target_fps, f32 fixed_timestep);

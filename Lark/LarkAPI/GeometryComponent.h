@@ -4,22 +4,20 @@
 
 using namespace lark::tools;
 
-namespace lark::geometry
-{
+namespace lark::geometry {
 
-DEFINE_TYPED_ID(geometry_id);
+  DEFINE_TYPED_ID(geometry_id);
 
-class component final
-{
+  class component final {
   public:
-    constexpr explicit component(geometry_id id) : _id{id} {}
-    constexpr component() : _id{id::invalid_id} {}
+    constexpr explicit component(geometry_id id) : _id{ id } {}
+    constexpr component() : _id{ id::invalid_id } {}
     constexpr geometry_id get_id() const { return _id; }
     constexpr bool is_valid() const { return id::is_valid(_id); }
 
     std::shared_ptr<tools::scene> get_scene() const;
-    tools::mesh *get_mesh() const;
-    tools::lod_group *get_lod_group() const;
+    tools::mesh* get_mesh() const;
+    tools::lod_group* get_lod_group() const;
 
     /**
      * @brief Set whether this geometry component is dynamic
@@ -33,7 +31,7 @@ class component final
      * @param new_positions New vertex positions
      * @return true if the operation was successful
      */
-    bool update_vertices(const std::vector<math::v3> &new_positions);
+    bool update_vertices(const std::vector<math::v3>& new_positions);
 
     /**
      * @brief Check if this geometry is dynamic
@@ -43,6 +41,6 @@ class component final
 
   private:
     geometry_id _id;
-};
+  };
 
-} // namespace lark::geometry
+}

@@ -1,20 +1,20 @@
 #pragma once
-#pragma warning(disable : 4530)
+#pragma warning(disable: 4530)
 
 // C/C++
-#include <assert.h>
-#include <memory>
 #include <stdint.h>
+#include <assert.h>
 #include <string>
 #include <typeinfo>
+#include <memory>
 #include <unordered_map>
 
 // Primitive Types
 #include "PrimitiveTypes.h"
 
 // Utils
-#include "../Utils/MathTypes.h"
 #include "../Utils/Util.h"
+#include "../Utils/MathTypes.h"
 
 // GLM
 #include <glm/glm.hpp>

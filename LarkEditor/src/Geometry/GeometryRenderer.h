@@ -1,43 +1,35 @@
-#include "Geometry.h"
 #include "glad/glad.h"
+#include "Geometry.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-class GeometryRenderer
-{
+class GeometryRenderer {
   public:
-    struct MeshBuffers
-    {
-        GLuint vao = 0;
-        GLuint vbo = 0;
-        GLuint ibo = 0;
-        GLsizei indexCount = 0;
-        GLenum indexType = GL_UNSIGNED_INT;
+    struct MeshBuffers {
+      GLuint vao = 0;
+      GLuint vbo = 0;
+      GLuint ibo = 0;
+      GLsizei indexCount = 0;
+      GLenum indexType = GL_UNSIGNED_INT;
 
-        ~MeshBuffers()
-        {
-            if (vao)
-                glDeleteVertexArrays(1, &vao);
-            if (vbo)
-                glDeleteBuffers(1, &vbo);
-            if (ibo)
-                glDeleteBuffers(1, &ibo);
-            vao = vbo = ibo = 0;
-        }
+      ~MeshBuffers() {
+        if (vao) glDeleteVertexArrays(1, &vao);
+        if (vbo) glDeleteBuffers(1, &vbo);
+        if (ibo) glDeleteBuffers(1, &ibo);
+        vao = vbo = ibo = 0;
+      }
     };
 
     // Represents a LOD level containing multiple meshes
-    struct LODLevelBuffers
-    {
+    struct LODLevelBuffers {
         std::string name;
         float threshold;
         std::vector<std::shared_ptr<MeshBuffers>> meshBuffers;
     };
 
     // Represents a complete LOD group
-    struct LODGroupBuffers
-    {
+    struct LODGroupBuffers {
         std::string name;
         std::vector<std::shared_ptr<LODLevelBuffers>> lodLevels;
     };
@@ -46,22 +38,23 @@ class GeometryRenderer
     static void Shutdown();
 
     // Geometry to VertexBuffer OpenGL
-    static std::unique_ptr<LODGroupBuffers> CreateBuffersFromGeometry(content_tools::scene *scene);
-    static std::unique_ptr<LODGroupBuffers>
-    UpdateBuffersfromGeometry(content_tools::scene *scene,
-                              std::unique_ptr<LODGroupBuffers> buffers);
+    static std::unique_ptr<LODGroupBuffers> CreateBuffersFromGeometry(content_tools::scene* scene);
+    static std::unique_ptr<LODGroupBuffers> UpdateBuffersfromGeometry(content_tools::scene* scene, std::unique_ptr<LODGroupBuffers> buffers);
 
-    static void RenderGeometryAtLOD(const LODGroupBuffers *groupBuffers, const glm::mat4 &view,
-                                    const glm::mat4 &projection, float distanceToCamera);
+    static void RenderGeometryAtLOD(const LODGroupBuffers* groupBuffers,
+                             const glm::mat4& view,
+                             const glm::mat4& projection,
+                             float distanceToCamera);
 
   private:
     static GLuint m_basicShader;
-    static std::shared_ptr<MeshBuffers> CreateMeshBuffers(const content_tools::mesh &mesh);
+    static std::shared_ptr<MeshBuffers> CreateMeshBuffers(const content_tools::mesh& mesh);
     // Add shader compilation helper
-    static GLuint CompileShader(GLenum type, const char *source);
-    static void RenderMesh(const MeshBuffers *meshBuffers);
+    static GLuint CompileShader(GLenum type, const char* source);
+    static void RenderMesh(const MeshBuffers* meshBuffers);
 
-    static inline const char *s_basicVertexShader = R"(
+
+    static inline const char* s_basicVertexShader = R"(
         #version 330 core
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec3 aNormal;
@@ -81,7 +74,7 @@ class GeometryRenderer
         }
     )";
 
-    static inline const char *s_basicFragmentShader = R"(
+  static inline const char* s_basicFragmentShader = R"(
         #version 330 core
         out vec4 FragColor;
 

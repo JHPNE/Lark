@@ -1,30 +1,28 @@
 #pragma once
-#include "EngineAPI.h"
 #include <memory>
 #include <string>
+#include "EngineAPI.h"
 
 class Project;
 
-class PhysicsSettingsView
-{
-  public:
-    static PhysicsSettingsView &Get()
-    {
+class PhysicsSettingsView {
+public:
+    static PhysicsSettingsView& Get() {
         static PhysicsSettingsView instance;
         return instance;
     }
 
     void Draw();
     void SetActiveProject(std::shared_ptr<Project> activeProject);
-    bool &GetShowState() { return m_show; }
+    bool& GetShowState() { return m_show; }
 
-  private:
+private:
     PhysicsSettingsView() = default;
     ~PhysicsSettingsView() = default;
 
     // Prevent copying
-    PhysicsSettingsView(const PhysicsSettingsView &) = delete;
-    PhysicsSettingsView &operator=(const PhysicsSettingsView &) = delete;
+    PhysicsSettingsView(const PhysicsSettingsView&) = delete;
+    PhysicsSettingsView& operator=(const PhysicsSettingsView&) = delete;
 
     void CreateDrone();
 

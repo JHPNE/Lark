@@ -1,21 +1,22 @@
 #pragma once
 
 #if defined(_WIN32)
-#ifdef ENGINEDLL_EXPORTS
-#define ENGINE_API __declspec(dllexport)
-#else
-#define ENGINE_API __declspec(dllimport)
-#endif
+    #ifdef ENGINEDLL_EXPORTS
+        #define ENGINE_API __declspec(dllexport)
+    #else
+        #define ENGINE_API __declspec(dllimport)
+    #endif
 #elif defined(__APPLE__) || defined(__linux__)
-#ifdef ENGINEDLL_EXPORTS
-#define ENGINE_API __attribute__((visibility("default")))
+    #ifdef ENGINEDLL_EXPORTS
+        #define ENGINE_API __attribute__((visibility("default")))
+    #else
+        #define ENGINE_API
+    #endif
 #else
-#define ENGINE_API
-#endif
-#else
-#define ENGINE_API
-#pragma warning Unknown platform - default to no export / import
+    #define ENGINE_API
+    #pragma warning Unknown platform - default to no export/import
 #endif
 
-#include "EngineUtilities.h"
 #include "Structures/Structures.h"
+#include "EngineUtilities.h"
+
