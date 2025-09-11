@@ -83,11 +83,27 @@ void GeometryViewerView::EnsureFramebuffer(float width, float height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_depthTexture, 0);
 
-    // Check framebuffer completeness
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
     {
-        // Handle error
+        printf("Framebuffer incomplete! Status: 0x%x\n", status);
+        printf("Width: %.0f, Height: %.0f\n", width, height);
+
+        // Clean up
+        if (m_framebuffer)
+        {
+            glDeleteFramebuffers(1, &m_framebuffer);
+            glDeleteTextures(1, &m_colorTexture);
+            glDeleteTextures(1, &m_depthTexture);
+            m_framebuffer = 0;
+            m_colorTexture = 0;
+            m_depthTexture = 0;
+        }
+        return;
     }
+
+    // Unbind the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void GeometryViewerView::DrawViewport()
@@ -100,6 +116,13 @@ void GeometryViewerView::DrawViewport()
 
         if (viewportSize.x > 0 && viewportSize.y > 0)
         {
+            // Check OpenGL error state before proceeding
+            GLenum err = glGetError();
+            if (err != GL_NO_ERROR)
+            {
+                printf("OpenGL error before viewport setup: 0x%x\n", err);
+            }
+
             EnsureFramebuffer(viewportSize.x, viewportSize.y);
 
             // Setup viewport
@@ -146,6 +169,12 @@ void GeometryViewerView::DrawViewport()
             glBindFramebuffer(GL_FRAMEBUFFER, last_framebuffer);
             glViewport(last_viewport[0], last_viewport[1],
                       (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
+
+            err = glGetError();
+            if (err != GL_NO_ERROR)
+            {
+                printf("OpenGL error after rendering: 0x%x\n", err);
+            }
 
             // Draw rendered image
             ImVec2 windowPos = ImGui::GetWindowPos();

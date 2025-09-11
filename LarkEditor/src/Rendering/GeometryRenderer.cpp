@@ -25,13 +25,17 @@ bool GeometryRenderer::Initialize()
         char infoLog[512];
         glGetProgramInfoLog(m_basicShader, 512, nullptr, infoLog);
         // Handle error
+        printf("Shader linking failed: %s\n", infoLog);  // Add this!
         return false;
     }
 
-    // Clean up shaders
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    if (m_basicShader == 0)
+    {
+        printf("Failed to create shader program!\n");
+        return false;
+    }
 
+    printf("GeometryRenderer initialized successfully with shader program: %u\n", m_basicShader);
     return true;
 };
 
@@ -276,6 +280,7 @@ GLuint GeometryRenderer::CompileShader(GLenum type, const char *source)
     {
         char infoLog[512];
         glGetShaderInfoLog(shader, 512, nullptr, infoLog);
+        printf("Shader compilation failed: %s\n", infoLog);  // Add this!
         return 0;
     }
     return shader;

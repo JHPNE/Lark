@@ -58,7 +58,15 @@ public:
         {
             ClearAll();
             m_project = project;
-            LoadExistingGeometries();
+            if (m_project && m_project->GetActiveScene())
+            {
+                LoadExistingGeometries();
+                printf("Loaded %zu geometries from project\n", m_model->GetAllGeometries().size());
+            }
+            else
+            {
+                printf("Warning: Project set but no active scene available\n");
+            }
         }
     }
 
@@ -491,20 +499,36 @@ private:
     void LoadExistingGeometries()
     {
         if (!m_project)
+        {
+            printf("LoadExistingGeometries: No project\n");
             return;
+        }
 
         auto scene = m_project->GetActiveScene();
         if (!scene)
+        {
+            printf("LoadExistingGeometries: No active scene\n");
             return;
+        }
+
+        printf("LoadExistingGeometries: Processing %zu entities\n", scene->GetEntities().size());
 
         for (const auto& entity : scene->GetEntities())
         {
             if (entity->GetComponent<Geometry>())
             {
-                AddGeometryFromEntity(entity);
+                printf("Found geometry component on entity: %s (ID: %u)\n",
+                   entity->GetName().c_str(), entity->GetID());
+
+                if (!AddGeometryFromEntity(entity))
+                {
+                    printf("Failed to add geometry for entity: %s\n", entity->GetName().c_str());
+                }
             }
         }
 
+        printf("LoadExistingGeometries complete: %zu geometries loaded\n",
+                   m_model->GetAllGeometries().size());
         UpdateStatus("Loaded existing geometries");
     }
 
