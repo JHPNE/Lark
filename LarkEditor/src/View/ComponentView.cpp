@@ -156,7 +156,7 @@ void ComponentView::Draw()
                             selectedEntity->GetID(),
                             geometry->GetScene()->lod_groups[0].meshes[0].vertices.size(),
                             geometry->GetScene()->lod_groups[0].meshes[0].positions);
-                        GeometryViewerView::Get().UpdateGeometry(selectedEntity->GetID());
+                        //GeometryViewerView::Get().UpdateGeometry(selectedEntity->GetID());
                     };
 
                     ImGui::PopStyleColor();

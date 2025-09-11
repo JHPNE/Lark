@@ -1,4 +1,5 @@
-#include "Geometry.h"
+#pragma once
+#include "../Geometry/Geometry.h"
 #include "glad/glad.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

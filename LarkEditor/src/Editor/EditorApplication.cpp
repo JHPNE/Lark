@@ -14,6 +14,8 @@
 #include "View/PrimitiveMeshSelectionView.h"
 #include "core/Loop.h"
 #include "imgui_impl_opengl3.h"
+#include "Rendering/GeometryRenderer.h"
+
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include <iostream>
@@ -65,12 +67,12 @@ bool EditorApplication::Initialize()
         return false;
     }
 
-    // Initialize GeometryRenderer
     if (!GeometryRenderer::Initialize())
     {
         std::cerr << "Failed to initialize geometry renderer" << std::endl;
         return false;
     }
+
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -167,8 +169,8 @@ void EditorApplication::Update()
         GeometryViewerView::Get().SetActiveProject(loadedProject);
         GeometryViewerView::Get().Draw();
 
-        PrimitiveMeshSelectionView::Get().SetActiveProject(loadedProject);
-        PrimitiveMeshSelectionView::Get().Draw();
+        //PrimitiveMeshSelectionView::Get().SetActiveProject(loadedProject);
+        //PrimitiveMeshSelectionView::Get().Draw();
     }
 }
 
@@ -361,7 +363,7 @@ void EditorApplication::DrawMenuAndToolbar()
                         "LoadedGeometry", geomInit);
                     if (entity)
                     {
-                        GeometryViewerView::Get().AddGeometry(entity->GetID());
+                        //GeometryViewerView::Get().AddGeometry(entity->GetID());
                     }
                 }
             }

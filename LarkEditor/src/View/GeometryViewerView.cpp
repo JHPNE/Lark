@@ -1,429 +1,40 @@
 #include "GeometryViewerView.h"
+#include "../ViewModels/GeometryViewModel.h"
+#include "FileDialog.h"
+#include <ImGuizmo.h>
 
-void GeometryViewerView::SetActiveProject(std::shared_ptr<Project> activeProject)
-{
-    if (project != activeProject)
-    {
-        ClearGeometries();
-        project = activeProject;
-    }
-    m_initialized = true;
-}
+#include <utility>
 
-void GeometryViewerView::LoadExistingGeometry()
-{
-    if (m_loaded)
-        return;
-
-    std::shared_ptr<Scene> activeScene = project->GetActiveScene();
-    if (!activeScene)
-    {
-        printf("[LoadExistingGeometry] No active scene found.\n");
-        return;
-    }
-
-    for (auto entity : activeScene->GetEntities())
-    {
-        if (!entity)
-        {
-            printf("[LoadExistingGeometry] Found a null entity.\n");
-            continue;
-        }
-
-        AddGeometry(entity->GetID());
-    }
-    m_loaded = true;
-}
+GeometryViewerView::GeometryViewerView() = default;
 
 GeometryViewerView::~GeometryViewerView()
 {
-    // Clean up all entities
-    for (auto &[name, geom] : m_geometries)
-    {
-        if (geom && !Utils::IsInvalidID(geom->entity_id))
-        {
-            RemoveGameEntity(geom->entity_id);
-        }
-    }
-    m_geometries.clear();
+    if (m_framebuffer) glDeleteFramebuffers(1, &m_framebuffer);
+    if (m_colorTexture) glDeleteTextures(1, &m_colorTexture);
+    if (m_depthTexture) glDeleteTextures(1, &m_depthTexture);
 }
 
-void GeometryViewerView::ResetGeometryTransform(ViewportGeometry *geom)
+void GeometryViewerView::SetActiveProject(std::shared_ptr<Project> activeProject)
 {
-    if (!geom || Utils::IsInvalidID(geom->entity_id))
-        return;
-    ResetEntityTransform(geom->entity_id);
+    if (!m_viewModel)
+    {
+        m_viewModel = std::make_unique<GeometryViewModel>();
+    }
+    m_viewModel->SetProject(std::move(activeProject));
+
+    m_initialized = true;
 }
 
-// Update the transform getter to include validation
-bool GeometryViewerView::GetGeometryTransform(ViewportGeometry *geom,
-                                              transform_component &transform)
-{
-    if (!geom || Utils::IsInvalidID(geom->entity_id))
-        return false;
-    return GetEntityTransform(geom->entity_id, &transform);
-}
-
-// TODO remove unecessary args
-void GeometryViewerView::AddGeometry(uint32_t id)
-{
-    auto scene = GetScene(project, id);
-
-    auto buffers = GeometryRenderer::CreateBuffersFromGeometry(scene);
-    if (!buffers)
-    {
-        printf("[AddGeometry] Failed to create buffers for entity %u.\n", id);
-        return;
-    }
-
-    m_geometries[id] = std::make_unique<ViewportGeometry>();
-    m_geometries[id]->buffers = std::move(buffers);
-    m_geometries[id]->entity_id = id;
-    m_selectedGeometry = m_geometries[id].get();
-}
-
-void GeometryViewerView::UpdateGeometry(uint32_t id)
-{
-    content_tools::SceneData sceneData{};
-
-    GetModifiedMeshData(id, &sceneData);
-    if (!sceneData.buffer || sceneData.buffer_size == 0)
-    {
-        printf("[UpdateGeometry] Failed to get modified mesh data for entity %u.\n", id);
-        return;
-    }
-
-    // Loaded new geometry
-    auto geometry = new lark::editor::Geometry();
-    geometry->FromRawData(sceneData.buffer, sceneData.buffer_size);
-    auto scene = geometry->GetScene();
-
-    // Update Component aswell
-    auto activeScene = project->GetActiveScene();
-    if (activeScene)
-    {
-        auto entity = activeScene->GetEntity(id);
-        if (entity)
-        {
-            auto *geomComponent = entity->GetComponent<Geometry>();
-            if (geomComponent && scene)
-            {
-                geomComponent->SetScene(*scene); // Update the component!
-                printf("[UpdateGeometry] Updated component's scene data for entity %u\n", id);
-            }
-        }
-    }
-
-    auto buffers = GeometryRenderer::CreateBuffersFromGeometry(scene);
-    if (!buffers)
-    {
-        printf("[UpdatedGeometry] Failed to create buffers for entity %u.\n", id);
-        return;
-    }
-
-    printf("[UpdatedGeometry] Succeeded to create buffers for entity %u.\n", id);
-    m_geometries[id] = std::make_unique<ViewportGeometry>();
-    m_geometries[id]->buffers = std::move(buffers);
-    m_geometries[id]->entity_id = id;
-    m_selectedGeometry = m_geometries[id].get();
-    m_selectedGeometry = m_geometries[id].get();
-}
-
-// replace ViewGeometry name to id
 void GeometryViewerView::Draw()
 {
-    if (!m_initialized || !project)
-    {
-        printf("[Draw] Skipping draw due to uninitialized state.\n");
+    if (!m_initialized || !m_viewModel)
         return;
-    }
-
-    std::shared_ptr<Scene> activeScene = project->GetActiveScene();
-    if (!activeScene)
-    {
-        printf("[Draw] No active scene.\n");
-        return;
-    }
-
-    // If scene has changed, reload geometries
-    static uint32_t lastSceneId = 0;
-    if (activeScene->GetID() != lastSceneId)
-    {
-        ClearGeometries();
-        LoadExistingGeometry();
-        lastSceneId = activeScene->GetID();
-    }
 
     // Initialize ImGuizmo for this frame
     ImGuizmo::BeginFrame();
 
-    ImGui::PushID("GeometryViewerMain");
-    if (ImGui::Begin("Geometry Viewer##Main", nullptr,
-                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
-    {
-        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-
-        if (viewportSize.x > 0 && viewportSize.y > 0)
-        {
-            SetUpViewport();
-
-            // Create view matrix with camera position and rotation
-            glm::mat4 view = glm::mat4(1.0f);
-
-            // Calculate camera position and target in world space
-            glm::vec3 cameraPos =
-                glm::vec3(m_cameraPosition[0], m_cameraPosition[1], m_cameraPosition[2]);
-            glm::vec3 forward = glm::vec3(0.0f, 0.0f, -1.0f);
-            glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-
-            // Apply camera rotations in the correct order
-            glm::mat4 rotation = glm::mat4(1.0f);
-            rotation = glm::rotate(rotation, glm::radians(m_cameraRotation[0]),
-                                   glm::vec3(1.0f, 0.0f, 0.0f)); // Pitch
-            rotation = glm::rotate(rotation, glm::radians(m_cameraRotation[1]),
-                                   glm::vec3(0.0f, 1.0f, 0.0f)); // Yaw
-            rotation = glm::rotate(rotation, glm::radians(m_cameraRotation[2]),
-                                   glm::vec3(0.0f, 0.0f, 1.0f)); // Roll
-
-            forward = glm::vec3(rotation * glm::vec4(forward, 0.0f));
-            up = glm::vec3(rotation * glm::vec4(up, 0.0f));
-
-            // Create the view matrix
-            glm::vec3 actualCameraPos = cameraPos - (forward * m_cameraDistance);
-            view = glm::lookAt(actualCameraPos, cameraPos, up);
-
-            float aspectRatio = viewportSize.x / viewportSize.y;
-            glm::mat4 projection =
-                glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 1000.0f);
-
-            // Save OpenGL state
-            GLint last_viewport[4];
-            glGetIntegerv(GL_VIEWPORT, last_viewport);
-            GLint last_framebuffer;
-            glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_framebuffer);
-
-            // Bind our framebuffer and set viewport
-            glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-            glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
-
-            // Render all visible geometries
-            std::vector<uint32_t> invalidGeometries;
-            for (const auto &[id, geom] : m_geometries)
-            {
-                std::shared_ptr<Scene> activeScene = project->GetActiveScene();
-                auto entity = activeScene->GetEntity(geom->entity_id);
-
-                // Mark geometry for removal if entity no longer exists
-                if (!entity)
-                {
-                    invalidGeometries.push_back(id);
-                    continue;
-                }
-
-                auto *geometry = entity->GetComponent<Geometry>();
-                if (!geometry || !geometry->IsVisible())
-                    continue;
-
-                // Get the transform matrix from the engine
-                glm::mat4 model = GetEntityTransformMatrix(geom->entity_id);
-
-                // Calculate final view matrix including model transform
-                glm::mat4 finalView = view * model;
-
-                // Render this geometry
-                GeometryRenderer::RenderGeometryAtLOD(geom->buffers.get(), finalView, projection,
-                                                      m_cameraDistance);
-            }
-
-            // Remove any invalid geometries
-            for (uint32_t id : invalidGeometries)
-            {
-                RemoveGeometry(id);
-            }
-
-            // Restore OpenGL state
-            glBindFramebuffer(GL_FRAMEBUFFER, last_framebuffer);
-            glViewport(last_viewport[0], last_viewport[1], (GLsizei)last_viewport[2],
-                       (GLsizei)last_viewport[3]);
-
-            // Get the screen-space position of the viewport
-            ImVec2 windowPos = ImGui::GetWindowPos();
-            ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-            ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-            ImVec2 canvasPos = ImVec2(windowPos.x + contentMin.x, windowPos.y + contentMin.y);
-            ImVec2 canvasSize = ImVec2(contentMax.x - contentMin.x, contentMax.y - contentMin.y);
-
-            if (m_colorTexture)
-            {
-                // Draw the rendered image
-                ImGui::GetWindowDrawList()->AddImage(
-                    reinterpret_cast<ImTextureID>((void *)(uintptr_t)m_colorTexture), canvasPos,
-                    ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y));
-
-                // Handle viewport clicking for selection
-
-                if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGuizmo::IsOver())
-                {
-                    if (!m_geometries.empty())
-                    {
-                        auto it = m_geometries.begin();
-                        m_selectedGeometry = it->second.get();
-                    }
-                }
-
-                // Set up ImGuizmo
-                ImGuizmo::SetDrawlist();
-                ImGuizmo::SetRect(canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y);
-                ImGuizmo::SetOrthographic(false);
-                ImGuizmo::Enable(true);
-
-                // Draw Guizmo for selected geometry
-                for (auto entity : activeScene->GetEntities())
-                {
-                    if (entity && entity->IsSelected())
-                    {
-                        // Check if the entity is active
-                        if (auto *geometry = entity->GetComponent<Geometry>())
-                        {
-                            if (geometry->IsVisible())
-                            {
-                                m_selectedGeometry = m_geometries[entity->GetID()].get();
-                                // Check if the geometry is visible
-                                glm::mat4 model =
-                                    GetEntityTransformMatrix(m_selectedGeometry->entity_id);
-
-                                // Convert matrices for ImGuizmo
-                                float modelMatrix[16], viewMatrix[16], projMatrix[16];
-                                memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
-
-                                // Create the same view matrix as used for rendering
-                                glm::mat4 imguizmoView = view;
-
-                                // Flip the Y-axis for ImGuizmo coordinate system
-                                glm::mat4 flipY = glm::mat4(1.0f);
-                                flipY[1][1] = -1.0f;
-
-                                // Apply the Y-axis flip to the view matrix
-                                imguizmoView = flipY * imguizmoView;
-
-                                memcpy(viewMatrix, glm::value_ptr(imguizmoView),
-                                       sizeof(float) * 16);
-                                memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
-
-                                // Draw the gizmo with snap values
-                                float snapValues[3] = {
-                                    0.1f, 1.0f,
-                                    0.1f}; // Translation (0.1), Rotation (1 degree), Scale (0.1)
-
-                                if (ImGuizmo::Manipulate(viewMatrix, projMatrix,
-                                                         (ImGuizmo::OPERATION)m_guizmoOperation,
-                                                         ImGuizmo::MODE::LOCAL, modelMatrix,
-                                                         nullptr, snapValues))
-                                {
-                                    m_isUsingGuizmo = true;
-                                    UpdateTransformFromGuizmo(m_selectedGeometry, modelMatrix);
-                                }
-                                else
-                                {
-                                    m_isUsingGuizmo = false;
-                                }
-                            }
-                        }
-                    }
-                };
-            }
-        }
-    }
-    ImGui::End();
-    ImGui::PopID();
-
+    DrawViewport();
     DrawControls();
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-}
-
-void GeometryViewerView::DrawControls()
-{
-    std::shared_ptr<Scene> activeScene = project->GetActiveScene();
-    ImGui::PushID("GeometryViewerControls");
-    if (ImGui::Begin("Geometry Controls##ViewerControls"))
-    {
-        // Camera controls group
-        if (ImGui::CollapsingHeader("Camera Controls", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            ImGui::DragFloat3("Camera Position", m_cameraPosition, 0.1f);
-            ImGui::DragFloat3("Camera Rotation", m_cameraRotation, 1.0f);
-            ImGui::DragFloat("Camera Distance", &m_cameraDistance, 0.1f, 0.1f, 100.0f);
-
-            if (ImGui::Button("Reset Camera"))
-            {
-                ResetCamera();
-            }
-        }
-
-        // Guizmo Operation Controls
-        if (ImGui::CollapsingHeader("Gizmo Controls", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            const char *operations[] = {"Translate", "Rotate", "Scale"};
-            int currentOp = 0;
-
-            // Convert current operation to index
-            switch (m_guizmoOperation)
-            {
-            case ImGuizmo::OPERATION::ROTATE:
-                currentOp = 1;
-                break;
-            case ImGuizmo::OPERATION::SCALE:
-                currentOp = 2;
-                break;
-            case ImGuizmo::OPERATION::TRANSLATE:
-            default:
-                currentOp = 0;
-                break;
-            }
-
-            if (ImGui::Combo("Operation", &currentOp, operations, IM_ARRAYSIZE(operations)))
-            {
-                // Convert index back to operation
-                switch (currentOp)
-                {
-                case 1:
-                    m_guizmoOperation = ImGuizmo::OPERATION::ROTATE;
-                    break;
-                case 2:
-                    m_guizmoOperation = ImGuizmo::OPERATION::SCALE;
-                    break;
-                case 0:
-                default:
-                    m_guizmoOperation = ImGuizmo::OPERATION::TRANSLATE;
-                    break;
-                }
-            }
-        }
-    }
-    ImGui::End();
-    ImGui::PopID();
-}
-
-void GeometryViewerView::SetUpViewport()
-{
-    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-    if (viewportSize.x <= 0 || viewportSize.y <= 0)
-        return;
-
-    EnsureFramebuffer(viewportSize.x, viewportSize.y);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-    glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
-
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
 }
 
 void GeometryViewerView::EnsureFramebuffer(float width, float height)
@@ -479,9 +90,342 @@ void GeometryViewerView::EnsureFramebuffer(float width, float height)
     }
 }
 
-void GeometryViewerView::ResetCamera()
+void GeometryViewerView::DrawViewport()
 {
-    m_cameraPosition[0] = m_cameraPosition[1] = m_cameraPosition[2] = 0.0f;
-    m_cameraRotation[0] = m_cameraRotation[1] = m_cameraRotation[2] = 0.0f;
-    m_cameraDistance = 10.0f;
+    ImGui::PushID("GeometryViewerMain");
+    if (ImGui::Begin("Geometry Viewer##Main", nullptr,
+                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    {
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+
+        if (viewportSize.x > 0 && viewportSize.y > 0)
+        {
+            EnsureFramebuffer(viewportSize.x, viewportSize.y);
+
+            // Setup viewport
+            GLint last_viewport[4];
+            glGetIntegerv(GL_VIEWPORT, last_viewport);
+            GLint last_framebuffer;
+            glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_framebuffer);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+            glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
+
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            glEnable(GL_DEPTH_TEST);
+            glEnable(GL_CULL_FACE);
+            glCullFace(GL_BACK);
+
+            // Calculate view and projection matrices
+            glm::mat4 view = CalculateViewMatrix();
+            glm::mat4 projection = glm::perspective(
+                glm::radians(45.0f),
+                viewportSize.x / viewportSize.y,
+                0.1f, 1000.0f);
+
+            // Render all geometries
+            auto& renderManager = m_viewModel->GetRenderManager();
+            const auto& model = m_viewModel->GetModel();
+
+            for (const auto& [entityId, geomInstance] : model.GetAllGeometries())
+            {
+                if (!geomInstance->visible)
+                    continue;
+
+                glm::mat4 transform = m_viewModel->GetEntityTransform(entityId);
+                glm::mat4 finalView = view * transform;
+
+                renderManager.RenderGeometry(
+                    entityId, finalView, projection,
+                    m_viewModel->CameraDistance.Get());
+            }
+
+            // Restore OpenGL state
+            glBindFramebuffer(GL_FRAMEBUFFER, last_framebuffer);
+            glViewport(last_viewport[0], last_viewport[1],
+                      (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
+
+            // Draw rendered image
+            ImVec2 windowPos = ImGui::GetWindowPos();
+            ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+            ImVec2 canvasPos = ImVec2(windowPos.x + contentMin.x, windowPos.y + contentMin.y);
+            ImVec2 canvasSize = viewportSize;
+
+            if (m_colorTexture)
+            {
+                ImGui::GetWindowDrawList()->AddImage(
+                    reinterpret_cast<ImTextureID>((void*)(uintptr_t)m_colorTexture),
+                    canvasPos,
+                    ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y));
+
+                // Handle selection
+                if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGuizmo::IsOver())
+                {
+                    // Simple selection - select first geometry
+                    // In a real implementation, you'd do ray-casting
+                    const auto& geometries = model.GetAllGeometries();
+                    if (!geometries.empty())
+                    {
+                        m_viewModel->SelectEntityCommand->Execute(geometries.begin()->first);
+                    }
+                }
+
+                // Draw gizmo for selected entity
+                DrawGizmo(canvasPos, canvasSize, view, projection);
+            }
+        }
+    }
+    ImGui::End();
+    ImGui::PopID();
+}
+
+void GeometryViewerView::DrawGizmo(const ImVec2& canvasPos, const ImVec2& canvasSize,
+                                   const glm::mat4& view, const glm::mat4& projection)
+{
+    uint32_t selectedId = m_viewModel->SelectedEntityId.Get();
+    if (selectedId == static_cast<uint32_t>(-1))
+        return;
+
+    // Set up ImGuizmo
+    ImGuizmo::SetDrawlist();
+    ImGuizmo::SetRect(canvasPos.x, canvasPos.y, canvasSize.x, canvasSize.y);
+    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::Enable(true);
+
+    // Get current transform
+    glm::mat4 model = m_viewModel->GetEntityTransform(selectedId);
+
+    // Convert matrices for ImGuizmo
+    float modelMatrix[16], viewMatrix[16], projMatrix[16];
+    memcpy(modelMatrix, glm::value_ptr(model), sizeof(float) * 16);
+
+    // Flip Y-axis for ImGuizmo
+    glm::mat4 imguizmoView = glm::mat4(1.0f);
+    imguizmoView[1][1] = -1.0f;
+    imguizmoView = imguizmoView * view;
+
+    memcpy(viewMatrix, glm::value_ptr(imguizmoView), sizeof(float) * 16);
+    memcpy(projMatrix, glm::value_ptr(projection), sizeof(float) * 16);
+
+    // Map operation
+    ImGuizmo::OPERATION operation;
+    switch (m_viewModel->GizmoOperation.Get())
+    {
+    case 1: operation = ImGuizmo::OPERATION::ROTATE; break;
+    case 2: operation = ImGuizmo::OPERATION::SCALE; break;
+    default: operation = ImGuizmo::OPERATION::TRANSLATE; break;
+    }
+
+    // Draw and handle gizmo
+    float snapValues[3] = {0.1f, 1.0f, 0.1f};
+
+    if (ImGuizmo::Manipulate(viewMatrix, projMatrix, operation,
+                            ImGuizmo::MODE::LOCAL, modelMatrix,
+                            nullptr, snapValues))
+    {
+        m_viewModel->IsUsingGizmo = true;
+        m_viewModel->UpdateTransformFromGizmo(selectedId, modelMatrix);
+    }
+    else
+    {
+        m_viewModel->IsUsingGizmo = false;
+    }
+}
+
+void GeometryViewerView::DrawControls()
+{
+    ImGui::PushID("GeometryViewerControls");
+    if (ImGui::Begin("Geometry Controls##ViewerControls"))
+    {
+        // Status
+        if (!m_viewModel->StatusMessage.Get().empty())
+        {
+            ImGui::TextColored(ImVec4(0.7f, 0.9f, 0.7f, 1.0f),
+                             "%s", m_viewModel->StatusMessage.Get().c_str());
+            ImGui::Separator();
+        }
+
+        // Camera controls
+        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            glm::vec3 pos = m_viewModel->CameraPosition.Get();
+            if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
+            {
+                m_viewModel->CameraPosition = pos;
+            }
+
+            glm::vec3 rot = m_viewModel->CameraRotation.Get();
+            if (ImGui::DragFloat3("Rotation", &rot.x, 1.0f))
+            {
+                m_viewModel->CameraRotation = rot;
+            }
+
+            float dist = m_viewModel->CameraDistance.Get();
+            if (ImGui::DragFloat("Distance", &dist, 0.1f, 0.1f, 100.0f))
+            {
+                m_viewModel->CameraDistance = dist;
+            }
+
+            if (ImGui::Button("Reset Camera"))
+            {
+                m_viewModel->ResetCameraCommand->Execute();
+            }
+        }
+
+        // Gizmo controls
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            const char* operations[] = {"Translate", "Rotate", "Scale"};
+            int op = m_viewModel->GizmoOperation.Get();
+            if (ImGui::Combo("Operation", &op, operations, IM_ARRAYSIZE(operations)))
+            {
+                m_viewModel->GizmoOperation = op;
+            }
+
+            if (m_viewModel->HasSelection.Get())
+            {
+                ImGui::Text("Selected Entity: %u", m_viewModel->SelectedEntityId.Get());
+
+                if (ImGui::Button("Randomize Vertices"))
+                {
+                    m_viewModel->RandomizeVerticesCommand->Execute();
+                }
+            }
+            else
+            {
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No selection");
+            }
+        }
+
+        // Geometry creation
+        if (ImGui::CollapsingHeader("Create Geometry"))
+        {
+            // Primitive type
+            const char* types[] = {"Cube", "UV Sphere", "Cylinder"};
+            int type = m_viewModel->PrimitiveType.Get();
+            if (ImGui::Combo("Type", &type, types, IM_ARRAYSIZE(types)))
+            {
+                m_viewModel->PrimitiveType = type;
+
+                // Update default segments based on type
+                switch (type)
+                {
+                    case 0: // Cube
+                        m_viewModel->PrimitiveSegments = glm::ivec3(1, 1, 1);
+                        break;
+                    case 1: // Sphere
+                        m_viewModel->PrimitiveSegments = glm::ivec3(32, 16, 1);
+                        break;
+                    case 2: // Cylinder
+                        m_viewModel->PrimitiveSegments = glm::ivec3(32, 1, 1);
+                        break;
+                }
+            }
+
+            // Size
+            glm::vec3 size = m_viewModel->PrimitiveSize.Get();
+            if (ImGui::DragFloat3("Size", &size.x, 0.1f, 0.1f, 10.0f))
+            {
+                m_viewModel->PrimitiveSize = size;
+            }
+
+            // Segments
+            glm::ivec3 segments = m_viewModel->PrimitiveSegments.Get();
+
+            switch (type)
+            {
+                case 0: // Cube
+                    if (ImGui::DragInt3("Segments", &segments.x, 1, 1, 10))
+                    {
+                        m_viewModel->PrimitiveSegments = segments;
+                    }
+                    break;
+
+                case 1: // Sphere
+                    if (ImGui::DragInt("Longitude", &segments.x, 1, 8, 64))
+                    {
+                        m_viewModel->PrimitiveSegments = segments;
+                    }
+                    if (ImGui::DragInt("Latitude", &segments.y, 1, 4, 32))
+                    {
+                        m_viewModel->PrimitiveSegments = segments;
+                    }
+                    break;
+
+                case 2: // Cylinder
+                    if (ImGui::DragInt("Radial", &segments.x, 1, 8, 64))
+                    {
+                        m_viewModel->PrimitiveSegments = segments;
+                    }
+                    if (ImGui::DragInt("Height", &segments.y, 1, 1, 10))
+                    {
+                        m_viewModel->PrimitiveSegments = segments;
+                    }
+                    if (ImGui::DragInt("Cap", &segments.z, 1, 1, 5))
+                    {
+                        m_viewModel->PrimitiveSegments = segments;
+                    }
+                    break;
+            }
+
+            // LOD
+            int lod = m_viewModel->PrimitiveLOD.Get();
+            if (ImGui::SliderInt("LOD", &lod, 0, 4))
+            {
+                m_viewModel->PrimitiveLOD = lod;
+            }
+
+            if (ImGui::Button("Create Primitive", ImVec2(-1, 30)))
+            {
+                m_viewModel->CreatePrimitiveCommand->Execute();
+            }
+
+            ImGui::Separator();
+
+            // Load from file
+            if (ImGui::Button("Load from File", ImVec2(-1, 30)))
+            {
+                m_showFileDialog = true;
+            }
+
+            if (m_showFileDialog)
+            {
+                static FileDialog fileDialog;
+                if (fileDialog.Show(&m_showFileDialog))
+                {
+                    const char* path = fileDialog.GetSelectedPathAsChar();
+                    if (path && strlen(path) > 0)
+                    {
+                        m_viewModel->LoadGeometryCommand->Execute(std::string(path));
+                    }
+                }
+            }
+        }
+    }
+    ImGui::End();
+    ImGui::PopID();
+}
+
+glm::mat4 GeometryViewerView::CalculateViewMatrix()
+{
+    glm::vec3 cameraPos = m_viewModel->CameraPosition.Get();
+    glm::vec3 cameraRot = m_viewModel->CameraRotation.Get();
+    float distance = m_viewModel->CameraDistance.Get();
+
+    glm::vec3 forward(0.0f, 0.0f, -1.0f);
+    glm::vec3 up(0.0f, 1.0f, 0.0f);
+
+    // Apply rotations
+    glm::mat4 rotation = glm::mat4(1.0f);
+    rotation = glm::rotate(rotation, glm::radians(cameraRot.x), glm::vec3(1.0f, 0.0f, 0.0f));
+    rotation = glm::rotate(rotation, glm::radians(cameraRot.y), glm::vec3(0.0f, 1.0f, 0.0f));
+    rotation = glm::rotate(rotation, glm::radians(cameraRot.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+    forward = glm::vec3(rotation * glm::vec4(forward, 0.0f));
+    up = glm::vec3(rotation * glm::vec4(up, 0.0f));
+
+    glm::vec3 actualCameraPos = cameraPos - (forward * distance);
+    return glm::lookAt(actualCameraPos, cameraPos, up);
 }

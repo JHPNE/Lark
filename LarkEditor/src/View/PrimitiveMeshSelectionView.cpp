@@ -224,7 +224,7 @@ void PrimitiveMeshSelectionView::CreatePrimitiveMesh()
         activeScene->UpdateEntity(entity->GetID());
 
         // Add to geometry viewer
-        GeometryViewerView::Get().AddGeometry(entity->GetID());
+        //GeometryViewerView::Get().AddGeometry(entity->GetID());
 
         // Log success
         m_lastCreatedName = meshName;

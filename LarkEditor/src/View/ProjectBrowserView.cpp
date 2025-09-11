@@ -432,7 +432,7 @@ void ProjectBrowserView::OpenSelectedProject()
             Logger::Get().Log(MessageType::Info,
                               "Unloading current project: " + m_loadedProject->GetName());
 
-            GeometryViewerView::Get().ClearGeometries();
+            //GeometryViewerView::Get().ClearGeometries();
 
             for (auto &scene : m_loadedProject->GetScenes())
             {
@@ -487,7 +487,7 @@ bool ProjectBrowserView::CreateNewProject()
     {
         Logger::Get().Log(MessageType::Info, "Unloading current project before creating new one");
 
-        GeometryViewerView::Get().ClearGeometries();
+        //GeometryViewerView::Get().ClearGeometries();
 
         for (auto &scene : m_loadedProject->GetScenes())
         {

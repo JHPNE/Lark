@@ -94,30 +94,3 @@ class FileDialog
         }
     }
 };
-
-// Example usage
-void ShowFileDialogExample()
-{
-    static bool showDialog = false;
-    static FileDialog fileDialog;
-
-    ApplyModernDarkStyle();
-
-    if (ImGui::Begin("Main Window"))
-    {
-        if (ImGui::Button("Open File Dialog"))
-        {
-            showDialog = true;
-        }
-    }
-    ImGui::End();
-
-    if (showDialog)
-    {
-        if (fileDialog.Show(&showDialog))
-        {
-            const char *selectedPath = fileDialog.GetSelectedPathAsChar();
-            // Do something with the selectedPath
-        }
-    }
-}
