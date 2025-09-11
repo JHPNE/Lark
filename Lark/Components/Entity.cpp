@@ -71,7 +71,7 @@ entity create(entity_info info)
     }
 
     // check if geometry is existing then drone component is available
-    if (info.physics)
+    if (info.physics && info.physics->scene)
     {
         assert(!physics_container[index].is_valid());
         physics_container[index] = physics::create(*info.physics, new_entity);

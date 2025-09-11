@@ -31,12 +31,6 @@ struct geometry_component {
 };
 
 struct physics_component {
-    physics_inertia_properties inertia;
-    physics_aerodynamic_properties aerodynamic;
-    physics_motor_properties motor;
-    std::vector<physics_rotor_parameters> rotors;
-    PhysicsControlMode control_mode = PhysicsControlMode::MOTOR_SPEEDS;
-    physics_wind_params wind_params;
 };
 
 struct game_entity_descriptor {

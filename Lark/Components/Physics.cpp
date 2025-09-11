@@ -6,23 +6,19 @@ namespace
 {
 struct physics_data
 {
-    game_entity::entity_id entity_id;
     bool is_valid{false};
+    drones::Multirotor vehicle;
+    drones::Control control;
+    std::shared_ptr<drones::Wind> wind;
+    std::shared_ptr<drones::Trajectory> trajectory;
 
-    lark::drones::Multirotor vehicle;
-    lark::drones::Control control;
-    std::unique_ptr<lark::drones::Wind> wind;
-    std::unique_ptr<lark::drones::Trajectory> trajectory;
-
-    float sim_time{0.f};
-    lark::drones::DroneState state;
-    lark::drones::ControlInput last_control;
+    drones::DroneState state;
+    drones::ControlInput last_control;
 
     // Bullet integration
     btRigidBody *body{nullptr};
-    std::unique_ptr<btCollisionShape> shape;
-    std::unique_ptr<btDefaultMotionState> motion;
 
+    float sim_time{0.f};
     // add maybe vector of states for later
 };
 
@@ -39,6 +35,21 @@ bool exists(physics_id id)
     return (id::is_valid(id_mapping[index]) && generations[index] == id::generation(id) &&
             physics_components[id_mapping[index]].is_valid);
 }
+
+    btConvexHullShape* extract_shape(const lod_group& group)
+    {
+        if (group.meshes.empty())
+            return nullptr;
+
+        const auto& mesh = group.meshes[0];
+        auto* shape = new btConvexHullShape();
+
+        for (const auto& pos : mesh.positions) {
+            shape->addPoint(btVector3(pos.x, pos.y, pos.z));
+        }
+
+        return shape;
+    }
 } // namespace
 
 component create(init_info info, game_entity::entity entity)
@@ -50,6 +61,7 @@ component create(init_info info, game_entity::entity entity)
     if (free_ids.size() > id::min_deleted_elements)
     {
         id = free_ids.front();
+        assert(!exists(id));
         free_ids.pop_front();
         id = physics_id{id::new_generation(id)};
         ++generations[id::index(id)];
@@ -63,11 +75,28 @@ component create(init_info info, game_entity::entity entity)
     assert(id::is_valid(id));
     const id::id_type index{(id::id_type)physics_components.size()};
 
-    /*
+
+    btTransform transform;
+    transform.setIdentity();
+    transform.setOrigin(btVector3(info.state.position.x(), info.state.position.y(), info.state.position.z()));
+    float mass = info.params.inertia_properties.mass;
+    auto* motionState = new btDefaultMotionState(transform);
+
+    btVector3 inertia(0,0,0);
+    auto shape = extract_shape(info.scene->lod_groups[0]);
+
+    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, shape, inertia);
+
     physics_components.emplace_back(physics_data{
-        lark::drones::Multirotor{}
+        true,
+        drones::Multirotor(info.params, info.state, info.abstraction),
+        info.control,
+        std::move(info.wind),
+        std::move(info.trajectory),
+        info.state,
+        info.last_control,
+        new btRigidBody(rbInfo)
     });
-    */
 
     id_mapping[id::index(id)] = index;
     return component{id};

@@ -1,96 +1,70 @@
 #pragma once
 
-struct physics_inertia_properties
+struct inertia_prop
 {
     float mass;
-    float Ixx;
-    float Iyy;
-    float Izz;
-    float Ixy;
-    float Iyz;
-    float Ixz;
+    glm::vec3 principal_inertia;
+    glm::vec3 product_inertia;
 };
 
-struct physics_aerodynamic_properties
+struct geom_prop
 {
-    float dragCoeffX;
-    float dragCoeffY;
-    float dragCoeffZ;
-    bool enableAerodynamics;
+    static constexpr size_t num_rotors = 4;
+    float rotor_radius;
+    std::array<glm::vec3, num_rotors> rotor_positions;
+    glm::vec4 rotor_directions;
+
+    // currently not implemented so w/e
+    glm::vec3 imu_positions;
 };
 
-struct physics_motor_properties
+struct aero_prop
 {
-    float responseTime;
-    float noiseStdDev;
-    float bodyRateGain;
-    float velocityGain;
-    float attitudePGain;
-    float attitudeDGain;
+    glm::vec3 parasitic_drag;
 };
 
-struct physics_rotor_parameters
+struct rotor_prop
 {
-    float thrustCoeff;
-    float torqueCoeff;
-    float dragCoeff;
-    float inflowCoeff;
-    float flapCoeff;
-    glm::vec3 position;
-    int direction;
-    float minSpeed;
-    float maxSpeed;
+    float k_eta;
+    float k_m;
+    float k_d;
+    float k_z;
+    float k_h;
+    float k_flap;
 };
 
-enum class PhysicsControlMode : uint8_t
+struct motor_prop
 {
-    MOTOR_SPEEDS,
-    MOTOR_THRUSTS,
-    COLLECTIVE_THRUST_BODY_RATES,
-    COLLECTIVE_THRUST_BODY_MOMENTS,
-    COLLECTIVE_THRUST_ATTITUDE,
-    VELOCITY,
-    ACCELERATION
+    float tau_m;
+    float rotor_speed_min;
+    float rotor_speed_max;
+    float motor_noise_std;
 };
 
-struct physics_control_input
+struct control_gains
 {
-    PhysicsControlMode mode;
-    std::vector<float> motorSpeeds;
-    std::vector<float> motorThrusts;
-    float collectiveThrust;
-    glm::vec3 bodyRates;
-    glm::vec3 bodyMoments;
-    glm::quat targetAttitude;
-    glm::vec3 targetVelocity;
-    glm::vec3 targetAcceleration;
+    glm::vec3 kp_pos{6.5f, 6.5f, 15.0f};
+    glm::vec3 kd_pos{4.0f, 4.0f, 9.0f};
+    float kp_att = 544.0f;
+    float kd_att = 46.64f;
+    glm::vec3 kp_vel{0.65f, 0.65f, 1.5f};
 };
 
-struct physics_drone_state
+struct lower_level_controller_prop
 {
-    glm::vec3 position;
-    glm::vec3 velocity;
-    glm::quat orientation;
-    glm::vec3 angular_velocity;
-    glm::vec3 wind;
-    std::vector<float> rotor_speeds;
+    float k_w;
+    float k_v;
+    int kp_att;
+    float kd_att;
 };
 
-enum class WindType
+struct quad_params
 {
-    NO_WIND,
-    CONSTANT_WIND,
-    DRYDEN_GUST
-};
-
-struct physics_wind_params
-{
-    WindType type;
-    glm::vec3 constant_wind_velocity; // For CONSTANT_WIND
-
-    // For DRYDEN_GUST
-    glm::vec3 mean_wind;
-    float altitude;
-    float wingspan;
-    float turbulence_level;
+    inertia_prop i;
+    geom_prop g;
+    aero_prop a;
+    rotor_prop r;
+    motor_prop m;
+    control_gains c;
+    lower_level_controller_prop l;
 };

@@ -5,8 +5,8 @@
 #include "PhysicExtension/Vehicles/Multirotor.h"
 #include "btBulletDynamicsCommon.h"
 /**
- * @file Transform.h
- * @brief Transform component system for entity spatial information
+ * @file Physics.h
+ * @brief Phsyics component system for entity physics information
  */
 
 #pragma once
@@ -20,7 +20,14 @@ namespace lark::physics
  */
 struct init_info
 {
-    drones::Multirotor vehicle;
+    drones::QuadParams params;
+    drones::Control control;
+    drones::ControlAbstraction abstraction;
+    std::shared_ptr<drones::Wind> wind{nullptr};
+    std::shared_ptr<drones::Trajectory> trajectory{nullptr};
+    drones::DroneState state;
+    drones::ControlInput last_control;
+    std::shared_ptr<scene> scene{nullptr}; ///< Scene containing the geometry data
 };
 
 /**
