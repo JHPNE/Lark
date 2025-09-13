@@ -12,7 +12,7 @@ public:
     ObservableProperty(const T& initial) : m_value(initial) {}
 
     template<typename... Args>
-    ObservableProperty(Args... args) : m_value{args...} {}
+    ObservableProperty(Args... args) : m_value(args...) {}
 
     const T& Get() const { return m_value; }
 

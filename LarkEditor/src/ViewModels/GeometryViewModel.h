@@ -10,6 +10,7 @@
 #include <vector>
 #include <glm/gtx/matrix_decompose.hpp>
 #include "../Services/SelectionService.h"
+#include "Services/TransformService.h"
 
 #include <Services/EventBus.h>
 
@@ -48,6 +49,7 @@ public:
         : m_model(std::make_unique<GeometryModel>())
         , m_renderManager(std::make_unique<GeometryRenderManager>())
         , m_service(GeometryService::Get())
+        , m_transformService(TransformService::Get())
     {
         InitializeCommands();
         SubscribeToSelectionService();
@@ -176,53 +178,21 @@ public:
     // Update transform from gizmo
     void UpdateTransformFromGizmo(uint32_t entityId, const float* matrix)
     {
-        if (!matrix)
-            return;
+        if (!matrix) return;
 
-        // Decompose matrix
-        glm::mat4 transform = glm::make_mat4(matrix);
-        glm::vec3 position, scale, skew;
-        glm::vec4 perspective;
-        glm::quat rotation;
+        TransformData transformData = TransformService::Get().DecomposeMatrix(matrix);
 
-        if (glm::decompose(transform, scale, rotation, position, skew, perspective))
+        if (m_project)
         {
-            transform_component transform_data{};
-
-            // Fill transform data
-            transform_data.position[0] = position.x;
-            transform_data.position[1] = position.y;
-            transform_data.position[2] = position.z;
-
-            glm::vec3 euler = glm::degrees(glm::eulerAngles(rotation));
-            transform_data.rotation[0] = euler.x;
-            transform_data.rotation[1] = euler.y;
-            transform_data.rotation[2] = euler.z;
-
-            transform_data.scale[0] = scale.x;
-            transform_data.scale[1] = scale.y;
-            transform_data.scale[2] = scale.z;
-
-            // Update engine
-            SetEntityTransform(entityId, transform_data);
-
-            // Update entity component
-            if (m_project)
+            if (auto scene = m_project->GetActiveScene())
             {
-                if (auto scene = m_project->GetActiveScene())
+                if (auto entity = scene->GetEntity(entityId))
                 {
-                    if (auto entity = scene->GetEntity(entityId))
-                    {
-                        if (auto* transform = entity->GetComponent<Transform>())
-                        {
-                            transform->SetPosition(position.x, position.y, position.z);
-                            transform->SetRotation(euler.x, euler.y, euler.z);
-                            transform->SetScale(scale.x, scale.y, scale.z);
-                        }
-                    }
+                    TransformService::Get().UpdateEntityTransform(entity, transformData);
                 }
             }
         }
+
     }
 
 private:
@@ -230,6 +200,7 @@ private:
     std::unique_ptr<GeometryRenderManager> m_renderManager;
     GeometryService& m_service;
     std::shared_ptr<Project> m_project;
+    TransformService& m_transformService;
 
     void InitializeCommands()
     {

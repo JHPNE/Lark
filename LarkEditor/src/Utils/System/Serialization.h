@@ -228,7 +228,7 @@ inline bool ReadElement(const tinyxml2::XMLElement *parent, const char *name, T 
 
 // Helper for serializing Vec3
 inline void WriteVec3(tinyxml2::XMLDocument &doc, tinyxml2::XMLElement *parent, const char *name,
-                      const Vec3 &vec)
+                      const glm::vec3 &vec)
 {
     auto element = doc.NewElement(name);
     WriteAttribute(element, "x", vec.x);
@@ -237,8 +237,8 @@ inline void WriteVec3(tinyxml2::XMLDocument &doc, tinyxml2::XMLElement *parent, 
     parent->LinkEndChild(element);
 }
 
-inline bool ReadVec3(const tinyxml2::XMLElement *parent, const char *name, Vec3 &vec,
-                     const Vec3 &defaultVal = Vec3(0, 0, 0))
+inline bool ReadVec3(const tinyxml2::XMLElement *parent, const char *name, glm::vec3 &vec,
+                     const glm::vec3 &defaultVal = glm::vec3(0, 0, 0))
 {
     auto element = parent->FirstChildElement(name);
     if (!element)
@@ -251,7 +251,7 @@ inline bool ReadVec3(const tinyxml2::XMLElement *parent, const char *name, Vec3 
     ReadAttribute(element, "x", x);
     ReadAttribute(element, "y", y);
     ReadAttribute(element, "z", z);
-    vec = Vec3(x, y, z);
+    vec = glm::vec3(x, y, z);
     return true;
 }
 } // namespace SerializerUtils

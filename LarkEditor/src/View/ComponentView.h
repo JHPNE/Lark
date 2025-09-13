@@ -1,25 +1,32 @@
+// LarkEditor/src/View/ComponentView.h
 #pragma once
 #include <memory>
 
-class Project; // Forward declaration instead of #include "Project.h"
+class Project;
+class ComponentViewModel;
 
-class ComponentView
-{
-  public:
-    static ComponentView &Get()
-    {
+class ComponentView {
+public:
+    static ComponentView& Get() {
         static ComponentView instance;
         return instance;
     }
 
     void Draw();
-    bool &GetShowState() { return m_show; }
-    void SetActiveProject(std::shared_ptr<Project> activeProject) { project = activeProject; }
+    bool& GetShowState() { return m_show; }
+    void SetActiveProject(std::shared_ptr<Project> activeProject);
 
-  private:
-    ComponentView() = default;
-    ~ComponentView() = default;
+private:
+    ComponentView();
+    ~ComponentView();
+
+    void DrawSingleSelection();
+    void DrawMultiSelection();
+    void DrawTransformComponent();
+    void DrawScriptComponent();
+    void DrawGeometryComponent();
+    void DrawAddComponentButton();
 
     bool m_show = true;
-    std::shared_ptr<Project> project;
+    std::unique_ptr<ComponentViewModel> m_viewModel;
 };

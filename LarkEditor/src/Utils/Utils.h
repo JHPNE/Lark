@@ -30,8 +30,8 @@ class Utils
     static bool IsInvalidID(int id) { return id != INVALIDID; };
 
     // Descriptor Functions
-    static void SetTransform(game_entity_descriptor &desc, MathUtils::Vec3 position,
-                             MathUtils::Vec3 rotation, MathUtils::Vec3 scale)
+    static void SetTransform(game_entity_descriptor &desc, glm::vec3 position,
+                             glm::vec3 rotation, glm::vec3 scale)
     {
         desc.transform.position[0] = position.x;
         desc.transform.position[1] = position.y;

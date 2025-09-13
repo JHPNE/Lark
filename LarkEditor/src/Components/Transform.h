@@ -20,27 +20,27 @@ class Transform : public Component, public ISerializable
     static ComponentType GetStaticType() { return ComponentType::Transform; }
 
     // Position
-    [[nodiscard]] const Vec3 &GetPosition() const { return m_position; }
-    void SetPosition(const Vec3 &position) { m_position = position; }
-    void SetPosition(float x, float y, float z) { m_position = Vec3(x, y, z); }
+    [[nodiscard]] const glm::vec3 &GetPosition() const { return m_position; }
+    void SetPosition(const glm::vec3 &position) { m_position = position; }
+    void SetPosition(float x, float y, float z) { m_position = glm::vec3(x, y, z); }
 
     // Rotation
-    [[nodiscard]] const Vec3 &GetRotation() const { return m_rotation; }
-    void SetRotation(const Vec3 &rotation) { m_rotation = rotation; }
-    void SetRotation(float x, float y, float z) { m_rotation = Vec3(x, y, z); }
+    [[nodiscard]] const glm::vec3 &GetRotation() const { return m_rotation; }
+    void SetRotation(const glm::vec3 &rotation) { m_rotation = rotation; }
+    void SetRotation(float x, float y, float z) { m_rotation = glm::vec3(x, y, z); }
 
     // Scale
-    [[nodiscard]] const Vec3 &GetScale() const { return m_scale; }
-    void SetScale(const Vec3 &scale) { m_scale = scale; }
-    void SetScale(float x, float y, float z) { m_scale = Vec3(x, y, z); }
-    void SetScale(float uniform) { m_scale = Vec3(uniform, uniform, uniform); }
+    [[nodiscard]] const glm::vec3 &GetScale() const { return m_scale; }
+    void SetScale(const glm::vec3 &scale) { m_scale = scale; }
+    void SetScale(float x, float y, float z) { m_scale = glm::vec3(x, y, z); }
+    void SetScale(float uniform) { m_scale = glm::vec3(uniform, uniform, uniform); }
 
     // Utility functions
     void Reset()
     {
-        m_position = Vec3(0.0f, 0.0f, 0.0f);
-        m_rotation = Vec3(0.0f, 0.0f, 0.0f);
-        m_scale = Vec3(1.0f, 1.0f, 1.0f);
+        m_position = glm::vec3(0.0f, 0.0f, 0.0f);
+        m_rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        m_scale = glm::vec3(1.0f, 1.0f, 1.0f);
     }
 
     void packForEngine(transform_component *transform_component) const
@@ -101,9 +101,9 @@ class Transform : public Component, public ISerializable
             return false;
         }
 
-        DESERIALIZE_VEC3(element, "Position", m_position, Vec3(0, 0, 0));
-        DESERIALIZE_VEC3(element, "Rotation", m_rotation, Vec3(0, 0, 0));
-        DESERIALIZE_VEC3(element, "Scale", m_scale, Vec3(1, 1, 1));
+        DESERIALIZE_VEC3(element, "Position", m_position, glm::vec3(0, 0, 0));
+        DESERIALIZE_VEC3(element, "Rotation", m_rotation, glm::vec3(0, 0, 0));
+        DESERIALIZE_VEC3(element, "Scale", m_scale, glm::vec3(1, 1, 1));
 
         return !context.HasErrors();
     }
@@ -111,7 +111,7 @@ class Transform : public Component, public ISerializable
     [[nodiscard]] Version GetVersion() const override { return {1, 1, 0}; };
 
   private:
-    Vec3 m_position; // Local position
-    Vec3 m_rotation; // Local rotation in degrees
-    Vec3 m_scale;    // Local scale
+    glm::vec3 m_position; // Local position
+    glm::vec3 m_rotation; // Local rotation in degrees
+    glm::vec3 m_scale;    // Local scale
 };

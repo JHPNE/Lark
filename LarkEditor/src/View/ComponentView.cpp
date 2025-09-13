@@ -1,340 +1,233 @@
+// LarkEditor/src/View/ComponentView.cpp
 #include "ComponentView.h"
-
-#include "../Project/Project.h"
-#include "Components/Geometry.h"
-#include "GeometryViewerView.h"
+#include "../ViewModels/ComponentViewModel.h"
 #include "Style.h"
-
-#include "Components/Script.h"
 #include <imgui.h>
 
-void ComponentView::Draw()
-{
-    if (!project)
-        return;
+ComponentView::ComponentView() {
+    m_viewModel = std::make_unique<ComponentViewModel>();
+}
 
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
-    window_flags |= ImGuiWindowFlags_NoCollapse;
+ComponentView::~ComponentView() = default;
 
-    ImGui::Begin("Component View", nullptr, window_flags);
-    DrawWindowGradientBackground(ImVec4(0.10f, 0.10f, 0.13f, 0.30f),
-                                 ImVec4(0.10f, 0.10f, 0.13f, 0.80f));
+void ComponentView::SetActiveProject(std::shared_ptr<Project> activeProject) {
+    if (m_viewModel) {
+        m_viewModel->SetProject(activeProject);
+    }
+}
 
-    ImGui::Text("Components");
-    ImGui::Separator();
+void ComponentView::Draw() {
+    if (!m_show || !m_viewModel) return;
 
-    std::shared_ptr<Scene> activeScene = project->GetActiveScene();
-
-    if (activeScene)
-    {
-        // Find selected entity
-        std::vector<std::shared_ptr<GameEntity>> selectedEntities;
-
-        for (const auto &entity : activeScene->GetEntities())
-        {
-            if (entity->IsSelected())
-            {
-                selectedEntities.push_back(entity);
-            }
-        }
-
-        if (selectedEntities.size() == 1)
-        {
-            const std::shared_ptr<GameEntity> &selectedEntity = selectedEntities[0];
-            // Entity info header
-            ImGui::Text("Selected Entity: %s", selectedEntity->GetName().c_str());
-            ImGui::Separator();
-
-            // Transform Component
-            if (auto transform = selectedEntity->GetComponent<Transform>())
-            {
-                if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
-                {
-
-                    Vec3 position = transform->GetPosition();
-                    Vec3 rotation = transform->GetRotation();
-                    Vec3 scale = transform->GetScale();
-
-                    transform_component test{};
-
-                    float pos[3];
-                    float rot[3];
-                    float scl[3];
-
-                    if (GetEntityTransform(selectedEntity->GetID(), &test))
-                    {
-                        memcpy(pos, transform->loadFromEngine(&test), 3 * sizeof(float));
-                        memcpy(rot, transform->loadFromEngine(&test) + 3, 3 * sizeof(float));
-                        memcpy(scl, transform->loadFromEngine(&test) + 6, 3 * sizeof(float));
-                    }
-                    else
-                    {
-                        memcpy(pos, Vec3::toFloat(position), 3 * sizeof(float));
-                        memcpy(rot, Vec3::toFloat(rotation), 3 * sizeof(float));
-                        memcpy(scl, Vec3::toFloat(scale), 3 * sizeof(float));
-                    }
-
-                    // Position
-                    if (ImGui::DragFloat3("##Position", pos, 0.1f))
-                    {
-                        transform->SetPosition({pos[0], pos[1], pos[2]});
-                        transform->packForEngine(&test);
-                        SetEntityTransform(selectedEntity->GetID(), test);
-                    }
-
-                    // Rotation
-                    ImGui::Text("Rotation");
-                    if (ImGui::DragFloat3("##Rotation", rot, 0.1f))
-                    {
-                        transform->SetRotation({rot[0], rot[1], rot[2]});
-                        transform->packForEngine(&test);
-                        SetEntityTransform(selectedEntity->GetID(), test);
-                    }
-
-                    // Scale
-                    ImGui::Text("Scale");
-                    if (ImGui::DragFloat3("##Scale", scl, 0.1f))
-                    {
-                        transform->SetScale({scl[0], scl[1], scl[2]});
-                        transform->packForEngine(&test);
-                        SetEntityTransform(selectedEntity->GetID(), test);
-                    }
-                }
-            }
-
-            // Script Component(s)
-            if (auto script = selectedEntity->GetComponent<Script>())
-            {
-                if (ImGui::CollapsingHeader("Script", ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    // Style the script name box
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
-                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-
-                    // Create a box showing the script name
-                    ImGui::BeginChild("ScriptBox", ImVec2(ImGui::GetContentRegionAvail().x, 30),
-                                      true);
-                    ImGui::Text("Script: %s", script->GetScriptName().c_str());
-                    ImGui::EndChild();
-
-                    ImGui::PopStyleColor();
-                    ImGui::PopStyleVar();
-
-                    // Remove script button
-                    if (ImGui::Button("Remove Script", ImVec2(120, 0)))
-                    {
-                        // selectedEntity->RemoveComponent<Script>();
-                    }
-                }
-            }
-
-            // Geometry Component(s)
-            if (auto *geometry = selectedEntity->GetComponent<Geometry>())
-            {
-                if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    // Style the script name box
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
-                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-
-                    // Create a box showing the script name
-                    ImGui::BeginChild("GeometryBox", ImVec2(ImGui::GetContentRegionAvail().x, 30),
-                                      true);
-                    ImGui::Text("Geometry: %s", geometry->GetGeometryName().c_str());
-
-                    ImGui::EndChild();
-
-                    bool isVisible = geometry->IsVisible();
-                    if (ImGui::Checkbox("Visible", &isVisible))
-                    {
-                        geometry->SetVisible(isVisible);
-                    }
-
-                    if (ImGui::Button("Weird Out Geometry", ImVec2(120, 0)))
-                    {
-                        lark::editor::Geometry::randomModificationVertexes(
-                            selectedEntity->GetID(),
-                            geometry->GetScene()->lod_groups[0].meshes[0].vertices.size(),
-                            geometry->GetScene()->lod_groups[0].meshes[0].positions);
-                        //GeometryViewerView::Get().UpdateGeometry(selectedEntity->GetID());
-                    };
-
-                    ImGui::PopStyleColor();
-                    ImGui::PopStyleVar();
-                }
-            }
-
-            // Add Component Button (always at bottom)
-            if (ImGui::Button("Add Component", ImVec2(120, 0)))
-            {
-                ImGui::OpenPopup("AddComponentPopup");
-            }
-
-            if (ImGui::BeginPopup("AddComponentPopup"))
-            {
-                if (!selectedEntity->GetComponent<Script>())
-                { // Only show scripts if none exists
-                    size_t script_count = 0;
-                    const char **script_names = GetScriptNames(&script_count);
-
-                    if (script_count > 0)
-                    {
-                        if (ImGui::BeginMenu("Script"))
-                        {
-                            for (size_t i = 0; i < script_count; i++)
-                            {
-                                if (ImGui::MenuItem(script_names[i]))
-                                {
-                                    ScriptInitializer scriptInit;
-                                    scriptInit.scriptName = script_names[i];
-                                }
-                            }
-                            ImGui::EndMenu();
-                        }
-                    }
-                }
-                ImGui::EndPopup();
-            }
-        }
-        else if (selectedEntities.size() > 1)
-        {
-            ImGui::Text("Selected Entities: %d", selectedEntities.size());
-            std::vector<Vec3> positions;
-            std::vector<Vec3> rotations;
-            std::vector<Vec3> scales;
-
-            std::vector<std::string> scriptsNames;
-
-            for (auto &entity : selectedEntities)
-            {
-                ImGui::Text("%s", entity->GetName().c_str());
-                positions.push_back(entity->GetComponent<Transform>()->GetPosition());
-                rotations.push_back(entity->GetComponent<Transform>()->GetRotation());
-                scales.push_back(entity->GetComponent<Transform>()->GetScale());
-
-                if (entity->GetComponent<Script>())
-                {
-                    scriptsNames.push_back(entity->GetComponent<Script>()->GetScriptName());
-                }
-            }
-
-            ImGui::Separator();
-
-            Vec3 middlePosition = Vec3::getAverage(positions);
-            Vec3 middleRotation = Vec3::getAverage(rotations);
-            Vec3 middleScale = Vec3::getAverage(scales);
-            float pos[3]{};
-            float rot[3]{};
-            float scale[3]{};
-            if (ImGui::CollapsingHeader("MultiTransform", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                pos[0] = middlePosition.x;
-                pos[1] = middlePosition.y;
-                pos[2] = middlePosition.z;
-                ImGui::DragFloat3("##Position", pos, 0.1f);
-
-                rot[0] = middleRotation.x;
-                rot[1] = middleRotation.y;
-                rot[2] = middleRotation.z;
-                ImGui::DragFloat3("##Rotation", rot, 0.1f);
-
-                scale[0] = middleScale.x;
-                scale[1] = middleScale.y;
-                scale[2] = middleScale.z;
-                ImGui::DragFloat3("##Scale", scale, 0.1f);
-            }
-
-            if (ImGui::CollapsingHeader("MultiScript", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                std::string scriptCommonName = "";
-                for (auto &scriptName : scriptsNames)
-                {
-                    bool isCommon = true;
-                    for (auto &entity : selectedEntities)
-                    {
-                        auto *script = entity->GetComponent<Script>();
-
-                        if (!script || script->GetScriptName() != scriptName)
-                        {
-                            isCommon = false;
-                            break;
-                        }
-                    }
-                    if (isCommon)
-                    {
-                        scriptCommonName = scriptName;
-                    }
-                }
-
-                if (scriptCommonName != "")
-                {
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
-                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-
-                    // Create a box showing the script name
-                    ImGui::BeginChild("ScriptBox", ImVec2(ImGui::GetContentRegionAvail().x, 30),
-                                      true);
-                    ImGui::Text("Script: %s", scriptCommonName.c_str());
-                    ImGui::EndChild();
-
-                    ImGui::PopStyleColor();
-                    ImGui::PopStyleVar();
-
-                    // Remove script button
-                    if (ImGui::Button("Remove Script", ImVec2(120, 0)))
-                    {
-                        // activeScene->RemoveComponentFromEntity<Script>(selectedEntity->GetID());
-                    }
-                }
-            }
-
-            for (auto &entity : selectedEntities)
-            {
-                if (auto transform = entity->GetComponent<Transform>())
-                {
-                    Vec3 newPosition(pos[0], pos[1], pos[2]);
-                    Vec3 newRotation(rot[0], rot[1], rot[2]);
-                    Vec3 newScale(scale[0], scale[1], scale[2]);
-
-                    transform_component package{};
-                    // Only update position if there's a change
-                    if (!Vec3::IsEqual(newPosition, middlePosition))
-                    {
-                        Vec3 differencePosition = middlePosition - newPosition;
-                        transform->SetPosition(transform->GetPosition() + differencePosition);
-                        transform->packForEngine(&package);
-                        SetEntityTransform(entity->GetID(), package);
-                    }
-
-                    // Only update rotation if there's a change
-                    if (!Vec3::IsEqual(newRotation, middleRotation))
-                    {
-                        Vec3 differenceRotation = middleRotation - newRotation;
-                        transform->SetRotation(transform->GetRotation() + differenceRotation);
-                        transform->packForEngine(&package);
-                        SetEntityTransform(entity->GetID(), package);
-                    }
-
-                    // Only update scale if there's a change
-                    if (!Vec3::IsEqual(newScale, middleScale))
-                    {
-                        Vec3 differenceScale = middleScale - newScale;
-                        transform->SetScale(transform->GetScale() + differenceScale);
-                        transform->packForEngine(&package);
-                        SetEntityTransform(entity->GetID(), package);
-                    }
-                }
-            }
-        }
-        else
-        {
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
+    
+    if (ImGui::Begin("Component View", &m_show, window_flags)) {
+        DrawWindowGradientBackground(ImVec4(0.10f, 0.10f, 0.13f, 0.30f),
+                                     ImVec4(0.10f, 0.10f, 0.13f, 0.80f));
+        
+        ImGui::Text("Components");
+        ImGui::Separator();
+        
+        if (m_viewModel->HasSingleSelection.Get()) {
+            DrawSingleSelection();
+        } else if (m_viewModel->HasMultipleSelection.Get()) {
+            DrawMultiSelection();
+        } else {
             ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No entity selected");
         }
     }
-    else
-    {
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No active scene");
-    }
-
     ImGui::End();
+}
+
+void ComponentView::DrawSingleSelection() {
+    auto entity = m_viewModel->SelectedEntity.Get();
+    if (!entity) return;
+    
+    // Entity header
+    ImGui::Text("Selected Entity: %s", entity->GetName().c_str());
+    ImGui::Separator();
+    
+    // Transform Component
+    if (m_viewModel->HasTransform.Get()) {
+        DrawTransformComponent();
+    }
+    
+    // Script Component
+    if (m_viewModel->HasScript.Get()) {
+        DrawScriptComponent();
+    }
+    
+    // Geometry Component
+    if (m_viewModel->HasGeometry.Get()) {
+        DrawGeometryComponent();
+    }
+    
+    // Add Component Button
+    DrawAddComponentButton();
+}
+
+void ComponentView::DrawMultiSelection() {
+    ImGui::Text("Selected Entities: %zu", m_viewModel->SelectionCount.Get());
+    
+    for (const auto& entity : m_viewModel->SelectedEntities.Get()) {
+        ImGui::BulletText("%s", entity->GetName().c_str());
+    }
+    
+    ImGui::Separator();
+    
+    // Multi-Transform
+    if (m_viewModel->HasTransform.Get()) {
+        if (ImGui::CollapsingHeader("Multi-Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+            TransformData avgTransform = m_viewModel->AverageTransform.Get();
+            
+            // Position
+            float pos[3] = {avgTransform.position.x, avgTransform.position.y, avgTransform.position.z};
+            if (ImGui::DragFloat3("Position##Multi", pos, 0.1f)) {
+                glm::vec3 newPos(pos[0], pos[1], pos[2]);
+                m_viewModel->UpdatePositionCommand->Execute(newPos);
+            }
+            
+            // Rotation
+            float rot[3] = {avgTransform.rotation.x, avgTransform.rotation.y, avgTransform.rotation.z};
+            if (ImGui::DragFloat3("Rotation##Multi", rot, 0.1f)) {
+                glm::vec3 newRot(rot[0], rot[1], rot[2]);
+                m_viewModel->UpdateRotationCommand->Execute(newRot);
+            }
+            
+            // Scale
+            float scale[3] = {avgTransform.scale.x, avgTransform.scale.y, avgTransform.scale.z};
+            if (ImGui::DragFloat3("Scale##Multi", scale, 0.1f)) {
+                glm::vec3 newScale(scale[0], scale[1], scale[2]);
+                m_viewModel->UpdateScaleCommand->Execute(newScale);
+            }
+        }
+    }
+    
+    // Common Scripts
+    if (!m_viewModel->CommonScripts.Get().empty()) {
+        if (ImGui::CollapsingHeader("Common Scripts", ImGuiTreeNodeFlags_DefaultOpen)) {
+            for (const auto& scriptName : m_viewModel->CommonScripts.Get()) {
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+                
+                ImGui::BeginChild("CommonScriptBox", ImVec2(ImGui::GetContentRegionAvail().x, 30), true);
+                ImGui::Text("Script: %s", scriptName.c_str());
+                ImGui::EndChild();
+                
+                ImGui::PopStyleColor();
+                ImGui::PopStyleVar();
+            }
+        }
+    }
+}
+
+void ComponentView::DrawTransformComponent() {
+    if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+    
+    TransformData transform = m_viewModel->CurrentTransform.Get();
+    bool changed = false;
+    
+    // Position
+    ImGui::Text("Position");
+    float pos[3] = {transform.position.x, transform.position.y, transform.position.z};
+    if (ImGui::DragFloat3("##Position", pos, 0.1f)) {
+        transform.position = glm::vec3(pos[0], pos[1], pos[2]);
+        changed = true;
+    }
+    
+    // Rotation
+    ImGui::Text("Rotation");
+    float rot[3] = {transform.rotation.x, transform.rotation.y, transform.rotation.z};
+    if (ImGui::DragFloat3("##Rotation", rot, 0.1f)) {
+        transform.rotation = glm::vec3(rot[0], rot[1], rot[2]);
+        changed = true;
+    }
+    
+    // Scale
+    ImGui::Text("Scale");
+    float scale[3] = {transform.scale.x, transform.scale.y, transform.scale.z};
+    if (ImGui::DragFloat3("##Scale", scale, 0.1f)) {
+        transform.scale = glm::vec3(scale[0], scale[1], scale[2]);
+        changed = true;
+    }
+    
+    if (changed) {
+        if (!m_viewModel->IsEditingTransform.Get()) {
+            m_viewModel->StartTransformEdit();
+        }
+        m_viewModel->UpdateTransformCommand->Execute(transform);
+    }
+    
+    // End edit on mouse release
+    if (m_viewModel->IsEditingTransform.Get() && ImGui::IsMouseReleased(0)) {
+        m_viewModel->EndTransformEdit();
+    }
+}
+
+void ComponentView::DrawScriptComponent() {
+    if (!ImGui::CollapsingHeader("Script", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+    
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+    
+    ImGui::BeginChild("ScriptBox", ImVec2(ImGui::GetContentRegionAvail().x, 30), true);
+    ImGui::Text("Script: %s", m_viewModel->ScriptName.Get().c_str());
+    ImGui::EndChild();
+    
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+    
+    if (ImGui::Button("Remove Script", ImVec2(120, 0))) {
+        m_viewModel->RemoveScriptCommand->Execute();
+    }
+}
+
+void ComponentView::DrawGeometryComponent() {
+    if (!ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+    
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+    
+    ImGui::BeginChild("GeometryBox", ImVec2(ImGui::GetContentRegionAvail().x, 30), true);
+    ImGui::Text("Geometry: %s", m_viewModel->GeometryName.Get().c_str());
+    ImGui::EndChild();
+    
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
+    
+    bool visible = m_viewModel->GeometryVisible.Get();
+    if (ImGui::Checkbox("Visible", &visible)) {
+        m_viewModel->SetGeometryVisibilityCommand->Execute(visible);
+    }
+    
+    if (ImGui::Button("Randomize Vertices", ImVec2(150, 0))) {
+        m_viewModel->RandomizeGeometryCommand->Execute();
+    }
+}
+
+void ComponentView::DrawAddComponentButton() {
+    if (ImGui::Button("Add Component", ImVec2(120, 0))) {
+        ImGui::OpenPopup("AddComponentPopup");
+    }
+    
+    if (ImGui::BeginPopup("AddComponentPopup")) {
+        // Scripts
+        if (!m_viewModel->HasScript.Get() && !m_viewModel->AvailableScripts.Get().empty()) {
+            if (ImGui::BeginMenu("Script")) {
+                for (const auto& scriptName : m_viewModel->AvailableScripts.Get()) {
+                    if (ImGui::MenuItem(scriptName.c_str())) {
+                        m_viewModel->AddScriptCommand->Execute(scriptName);
+                    }
+                }
+                ImGui::EndMenu();
+            }
+        }
+        
+        // Add other component types here as needed
+        
+        ImGui::EndPopup();
+    }
 }
