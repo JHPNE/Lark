@@ -28,11 +28,7 @@ private:
                   const glm::mat4& view, const glm::mat4& projection);
 
     void EnsureFramebuffer(float width, float height);
-    void EnsurePickingFramebuffer(float width, float height);
     glm::mat4 CalculateViewMatrix();
-
-    uint32_t PickEntity(const ImVec2& mousePos, const ImVec2& canvasPos, const ImVec2& canvasSize);
-    void RenderForPicking(const glm::mat4& view, const glm::mat4& projection);
 
     bool m_initialized = false;
     bool m_showFileDialog = false;

@@ -3,8 +3,6 @@
 #include "FileDialog.h"
 #include <ImGuizmo.h>
 
-#include <utility>
-
 GeometryViewerView::GeometryViewerView() = default;
 
 GeometryViewerView::~GeometryViewerView()
@@ -262,7 +260,7 @@ void GeometryViewerView::DrawGizmo(const ImVec2& canvasPos, const ImVec2& canvas
     }
 
     // Draw and handle gizmo
-    float snapValues[3] = {0.1f, 1.0f, 0.1f};
+    float snapValues[3] = {0.1f, 0.1f, 0.1f};
 
     if (ImGuizmo::Manipulate(viewMatrix, projMatrix, operation,
                             ImGuizmo::MODE::LOCAL, modelMatrix,

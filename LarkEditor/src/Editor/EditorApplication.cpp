@@ -11,7 +11,6 @@
 #include "../View/SceneView.h"
 #include "../View/Style.h"
 #include "Project/Project.h"
-#include "View/PrimitiveMeshSelectionView.h"
 #include "core/Loop.h"
 #include "imgui_impl_opengl3.h"
 #include "Rendering/GeometryRenderer.h"
