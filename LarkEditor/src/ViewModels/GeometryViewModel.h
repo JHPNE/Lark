@@ -353,23 +353,41 @@ private:
         geomInit.meshType = meshType;
 
         auto* geomComponent = entity->AddComponent<Geometry>(&geomInit);
+
+        content_tools::scene* sceneDataPtr = nullptr;
         if (geomComponent && instance->geometryData->GetScene())
         {
             geomComponent->SetScene(*instance->geometryData->GetScene());
+            sceneDataPtr = geomComponent->GetScene(); // Get pointer from component
         }
 
         // Update entity in scene
         scene->UpdateEntity(entity->GetID());
 
         // Add to model
+        instance->visible = true;
         instance->entityId = entity->GetID();
         instance->name = name;
+
         m_model->AddGeometry(entity->GetID(), std::move(instance));
 
         // Create render buffers
-        if (auto* geom = m_model->GetGeometry(entity->GetID()))
+        if (sceneDataPtr)
         {
-            m_renderManager->CreateOrUpdateBuffers(entity->GetID(), &geom->sceneData);
+            if (!m_renderManager->CreateOrUpdateBuffers(entity->GetID(), sceneDataPtr))
+            {
+                UpdateStatus("Failed to create render buffers for: " + name);
+                Logger::Get().Log(MessageType::Error, "Failed to create render buffers");
+                return;
+            }
+
+            m_renderManager->SetVisible(entity->GetID(), true);
+        }
+        else
+        {
+            UpdateStatus("No scene data available for: " + name);
+            Logger::Get().Log(MessageType::Error, "No scene data for geometry");
+            return;
         }
 
         UpdateStatus("Created primitive: " + name);
@@ -417,8 +435,10 @@ private:
         scene->UpdateEntity(entity->GetID());
 
         // Add to model
+        instance->visible = true;
         instance->entityId = entity->GetID();
         instance->name = name;
+
         m_model->AddGeometry(entity->GetID(), std::move(instance));
 
         // Create render buffers

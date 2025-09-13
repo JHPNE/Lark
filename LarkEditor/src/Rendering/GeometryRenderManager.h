@@ -46,6 +46,7 @@ public:
         {
             renderable = std::make_unique<RenderableGeometry>();
             renderable->entityId = entityId;
+            renderable->visible = true;
         }
 
         renderable->buffers = std::move(buffers);

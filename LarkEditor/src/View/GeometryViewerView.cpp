@@ -152,6 +152,20 @@ void GeometryViewerView::DrawViewport()
             auto& renderManager = m_viewModel->GetRenderManager();
             const auto& model = m_viewModel->GetModel();
 
+            size_t visibleCount = 0;
+            for (const auto& [entityId, geomInstance] : model.GetAllGeometries())
+            {
+                if (geomInstance->visible)
+                    visibleCount++;
+            }
+
+            static int frameCounter = 0;
+            if (frameCounter++ % 60 == 0) // Log every 60 frames
+            {
+                printf("[DrawViewport] Rendering %zu/%zu visible geometries\n",
+                       visibleCount, model.GetAllGeometries().size());
+            }
+
             for (const auto& [entityId, geomInstance] : model.GetAllGeometries())
             {
                 if (!geomInstance->visible)

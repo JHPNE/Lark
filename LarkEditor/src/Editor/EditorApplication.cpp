@@ -359,12 +359,14 @@ void EditorApplication::DrawMenuAndToolbar()
                     geomInit.geometrySource = selectedPath;
                     geomInit.meshType = content_tools::PrimitiveMeshType::cube; // Not used for OBJ
 
-                    auto entity = project->GetActiveScene()->CreateEntityWithGeometry(
-                        "LoadedGeometry", geomInit);
+                    /*
+                    //auto entity = project->GetActiveScene()->CreateEntityWithGeometry(
+                      //  "LoadedGeometry", geomInit);
                     if (entity)
                     {
                         //GeometryViewerView::Get().AddGeometry(entity->GetID());
                     }
+                    */
                 }
             }
         }

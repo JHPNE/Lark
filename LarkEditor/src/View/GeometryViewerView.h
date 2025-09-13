@@ -28,7 +28,11 @@ private:
                   const glm::mat4& view, const glm::mat4& projection);
 
     void EnsureFramebuffer(float width, float height);
+    void EnsurePickingFramebuffer(float width, float height);
     glm::mat4 CalculateViewMatrix();
+
+    uint32_t PickEntity(const ImVec2& mousePos, const ImVec2& canvasPos, const ImVec2& canvasSize);
+    void RenderForPicking(const glm::mat4& view, const glm::mat4& projection);
 
     bool m_initialized = false;
     bool m_showFileDialog = false;
@@ -37,6 +41,12 @@ private:
     GLuint m_framebuffer = 0;
     GLuint m_colorTexture = 0;
     GLuint m_depthTexture = 0;
+
+    // OpenGL resources for picking
+    GLuint m_pickingFramebuffer = 0;
+    GLuint m_pickingColorTexture = 0;
+    GLuint m_pickingDepthTexture = 0;
+    GLuint m_pickingShader = 0;
 
     std::unique_ptr<GeometryViewModel> m_viewModel;
 };

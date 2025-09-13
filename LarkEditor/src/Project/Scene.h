@@ -170,19 +170,6 @@ class Scene : public std::enable_shared_from_this<Scene>
 
     void RemoveAllEntities() { m_entities.clear(); }
 
-    std::shared_ptr<GameEntity> CreateEntityWithGeometry(const std::string &name,
-                                                         const GeometryInitializer &geomInit)
-    {
-        auto entity = CreateEntityInternal(name); // Don't create engine entity yet
-        if (!entity)
-            return nullptr;
-
-        entity->AddComponent<Geometry>(&geomInit);
-        UpdateEntity(entity->GetID());
-
-        return entity;
-    }
-
     void UpdateEntity(uint32_t entityId)
     {
         auto entity = GetEntity(entityId);
