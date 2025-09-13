@@ -30,6 +30,12 @@ struct SceneChangedEvent : Event
     uint32_t sceneId;
 };
 
+struct GeometryVisibilityChangedEvent : Event
+{
+    uint32_t entityId;
+    bool visible;
+};
+
 class EventBus
 {
 public:

@@ -390,6 +390,11 @@ private:
             geometry->SetVisible(visible);
             GeometryVisible = visible;
             UpdateStatus(visible ? "Geometry shown" : "Geometry hidden");
+
+            GeometryVisibilityChangedEvent event;
+            event.entityId = SelectedEntity.Get()->GetID();
+            event.visible = visible;
+            EventBus::Get().Publish(event);
         }
     }
 

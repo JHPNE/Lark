@@ -251,13 +251,33 @@ private:
         EventBus::Get().Subscribe<SceneChangedEvent>(
             [this](const SceneChangedEvent& e) {
                 // When this happens dont render entities in a different scene
-                    HideNonActiveSceneGeometry(e.sceneId);
+                    HandleNonActiveSceneGeometry(e.sceneId);
+            }
+        );
+
+        EventBus::Get().Subscribe<GeometryVisibilityChangedEvent>(
+            [this](const GeometryVisibilityChangedEvent& e) {
+                HandleGeometryVisibilityChanged(e.entityId, e.visible);
             }
         );
 
     }
 
-    void HideNonActiveSceneGeometry(uint32_t scene_id)
+    void HandleGeometryVisibilityChanged(uint32_t entityId, bool visible)
+    {
+        // Update render manager visibility
+        m_renderManager->SetVisible(entityId, visible);
+
+        // Update model if needed
+        if (auto* geom = m_model->GetGeometry(entityId))
+        {
+            geom->visible = visible;
+        }
+
+        UpdateStatus("Updated visibility for entity " + std::to_string(entityId));
+    }
+
+    void HandleNonActiveSceneGeometry(uint32_t scene_id)
     {
         for (auto scene : m_project->GetScenes())
         {

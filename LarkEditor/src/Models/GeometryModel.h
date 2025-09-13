@@ -1,4 +1,3 @@
-// LarkEditor/src/Models/GeometryModel.h
 #pragma once
 #include "../Geometry/Geometry.h"
 #include "EngineAPI.h"
@@ -91,28 +90,6 @@ public:
         geom->sceneData = *newSceneData;
         geom->needsUpdate = true;
         return true;
-    }
-
-    // Mark geometry for update
-    void MarkForUpdate(uint32_t entityId)
-    {
-        if (auto* geom = GetGeometry(entityId))
-        {
-            geom->needsUpdate = true;
-        }
-    }
-
-    std::vector<uint32_t> GetEntitiesNeedingUpdate() const
-    {
-        std::vector<uint32_t> result;
-        for (const auto& [id, geom] : m_geometries)
-        {
-            if (geom->needsUpdate)
-            {
-                result.push_back(id);
-            }
-        }
-        return result;
     }
 
 private:
