@@ -1,7 +1,8 @@
 #pragma once
 #include <memory>
 
-class Project; // Forward declaration instead of #include "Project.h"
+class Project;
+class SceneViewModel;
 
 class SceneView
 {
@@ -14,12 +15,16 @@ class SceneView
 
     void Draw();
     bool &GetShowState() { return m_show; }
-    void SetActiveProject(std::shared_ptr<Project> activeProject) { project = activeProject; }
+    void SetActiveProject(std::shared_ptr<Project> activeProject);
 
   private:
-    SceneView() = default;
-    ~SceneView() = default;
+    SceneView();
+    ~SceneView();
+
+    void DrawSceneNode(const struct SceneNodeData& node);
+    void DrawEntityContextMenu(uint32_t entityId);
+    void DrawSceneContextMenu(uint32_t sceneId);
 
     bool m_show = true;
-    std::shared_ptr<Project> project;
+    std::unique_ptr<SceneViewModel> m_viewModel;
 };

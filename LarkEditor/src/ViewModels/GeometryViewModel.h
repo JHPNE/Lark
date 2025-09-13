@@ -9,6 +9,9 @@
 #include <memory>
 #include <vector>
 #include <glm/gtx/matrix_decompose.hpp>
+#include "../Services/SelectionService.h"
+
+#include <Services/EventBus.h>
 
 class GeometryViewModel
 {
@@ -47,7 +50,9 @@ public:
         , m_service(GeometryService::Get())
     {
         InitializeCommands();
+        SubscribeToSelectionService();
         SubscribeToPropertyChanges();
+        SubscribeToEvents();
     }
 
     ~GeometryViewModel() = default;
@@ -264,36 +269,48 @@ private:
         );
     }
 
+    void SubscribeToEvents()
+    {
+        EventBus::Get().Subscribe<EntityRemovedEvent>(
+            [this](const EntityRemovedEvent& e) {
+                    ExecuteRemoveGeometry(e.entityId);
+            }
+        );
+
+        EventBus::Get().Subscribe<SceneChangedEvent>(
+            [this](const SceneChangedEvent& e) {
+                // When this happens dont render entities in a different scene
+                    HideNonActiveSceneGeometry(e.sceneId);
+            }
+        );
+
+    }
+
+    void HideNonActiveSceneGeometry(uint32_t scene_id)
+    {
+        for (auto scene : m_project->GetScenes())
+        {
+            for (auto entity : scene->GetEntities())
+            {
+                m_renderManager->SetVisible(entity->GetID(), scene->GetID() == scene_id);
+            }
+        }
+    }
+
+    void SubscribeToSelectionService()
+    {
+        auto& selectionService = SelectionService::Get();
+
+        selectionService.SubscribeToSelectionChange(
+            [this](uint32_t oldId, uint32_t newId) {
+                SelectedEntityId = newId;
+                HasSelection = (newId != static_cast<uint32_t>(-1));
+            }
+        );
+    }
+
     void SubscribeToPropertyChanges()
     {
-        SelectedEntityId.Subscribe([this](const uint32_t& old, const uint32_t& newId) {
-            HasSelection = (newId != static_cast<uint32_t>(-1));
-
-            // Update entity selection in scene
-            if (m_project && m_project->GetActiveScene())
-            {
-                auto scene = m_project->GetActiveScene();
-
-                // Deselect old
-                if (old != static_cast<uint32_t>(-1))
-                {
-                    if (auto entity = scene->GetEntity(old))
-                    {
-                        entity->SetSelected(false);
-                    }
-                }
-
-                // Select new
-                if (newId != static_cast<uint32_t>(-1))
-                {
-                    if (auto entity = scene->GetEntity(newId))
-                    {
-                        entity->SetSelected(true);
-                    }
-                }
-            }
-        });
-
         CameraDistance.Subscribe([this](const float& old, const float& value) {
             // Clamp camera distance
             if (value < 0.1f) CameraDistance = 0.1f;
@@ -337,7 +354,7 @@ private:
         // Create entity
         auto scene = m_project->GetActiveScene();
         std::string name = GetPrimitiveName(meshType);
-        auto entity = scene->CreateEntityInternal(name);
+        auto entity = scene->CreateEntity(name);
 
         if (!entity)
         {
@@ -389,6 +406,13 @@ private:
             Logger::Get().Log(MessageType::Error, "No scene data for geometry");
             return;
         }
+
+        // Event to notify SceneViewModel
+        EntityCreatedEvent event;
+        event.entityId = entity->GetID();
+        event.sceneId = scene->GetID();
+        event.entityName = name;
+        EventBus::Get().Publish(event);
 
         UpdateStatus("Created primitive: " + name);
         Logger::Get().Log(MessageType::Info, "Created primitive geometry: " + name);
@@ -468,6 +492,12 @@ private:
         UpdateStatus("Removed geometry for entity " + std::to_string(entityId));
     }
 
+    void ExecuteSelectEntity(uint32_t entityId)
+    {
+        SelectionService::Get().SelectEntity(entityId);
+        UpdateStatus("Selected entity " + std::to_string(entityId));
+    }
+
     void ExecuteResetCamera()
     {
         CameraPosition = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -508,12 +538,6 @@ private:
         UpdateGeometryFromEngine(entityId);
 
         UpdateStatus("Randomized vertices for entity " + std::to_string(entityId));
-    }
-
-    void ExecuteSelectEntity(uint32_t entityId)
-    {
-        SelectedEntityId = entityId;
-        UpdateStatus("Selected entity " + std::to_string(entityId));
     }
 
     void LoadExistingGeometries()
