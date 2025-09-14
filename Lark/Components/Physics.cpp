@@ -1,5 +1,7 @@
 #include "Physics.h"
 
+#include <utility>
+
 namespace lark::physics
 {
 namespace
@@ -178,5 +180,13 @@ drones::DroneState component::get_drone_state()
     auto &data = physics_components[id_mapping[id::index(_id)]];
 
     return data.state;
+}
+
+void component::set_drone_state(drones::DroneState state)
+{
+    assert(is_valid());
+     const id::id_type index = id::index(_id);
+    auto &data = physics_components[id_mapping[id::index(_id)]];
+    data.state = std::move(state);
 }
 } // namespace lark::physics

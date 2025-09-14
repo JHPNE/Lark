@@ -167,9 +167,6 @@ void EditorApplication::Update()
 
         GeometryViewerView::Get().SetActiveProject(loadedProject);
         GeometryViewerView::Get().Draw();
-
-        //PrimitiveMeshSelectionView::Get().SetActiveProject(loadedProject);
-        //PrimitiveMeshSelectionView::Get().Draw();
     }
 }
 

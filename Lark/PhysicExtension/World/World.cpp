@@ -8,7 +8,7 @@ namespace
 {
 void handle_collisions() {}
 
-void sync_bullet_to_drone_state(physics::component &physics_comp)
+void ssync_physics_to_transform(physics::component &physics_comp, transform::component &transform_comp)
 {
     btRigidBody &body = physics_comp.get_rigid_body();
     // auto& drone_state = physics_comp.get_drone_state();
@@ -18,11 +18,17 @@ void sync_bullet_to_drone_state(physics::component &physics_comp)
     btVector3 position = transform.getOrigin();
     btQuaternion rotation = transform.getRotation();
 
+    math::v3 pos(position[0], position[1], position[2]);
+    transform_comp.set_position(pos);
+
+    math::v4 rot(rotation[0], rotation[1], rotation[2], rotation[3]);
+    transform_comp.set_rotation(rot);
+
     // Update drone state
-    /*
-    drone_state.position = Eigen::Vector3f(position.x(), position.y(), position.z());
-    drone_state.attitude = Eigen::Vector4f(rotation.x(), rotation.y(), rotation.z(), rotation.w());
-    */
+
+    //physics_comp.set_drone_state()
+    //drone_state.position = Eigen::Vector3f(position.x(), position.y(), position.z());
+    //drone_state.attitude = Eigen::Vector4f(rotation.x(), rotation.y(), rotation.z(), rotation.w());
 }
 
 } // namespace
@@ -81,7 +87,7 @@ void World::update(f32 dt)
 
         if (physics.is_valid() && transform.is_valid())
         {
-            // sync_physics_to_transform(physics, transform);
+            sync_physics_to_transform(physics, transform);
         }
     }
 }

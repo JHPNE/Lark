@@ -19,6 +19,7 @@ class component final
     // Get DroneState
     drones::DroneState get_drone_state();
     [[nodiscard]] btRigidBody &get_rigid_body() const;
+    void set_drone_state(drones::DroneState state);
 
     // Physics operations
     void step(float dt);
