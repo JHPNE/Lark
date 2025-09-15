@@ -1,8 +1,12 @@
 // LarkEditor/src/View/ComponentView.cpp
 #include "ComponentView.h"
 #include "../ViewModels/ComponentViewModel.h"
-#include "Style.h"
+#include "Style/CustomWidgets.h"
+#include "Style/CustomWindow.h"
+
 #include <imgui.h>
+
+using namespace LarkStyle;
 
 ComponentView::ComponentView() {
     m_viewModel = std::make_unique<ComponentViewModel>();
@@ -19,15 +23,15 @@ void ComponentView::SetActiveProject(std::shared_ptr<Project> activeProject) {
 void ComponentView::Draw() {
     if (!m_show || !m_viewModel) return;
 
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
-    
-    if (ImGui::Begin("Component View", &m_show, window_flags)) {
-        DrawWindowGradientBackground(ImVec4(0.10f, 0.10f, 0.13f, 0.30f),
-                                     ImVec4(0.10f, 0.10f, 0.13f, 0.80f));
-        
-        ImGui::Text("Components");
-        ImGui::Separator();
-        
+    CustomWindow::WindowConfig config;
+    config.title = "Component View";
+    config.icon = "◈";  // Optional icon, can be empty
+    config.p_open = &m_show;
+    config.allowDocking = true;
+    config.defaultSize = ImVec2(350, 600);
+    config.minSize = ImVec2(250, 400);
+
+    if (CustomWindow::Begin("ComponentView", config)) {
         if (m_viewModel->HasSingleSelection.Get()) {
             DrawSingleSelection();
         } else if (m_viewModel->HasMultipleSelection.Get()) {
@@ -36,7 +40,7 @@ void ComponentView::Draw() {
             ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No entity selected");
         }
     }
-    ImGui::End();
+    CustomWindow::End();
 }
 
 void ComponentView::DrawSingleSelection() {
@@ -44,9 +48,13 @@ void ComponentView::DrawSingleSelection() {
     if (!entity) return;
     
     // Entity header
-    ImGui::Text("Selected Entity: %s", entity->GetName().c_str());
-    ImGui::Separator();
-    
+    CustomWidgets::BeginPanel("EntityInfo", ImVec2(0, 60));
+    ImGui::Text("Entity");
+    ImGui::SameLine();
+    ImGui::TextColored(Colors::AccentInfo, "%s", entity->GetName().c_str());
+    ImGui::Text("ID: %u", entity->GetID());
+    CustomWidgets::EndPanel();
+
     // Transform Component
     if (m_viewModel->HasTransform.Get()) {
         DrawTransformComponent();
@@ -122,36 +130,64 @@ void ComponentView::DrawMultiSelection() {
 }
 
 void ComponentView::DrawTransformComponent() {
-    if (!ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+    if (!CustomWidgets::BeginSection("Transform", true))
         return;
     
     TransformData transform = m_viewModel->CurrentTransform.Get();
     bool changed = false;
+
+    CustomWidgets::BeginPropertyTable();
     
-    // Position
-    ImGui::Text("Position");
+    // Position with X/Y/Z color coding
     float pos[3] = {transform.position.x, transform.position.y, transform.position.z};
-    if (ImGui::DragFloat3("##Position", pos, 0.1f)) {
+    if (CustomWidgets::PropertyFloat3("Position", pos, "%.2f")) {
         transform.position = glm::vec3(pos[0], pos[1], pos[2]);
         changed = true;
     }
     
     // Rotation
-    ImGui::Text("Rotation");
     float rot[3] = {transform.rotation.x, transform.rotation.y, transform.rotation.z};
-    if (ImGui::DragFloat3("##Rotation", rot, 0.1f)) {
+    if (CustomWidgets::PropertyFloat3("Rotation", rot, "%.1f")) {
         transform.rotation = glm::vec3(rot[0], rot[1], rot[2]);
         changed = true;
     }
     
-    // Scale
-    ImGui::Text("Scale");
+    // Scale with warning color if not uniform
     float scale[3] = {transform.scale.x, transform.scale.y, transform.scale.z};
-    if (ImGui::DragFloat3("##Scale", scale, 0.1f)) {
+    bool uniformScale = (scale[0] == scale[1] && scale[1] == scale[2]);
+
+    if (!uniformScale) {
+        ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentWarning);
+    }
+
+    if (CustomWidgets::PropertyFloat3("Scale", scale, "%.2f")) {
         transform.scale = glm::vec3(scale[0], scale[1], scale[2]);
         changed = true;
     }
-    
+
+    if (!uniformScale) {
+        ImGui::PopStyleColor();
+    }
+
+    CustomWidgets::EndPropertyTable();
+
+    // Reset buttons
+    ImGui::Spacing();
+    if (CustomWidgets::Button("Reset Position", ImVec2(100, 0))) {
+        transform.position = glm::vec3(0, 0, 0);
+        changed = true;
+    }
+    ImGui::SameLine();
+    if (CustomWidgets::Button("Reset Rotation", ImVec2(100, 0))) {
+        transform.rotation = glm::vec3(0, 0, 0);
+        changed = true;
+    }
+    ImGui::SameLine();
+    if (CustomWidgets::Button("Reset Scale", ImVec2(100, 0))) {
+        transform.scale = glm::vec3(1, 1, 1);
+        changed = true;
+    }
+
     if (changed) {
         if (!m_viewModel->IsEditingTransform.Get()) {
             m_viewModel->StartTransformEdit();
@@ -163,71 +199,79 @@ void ComponentView::DrawTransformComponent() {
     if (m_viewModel->IsEditingTransform.Get() && ImGui::IsMouseReleased(0)) {
         m_viewModel->EndTransformEdit();
     }
+
+    CustomWidgets::EndSection();
 }
 
 void ComponentView::DrawScriptComponent() {
-    if (!ImGui::CollapsingHeader("Script", ImGuiTreeNodeFlags_DefaultOpen))
+    if (!CustomWidgets::BeginSection("Script", true))
         return;
     
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-    
-    ImGui::BeginChild("ScriptBox", ImVec2(ImGui::GetContentRegionAvail().x, 30), true);
-    ImGui::Text("Script: %s", m_viewModel->ScriptName.Get().c_str());
-    ImGui::EndChild();
-    
-    ImGui::PopStyleColor();
-    ImGui::PopStyleVar();
-    
-    if (ImGui::Button("Remove Script", ImVec2(120, 0))) {
+    CustomWidgets::BeginPanel("ScriptInfo", ImVec2(0, 40));
+    ImGui::Text("Script: ");
+    ImGui::SameLine();
+    ImGui::TextColored(Colors::AccentSuccess, "%s", m_viewModel->ScriptName.Get().c_str());
+    CustomWidgets::EndPanel();
+
+    ImGui::Spacing();
+
+    if (CustomWidgets::ColoredButton("Remove Script", WidgetColorType::Danger, ImVec2(120, 0))) {
         m_viewModel->RemoveScriptCommand->Execute();
     }
+
+    CustomWidgets::EndSection();
 }
 
 void ComponentView::DrawGeometryComponent() {
-    if (!ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
+    if (!CustomWidgets::BeginSection("Geometry", true))
         return;
-    
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 5));
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-    
-    ImGui::BeginChild("GeometryBox", ImVec2(ImGui::GetContentRegionAvail().x, 30), true);
-    ImGui::Text("Geometry: %s", m_viewModel->GeometryName.Get().c_str());
-    ImGui::EndChild();
-    
-    ImGui::PopStyleColor();
-    ImGui::PopStyleVar();
-    
+
+    CustomWidgets::BeginPropertyTable();
+
+    // Geometry info
+    ImGui::Text("Type");
+    ImGui::SameLine(Sizing::PropertyLabelWidth);
+    ImGui::TextColored(Colors::AccentInfo,
+                      m_viewModel->GeometryType.Get() == GeometryType::PrimitiveType ?
+                      "Primitive" : "Imported");
+
+    ImGui::Text("Name");
+    ImGui::SameLine(Sizing::PropertyLabelWidth);
+    ImGui::TextColored(Colors::Text, "%s", m_viewModel->GeometryName.Get().c_str());
+
+    // Visibility with colored indicator
     bool visible = m_viewModel->GeometryVisible.Get();
-    if (ImGui::Checkbox("Visible", &visible)) {
+    CustomWidgets::PropertyBool("Visible", &visible);
+    if (visible != m_viewModel->GeometryVisible.Get()) {
         m_viewModel->SetGeometryVisibilityCommand->Execute(visible);
     }
-    
-    if (ImGui::Button("Randomize Vertices", ImVec2(150, 0))) {
+
+    CustomWidgets::EndPropertyTable();
+
+    ImGui::Spacing();
+    CustomWidgets::SeparatorText("Actions");
+
+    if (CustomWidgets::ColoredButton("Randomize Vertices",
+                                     WidgetColorType::Warning,
+                                     ImVec2(150, 0))) {
         m_viewModel->RandomizeGeometryCommand->Execute();
-    }
+                                     }
+
+    CustomWidgets::EndSection();
 }
 
-void ComponentView::DrawAddComponentButton() {
-    if (ImGui::Button("Add Component", ImVec2(120, 0))) {
+void ComponentView::DrawAddComponentButton()
+{
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    // Center the button
+    float buttonWidth = 140.0f;
+    float avail = ImGui::GetContentRegionAvail().x;
+    float off = (avail - buttonWidth) * 0.5f;
+    if (off > 0.0f) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
+
+    if (CustomWidgets::Button("+ Add Component", ImVec2(buttonWidth, 36))) {
         ImGui::OpenPopup("AddComponentPopup");
-    }
-    
-    if (ImGui::BeginPopup("AddComponentPopup")) {
-        // Scripts
-        if (!m_viewModel->HasScript.Get() && !m_viewModel->AvailableScripts.Get().empty()) {
-            if (ImGui::BeginMenu("Script")) {
-                for (const auto& scriptName : m_viewModel->AvailableScripts.Get()) {
-                    if (ImGui::MenuItem(scriptName.c_str())) {
-                        m_viewModel->AddScriptCommand->Execute(scriptName);
-                    }
-                }
-                ImGui::EndMenu();
-            }
-        }
-        
-        // Add other component types here as needed
-        
-        ImGui::EndPopup();
     }
 }

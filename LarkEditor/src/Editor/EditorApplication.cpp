@@ -14,6 +14,7 @@
 #include "core/Loop.h"
 #include "imgui_impl_opengl3.h"
 #include "Rendering/GeometryRenderer.h"
+#include "Style/CustomWidgets.h"
 
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -84,7 +85,9 @@ bool EditorApplication::Initialize()
 
     // Setup Dear ImGui style
     // ImGui::StyleColorsDark();
-    ApplyModernDarkStyle();
+    //ApplyModernDarkStyle();
+    LarkStyle::CustomWidgets::Initialize();
+
 
     // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look
     // identical to regular ones.

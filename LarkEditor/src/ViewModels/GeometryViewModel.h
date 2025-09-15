@@ -189,6 +189,9 @@ public:
                 if (auto entity = scene->GetEntity(entityId))
                 {
                     TransformService::Get().UpdateEntityTransform(entity, transformData);
+                    EntityMovedEvent event;
+                    event.entityId = entityId;
+                    EventBus::Get().Publish(event);
                 }
             }
         }

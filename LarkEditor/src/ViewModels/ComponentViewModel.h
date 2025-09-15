@@ -179,6 +179,12 @@ private:
                 RefreshSelection();
             }
         );
+
+        EventBus::Get().Subscribe<EntityMovedEvent>(
+            [this](const EntityMovedEvent& e) {
+               RefreshSelection();
+            }
+        );
     }
 
     void HandleSelectionChanged(const std::unordered_set<uint32_t>& selectedIds) {

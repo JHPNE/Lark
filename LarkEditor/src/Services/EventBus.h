@@ -36,6 +36,11 @@ struct GeometryVisibilityChangedEvent : Event
     bool visible;
 };
 
+struct EntityMovedEvent : Event
+{
+    uint32_t entityId;
+};
+
 class EventBus
 {
 public:

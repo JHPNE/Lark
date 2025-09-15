@@ -8,7 +8,7 @@ namespace
 {
 void handle_collisions() {}
 
-void ssync_physics_to_transform(physics::component &physics_comp, transform::component &transform_comp)
+void sync_physics_to_transform(physics::component &physics_comp, transform::component &transform_comp)
 {
     btRigidBody &body = physics_comp.get_rigid_body();
     // auto& drone_state = physics_comp.get_drone_state();
