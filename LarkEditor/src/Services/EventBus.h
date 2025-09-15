@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <typeindex>
 #include <memory>
+#include <string>
 
 // Base event class
 struct Event
