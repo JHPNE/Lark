@@ -1,7 +1,10 @@
 #include "SceneView.h"
 #include "../ViewModels/SceneViewModel.h"
-#include "Style.h"
+#include "Style/CustomWidgets.h"
+#include "Style/CustomWindow.h"
 #include <imgui.h>
+
+using namespace LarkStyle;
 
 SceneView::SceneView()
 {
@@ -21,18 +24,21 @@ void SceneView::Draw()
     if (!m_show || !m_viewModel)
         return;
 
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
-    window_flags |= ImGuiWindowFlags_NoCollapse;
+    CustomWindow::WindowConfig config;
+    config.title = "Scene Manager";
+    config.icon = "◈";  // Optional icon, can be empty
+    config.p_open = &m_show;
+    config.allowDocking = true;
+    config.defaultSize = ImVec2(350, 600);
+    config.minSize = ImVec2(250, 400);
 
-    if (ImGui::Begin("Scene Manager", &m_show, window_flags)) {
-        DrawWindowGradientBackground(ImVec4(0.10f, 0.10f, 0.13f, 0.30f),
-                                     ImVec4(0.10f, 0.10f, 0.13f, 0.80f));
-        // Add Scene Button at top
-        if (ImGui::Button("+ Add Scene"))
+    if (CustomWindow::Begin("Scene Manager", config)) {
+        if (CustomWidgets::AccentButton("+ Add Scene", ImVec2(100, 0)))
         {
             m_viewModel->AddSceneCommand->Execute();
         }
-        ImGui::Separator();
+
+        CustomWidgets::Separator();
 
         const auto& hierarchy = m_viewModel->SceneHierarchy.Get();
         for (const auto& sceneNode : hierarchy)
@@ -41,8 +47,7 @@ void SceneView::Draw()
         }
     }
 
-
-    ImGui::End();
+    CustomWindow::End();
 }
 
 void SceneView::DrawSceneNode(const SceneNodeData& node)
@@ -51,11 +56,11 @@ void SceneView::DrawSceneNode(const SceneNodeData& node)
     {
         // Scene node
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen |
-                                  ImGuiTreeNodeFlags_OpenOnArrow;
+                                  ImGuiTreeNodeFlags_OpenOnArrow |
+                                  ImGuiTreeNodeFlags_SpanAvailWidth;
 
-        if (node.isActive)
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.9f, 0.3f, 1.0f));
+        if (node.isActive) {
+            ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentWarning);
         }
 
         bool nodeOpen = ImGui::TreeNodeEx(
@@ -84,9 +89,13 @@ void SceneView::DrawSceneNode(const SceneNodeData& node)
         {
             // Add Entity button
             ImGui::Indent();
-            if (node.isActive && ImGui::Button(("+ Add Entity##" + std::to_string(node.id)).c_str()))
+            if (node.isActive)
             {
-                m_viewModel->AddEntityCommand->Execute();
+                if (CustomWidgets::Button(("+ Add Entity##" + std::to_string(node.id)).c_str(),
+                                         ImVec2(120, 24)))
+                {
+                    m_viewModel->AddEntityCommand->Execute();
+                }
             }
 
             // Draw entities
@@ -100,29 +109,35 @@ void SceneView::DrawSceneNode(const SceneNodeData& node)
     }
     else
     {
-        // Entity node
-        if (!node.isEnabled)
-        {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+        int pushedColors = 0;
+
+        // Entity node with custom styling
+        if (!node.isEnabled) {
+            ImGui::PushStyleColor(ImGuiCol_Text, Colors::TextDisabled);
+            pushedColors++;
+        }
+
+        if (node.isSelected) {
+            ImGui::PushStyleColor(ImGuiCol_Header, Colors::AccentActive);
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Colors::AccentHover);
+            ImGui::PushStyleColor(ImGuiCol_HeaderActive, Colors::Accent);
+            pushedColors += 3;
         }
 
         std::string label = node.name + "##" + std::to_string(node.id);
-        if (ImGui::Selectable(label.c_str(), node.isSelected))
-        {
+        if (ImGui::Selectable(label.c_str(), node.isSelected)) {
             m_viewModel->SelectEntityCommand->Execute(node.id);
         }
 
+        if (pushedColors > 0) {
+            ImGui::PopStyleColor(pushedColors);
+        }
+
         // Context menu
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-        {
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
             ImGui::OpenPopup(("EntityContext##" + std::to_string(node.id)).c_str());
         }
         DrawEntityContextMenu(node.id);
-
-        if (!node.isEnabled)
-        {
-            ImGui::PopStyleColor();
-        }
     }
 }
 

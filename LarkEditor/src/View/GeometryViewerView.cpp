@@ -3,6 +3,11 @@
 #include "FileDialog.h"
 #include <ImGuizmo.h>
 
+#include "Style/CustomWidgets.h"
+#include "Style/CustomWindow.h"
+
+using namespace LarkStyle;
+
 GeometryViewerView::GeometryViewerView() = default;
 
 GeometryViewerView::~GeometryViewerView()
@@ -277,76 +282,107 @@ void GeometryViewerView::DrawGizmo(const ImVec2& canvasPos, const ImVec2& canvas
 
 void GeometryViewerView::DrawControls()
 {
+    CustomWindow::WindowConfig config;
+    config.title = "Geometry Controls";
+    config.icon = "⚙️";
+    config.p_open = nullptr;
+    config.allowDocking = true;
+    config.defaultSize = ImVec2(350, 500);
+    config.minSize = ImVec2(250, 400);
+
     ImGui::PushID("GeometryViewerControls");
-    if (ImGui::Begin("Geometry Controls##ViewerControls"))
+    if (CustomWindow::Begin("GeometryControls", config))
     {
         // Status
         if (!m_viewModel->StatusMessage.Get().empty())
         {
-            ImGui::TextColored(ImVec4(0.7f, 0.9f, 0.7f, 1.0f),
-                             "%s", m_viewModel->StatusMessage.Get().c_str());
-            ImGui::Separator();
+            ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentSuccess);
+            ImGui::Text("%s", m_viewModel->StatusMessage.Get().c_str());
+            ImGui::PopStyleColor();
+            CustomWidgets::Separator();
         }
 
         // Camera controls
-        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen))
+        if (CustomWidgets::BeginSection("Camera", true))
         {
+            CustomWidgets::BeginPropertyTable();
+
             glm::vec3 pos = m_viewModel->CameraPosition.Get();
-            if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
+            if (CustomWidgets::PropertyFloat3("Position", &pos.x))
             {
                 m_viewModel->CameraPosition = pos;
             }
 
             glm::vec3 rot = m_viewModel->CameraRotation.Get();
-            if (ImGui::DragFloat3("Rotation", &rot.x, 1.0f))
+            if (CustomWidgets::PropertyFloat3("Rotation", &rot.x))
             {
                 m_viewModel->CameraRotation = rot;
             }
 
             float dist = m_viewModel->CameraDistance.Get();
-            if (ImGui::DragFloat("Distance", &dist, 0.1f, 0.1f, 100.0f))
+            if (CustomWidgets::PropertyFloat("Distance", &dist, 0.1f, 100.0f))
             {
                 m_viewModel->CameraDistance = dist;
             }
 
-            if (ImGui::Button("Reset Camera"))
+            CustomWidgets::EndPropertyTable();
+
+            if (CustomWidgets::Button("Reset Camera", ImVec2(-1, 28)))
             {
                 m_viewModel->ResetCameraCommand->Execute();
             }
+
+            CustomWidgets::EndSection();
         }
 
         // Gizmo controls
-        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        if (CustomWidgets::BeginSection("Transform", true))
         {
             const char* operations[] = {"Translate", "Rotate", "Scale"};
             int op = m_viewModel->GizmoOperation.Get();
-            if (ImGui::Combo("Operation", &op, operations, IM_ARRAYSIZE(operations)))
+
+            // Use raw ImGui for combo but without PropertyTable
+            ImGui::Text("Operation");
+            ImGui::SameLine(Sizing::PropertyLabelWidth);
+            ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+            if (ImGui::Combo("##Operation", &op, operations, IM_ARRAYSIZE(operations)))
             {
                 m_viewModel->GizmoOperation = op;
             }
+            ImGui::PopItemWidth();
 
             if (m_viewModel->HasSelection.Get())
             {
+                ImGui::Spacing();
                 ImGui::Text("Selected Entity: %u", m_viewModel->SelectedEntityId.Get());
+                ImGui::Spacing();
 
-                if (ImGui::Button("Randomize Vertices"))
+                if (CustomWidgets::ColoredButton("Randomize Vertices",
+                                                WidgetColorType::Warning,
+                                                ImVec2(-1, 30)))
                 {
                     m_viewModel->RandomizeVerticesCommand->Execute();
                 }
             }
             else
             {
-                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No selection");
+                ImGui::TextColored(Colors::TextDim, "No selection");
             }
+
+            CustomWidgets::EndSection();
         }
 
         // Geometry creation
-        if (ImGui::CollapsingHeader("Create Geometry"))
+        if (CustomWidgets::BeginSection("Create Geometry", false))
         {
-            // Primitive type
+            // Primitive type - Use raw ImGui without PropertyTable
             const char* types[] = {"Cube", "UV Sphere", "Cylinder"};
             int type = m_viewModel->PrimitiveType.Get();
-            if (ImGui::Combo("Type", &type, types, IM_ARRAYSIZE(types)))
+
+            ImGui::Text("Type");
+            ImGui::SameLine(Sizing::PropertyLabelWidth);
+            ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+            if (ImGui::Combo("##Type", &type, types, IM_ARRAYSIZE(types)))
             {
                 m_viewModel->PrimitiveType = type;
 
@@ -364,88 +400,115 @@ void GeometryViewerView::DrawControls()
                         break;
                 }
             }
+            ImGui::PopItemWidth();
 
-            // Size
+            ImGui::Spacing();
+
+            // Size - Use PropertyFloat3
+            CustomWidgets::BeginPropertyTable();
             glm::vec3 size = m_viewModel->PrimitiveSize.Get();
-            if (ImGui::DragFloat3("Size", &size.x, 0.1f, 0.1f, 10.0f))
+            if (CustomWidgets::PropertyFloat3("Size", &size.x))
             {
                 m_viewModel->PrimitiveSize = size;
             }
+            CustomWidgets::EndPropertyTable();
 
-            // Segments
+            ImGui::Spacing();
+
+            // Segments - Use raw ImGui without PropertyTable
             glm::ivec3 segments = m_viewModel->PrimitiveSegments.Get();
+
+            ImGui::Text("Segments");
+            ImGui::Indent();
+            ImGui::PushItemWidth(Sizing::PropertyControlWidth);
 
             switch (type)
             {
                 case 0: // Cube
-                    if (ImGui::DragInt3("Segments", &segments.x, 1, 1, 10))
+                    if (ImGui::DragInt3("##Segments", &segments.x, 1, 1, 10))
                     {
                         m_viewModel->PrimitiveSegments = segments;
                     }
                     break;
 
                 case 1: // Sphere
-                    if (ImGui::DragInt("Longitude", &segments.x, 1, 8, 64))
+                    if (ImGui::DragInt("Longitude##Seg", &segments.x, 1, 8, 64))
                     {
                         m_viewModel->PrimitiveSegments = segments;
                     }
-                    if (ImGui::DragInt("Latitude", &segments.y, 1, 4, 32))
+                    if (ImGui::DragInt("Latitude##Seg", &segments.y, 1, 4, 32))
                     {
                         m_viewModel->PrimitiveSegments = segments;
                     }
                     break;
 
                 case 2: // Cylinder
-                    if (ImGui::DragInt("Radial", &segments.x, 1, 8, 64))
+                    if (ImGui::DragInt("Radial##Seg", &segments.x, 1, 8, 64))
                     {
                         m_viewModel->PrimitiveSegments = segments;
                     }
-                    if (ImGui::DragInt("Height", &segments.y, 1, 1, 10))
+                    if (ImGui::DragInt("Height##Seg", &segments.y, 1, 1, 10))
                     {
                         m_viewModel->PrimitiveSegments = segments;
                     }
-                    if (ImGui::DragInt("Cap", &segments.z, 1, 1, 5))
+                    if (ImGui::DragInt("Cap##Seg", &segments.z, 1, 1, 5))
                     {
                         m_viewModel->PrimitiveSegments = segments;
                     }
                     break;
             }
 
+            ImGui::PopItemWidth();
+            ImGui::Unindent();
+
+            ImGui::Spacing();
+
             // LOD
             int lod = m_viewModel->PrimitiveLOD.Get();
-            if (ImGui::SliderInt("LOD", &lod, 0, 4))
+            ImGui::Text("LOD");
+            ImGui::SameLine(Sizing::PropertyLabelWidth);
+            ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+            if (ImGui::SliderInt("##LOD", &lod, 0, 4))
             {
                 m_viewModel->PrimitiveLOD = lod;
             }
+            ImGui::PopItemWidth();
 
-            if (ImGui::Button("Create Primitive", ImVec2(-1, 30)))
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (CustomWidgets::AccentButton("Create Primitive", ImVec2(-1, 32)))
             {
                 m_viewModel->CreatePrimitiveCommand->Execute();
             }
 
-            ImGui::Separator();
+            CustomWidgets::SeparatorText("Import");
 
             // Load from file
-            if (ImGui::Button("Load from File", ImVec2(-1, 30)))
+            if (CustomWidgets::Button("Load from File", ImVec2(-1, 32)))
             {
                 m_showFileDialog = true;
             }
 
-            if (m_showFileDialog)
+            CustomWidgets::EndSection();
+        }
+
+        // File dialog handling outside of section
+        if (m_showFileDialog)
+        {
+            static FileDialog fileDialog;
+            if (fileDialog.Show(&m_showFileDialog))
             {
-                static FileDialog fileDialog;
-                if (fileDialog.Show(&m_showFileDialog))
+                const char* path = fileDialog.GetSelectedPathAsChar();
+                if (path && strlen(path) > 0)
                 {
-                    const char* path = fileDialog.GetSelectedPathAsChar();
-                    if (path && strlen(path) > 0)
-                    {
-                        m_viewModel->LoadGeometryCommand->Execute(std::string(path));
-                    }
+                    m_viewModel->LoadGeometryCommand->Execute(std::string(path));
                 }
             }
         }
     }
-    ImGui::End();
+    CustomWindow::End();
     ImGui::PopID();
 }
 
