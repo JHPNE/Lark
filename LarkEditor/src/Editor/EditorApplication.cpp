@@ -9,7 +9,6 @@
 #include "../View/LoggerView.h"
 #include "../View/ProjectBrowserView.h"
 #include "../View/SceneView.h"
-#include "../View/Style.h"
 #include "Project/Project.h"
 #include "core/Loop.h"
 #include "imgui_impl_opengl3.h"
@@ -49,6 +48,8 @@ bool EditorApplication::Initialize()
     glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GL_TRUE);
 #endif
 
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+
     // Creating a window
     m_window = glfwCreateWindow(1280, 720, "Native Editor", nullptr, nullptr);
     if (m_window == nullptr)
@@ -59,6 +60,8 @@ bool EditorApplication::Initialize()
 
     glfwMakeContextCurrent(m_window);
     glfwSwapInterval(1); // Enable vsync
+
+    m_titleBar = std::make_unique<TitleBarView>(m_window);
 
     // Initialize GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -130,9 +133,14 @@ void EditorApplication::BeginFrame()
                                     ImGuiWindowFlags_NoBringToFrontOnFocus |
                                     ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
 
+    m_titleBar->Draw();
+
     ImGuiViewport *viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos);
-    ImGui::SetNextWindowSize(viewport->Size);
+    float titleBarHeight = m_titleBar->GetHeight();
+
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + titleBarHeight));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, viewport->Size.y - titleBarHeight));
+
     ImGui::SetNextWindowViewport(viewport->ID);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);

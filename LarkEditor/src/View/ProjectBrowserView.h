@@ -20,6 +20,10 @@ class ProjectBrowserView
     [[nodiscard]] std::shared_ptr<Project> GetLoadedProject() const { return m_loadedProject; }
     void SetLoadedProject(const std::shared_ptr<Project> &project) { m_loadedProject = project; }
 
+    void SetNewProjectMode(bool isNew) {
+        m_isNewProject = isNew;
+    }
+
   private:
     ProjectBrowserView()
     {

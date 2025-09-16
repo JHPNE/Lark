@@ -14,6 +14,8 @@ public:
         bool allowDocking = true;
         ImVec2 defaultSize = ImVec2(400, 600);
         ImVec2 minSize = ImVec2(200, 100);
+        bool showToolbarActions = false;
+        std::function<void()> customHeaderContent = nullptr;
     };
 
     static bool Begin(const char* name, WindowConfig& config);

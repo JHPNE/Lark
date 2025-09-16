@@ -4,6 +4,8 @@
 #include <imgui_impl_glfw.h>
 #include <memory>
 
+#include "View/TitleBarView.h"
+
 namespace editor
 {
 class EditorApplication
@@ -46,5 +48,6 @@ class EditorApplication
     char m_geometryNameBuffer[256] = "C:/Users/yeeezy/Documents/monke.obj";
 
     std::unique_ptr<lark::editor::Geometry> m_geometry;
+    std::unique_ptr<TitleBarView> m_titleBar;
 };
 } // namespace editor
