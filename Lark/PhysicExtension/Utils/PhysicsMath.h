@@ -5,7 +5,7 @@
 
 namespace lark::physics_math
 {
-inline float M_PI = 3.14159265359f;
+inline float MATH_PI = 3.14159265359f;
 // Type aliases for cleaner code
 using Vector3f = Eigen::Vector3f;
 using Vector4f = Eigen::Vector4f;

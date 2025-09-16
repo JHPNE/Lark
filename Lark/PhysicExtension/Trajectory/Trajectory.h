@@ -38,7 +38,7 @@ class Circular : public Trajectory
     Circular(const Vector3f &center, float radius, float frequency, bool yaw_bool = false)
         : center(center), radius(radius), frequency(frequency), yaw_bool(yaw_bool)
     {
-        omega = 2.0f * M_PI * frequency;
+        omega = 2.0f * MATH_PI * frequency;
         omega2 = omega * omega;
         omega3 = omega2 * omega;
         omega4 = omega3 * omega;
@@ -70,9 +70,9 @@ class Circular : public Trajectory
         float yaw_ddot = 0.0f;
         if (yaw_bool)
         {
-            yaw = 0.25f * M_PI * std::sin(M_PI * t);
-            yaw_dot = 0.25f * M_PI * M_PI * std::cos(M_PI * t);
-            yaw_ddot = -0.25f * M_PI * M_PI * M_PI * std::sin(M_PI * t);
+            yaw = 0.25f * MATH_PI * std::sin(MATH_PI * t);
+            yaw_dot = 0.25f * MATH_PI * MATH_PI * std::cos(MATH_PI * t);
+            yaw_ddot = -0.25f * MATH_PI * MATH_PI * MATH_PI * std::sin(MATH_PI * t);
         }
 
         // Fill trajectory point
