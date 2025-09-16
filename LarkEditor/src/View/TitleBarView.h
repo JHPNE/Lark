@@ -12,7 +12,8 @@ public:
     float GetHeight() const { return m_height; }
     
 private:
-    void DrawMenuBar();
+    void DrawContent();
+    void DrawMenuItems();
     void DrawWindowControls();
     void HandleDragging();
     

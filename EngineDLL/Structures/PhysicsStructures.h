@@ -60,11 +60,11 @@ struct lower_level_controller_prop
 
 struct quad_params
 {
-    inertia_prop i;
-    geom_prop g;
-    aero_prop a;
-    rotor_prop r;
-    motor_prop m;
+    inertia_prop i{};
+    geom_prop g{};
+    aero_prop a{};
+    rotor_prop r{};
+    motor_prop m{};
     control_gains c;
-    lower_level_controller_prop l;
+    lower_level_controller_prop l{};
 };
