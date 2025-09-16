@@ -3,39 +3,36 @@
 
 namespace LarkStyle {
 
-bool CustomWindow::s_dockingEnabled = true; // Always allow docking
-bool CustomWindow::s_inCustomWindow = false;
+bool CustomWindow::s_dockingEnabled = true;
+std::unordered_map<std::string, CustomWindow::WindowState> CustomWindow::s_windowStates;
 std::string CustomWindow::s_currentWindowName;
-bool CustomWindow::s_startUndocking = false;
-ImVec2 CustomWindow::s_undockPosition;
 
 bool CustomWindow::Begin(const char* name, WindowConfig& config) {
     s_currentWindowName = name;
 
-    // Check if we need to undock
-    if (s_startUndocking && s_currentWindowName == name) {
-        ImGui::SetNextWindowDockID(0, ImGuiCond_Always); // Undock by setting dock ID to 0
-        ImGui::SetNextWindowPos(s_undockPosition, ImGuiCond_Always);
-        s_startUndocking = false;
+    // Get or create window state
+    auto& windowState = s_windowStates[name];
+
+    // Check if we need to undock THIS specific window
+    if (windowState.startUndocking) {
+        ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
+        ImGui::SetNextWindowPos(windowState.undockPosition, ImGuiCond_Always);
+        windowState.startUndocking = false;
     }
 
-    // Window flags - standard ImGui behavior
+    // Window flags
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse |
                                     ImGuiWindowFlags_NoTitleBar;
 
-    // Always allow docking if config allows it
     if (!config.allowDocking) {
         window_flags |= ImGuiWindowFlags_NoDocking;
     }
 
-    // Set minimum size
     ImGui::SetNextWindowSizeConstraints(config.minSize, ImVec2(FLT_MAX, FLT_MAX));
 
-    // Check if window exists and is docked
     ImGuiWindow* existing_window = ImGui::FindWindowByName(name);
     bool is_docked = existing_window && existing_window->DockNode != nullptr;
 
-    // Style modifications for cleaner look
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, is_docked ? 1.0f : 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, is_docked ? 0.0f : Sizing::WindowRounding);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -45,23 +42,16 @@ bool CustomWindow::Begin(const char* name, WindowConfig& config) {
     bool* p_open = config.p_open ? config.p_open : &is_open;
 
     if (ImGui::Begin(name, p_open, window_flags)) {
-        s_inCustomWindow = true;
+        windowState.inWindow = true;
 
-        // Get current window
         ImGuiWindow* window = ImGui::GetCurrentWindow();
-
-        // Hide tab bar if docked
         if (window->DockNode) {
             window->DockNode->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
         }
 
-        // Draw custom header
         DrawWindowHeader(config);
-
-        // Handle header interaction for undocking only
         HandleHeaderInteraction(name, config);
 
-        // Add padding for content
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 8));
         ImGui::BeginChild("ContentRegion", ImVec2(0, 0), false,
                          ImGuiWindowFlags_NoBackground |
@@ -71,14 +61,15 @@ bool CustomWindow::Begin(const char* name, WindowConfig& config) {
         return true;
     }
 
-    s_inCustomWindow = false;
+    windowState.inWindow = false;
     return false;
 }
 
 void CustomWindow::End() {
-    if (s_inCustomWindow) {
-        ImGui::EndChild(); // End content region
-        s_inCustomWindow = false;
+    auto it = s_windowStates.find(s_currentWindowName);
+    if (it != s_windowStates.end() && it->second.inWindow) {
+        ImGui::EndChild();
+        it->second.inWindow = false;
     }
 
     ImGui::End();
@@ -187,7 +178,6 @@ void CustomWindow::HandleHeaderInteraction(const char* window_id, const WindowCo
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     bool is_docked = window && window->DockNode != nullptr;
 
-    // Only handle undocking for docked windows
     if (!is_docked) return;
 
     ImVec2 window_pos = ImGui::GetWindowPos();
@@ -201,11 +191,11 @@ void CustomWindow::HandleHeaderInteraction(const char* window_id, const WindowCo
     bool mouse_in_header = mouse_pos.x >= header_min.x && mouse_pos.x <= header_max.x &&
                            mouse_pos.y >= header_min.y && mouse_pos.y <= header_max.y;
 
-    // Undock with Shift+Click on header
+    // Store undocking request for THIS specific window
     if (mouse_in_header && ImGui::IsMouseClicked(0) && ImGui::IsKeyDown(ImGuiKey_ModShift)) {
-        // Trigger undocking on next frame
-        s_startUndocking = true;
-        s_undockPosition = ImVec2(mouse_pos.x - window_size.x * 0.5f, mouse_pos.y - 10);
+        auto& windowState = s_windowStates[window_id];
+        windowState.startUndocking = true;
+        windowState.undockPosition = ImVec2(mouse_pos.x - window_size.x * 0.5f, mouse_pos.y - 10);
     }
 }
 

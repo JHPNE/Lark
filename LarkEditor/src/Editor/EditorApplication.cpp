@@ -35,17 +35,18 @@ bool EditorApplication::Initialize()
 #ifdef __APPLE__
     const char *glsl_version = "#version 330";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GL_TRUE);
+
+    // Add this to ensure proper focus handling on Mac
+    glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_TRUE);
 #else
     const char *glsl_version = "#version 130";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-#endif
-
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GL_TRUE);
 #endif
 
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
@@ -76,7 +77,6 @@ bool EditorApplication::Initialize()
         return false;
     }
 
-
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -87,8 +87,6 @@ bool EditorApplication::Initialize()
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport / Platform Windows
 
     // Setup Dear ImGui style
-    // ImGui::StyleColorsDark();
-    //ApplyModernDarkStyle();
     LarkStyle::CustomWidgets::Initialize();
 
 

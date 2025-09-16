@@ -31,16 +31,25 @@ void ProjectBrowserView::Draw()
     if (!m_show)
         return;
 
-    if (Utils::ShowSetEnginePathPopup())
-    {
-        LoadTemplates();
-    }
+    // Move popup handling AFTER the main window to ensure proper focus
+    bool shouldShowPathPopup = Utils::s_showEnginePathPopup;
 
     ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Project Browser", &m_show, ImGuiWindowFlags_NoCollapse))
+
+    // Add these flags to ensure the window is interactable
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
+
+    // Ensure window is focused when first shown
+    if (m_firstFrame) {
+        ImGui::SetNextWindowFocus();
+        m_firstFrame = false;
+    }
+
+    if (ImGui::Begin("Project Browser", &m_show, window_flags))
     {
         DrawWindowGradientBackground(ImVec4(0.10f, 0.10f, 0.13f, 0.30f),
                                      ImVec4(0.10f, 0.10f, 0.13f, 0.80f));
+
         // Tabs for New/Open project
         if (ImGui::BeginTabBar("ProjectTabs"))
         {
@@ -60,6 +69,15 @@ void ProjectBrowserView::Draw()
         }
     }
     ImGui::End();
+
+    // Handle popup AFTER the main window
+    if (shouldShowPathPopup)
+    {
+        if (Utils::ShowSetEnginePathPopup())
+        {
+            LoadTemplates();
+        }
+    }
 }
 
 void ProjectBrowserView::DrawNewProject()

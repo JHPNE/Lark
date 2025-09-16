@@ -44,6 +44,7 @@ class ProjectBrowserView
     bool CreateNewProject(); // Added this method
 
     // UI state
+    bool m_firstFrame = true;
     bool m_show = false;
     bool m_isNewProject = true;
     std::string m_newProjectName = "NewProject";

@@ -26,11 +26,16 @@ public:
     static void SetDockingEnabled(bool enabled) { s_dockingEnabled = enabled; }
 
 private:
+    struct WindowState {
+        bool startUndocking = false;
+        ImVec2 undockPosition;
+        bool inWindow = false;
+    };
+
+
     static bool s_dockingEnabled;
-    static bool s_inCustomWindow;
+    static std::unordered_map<std::string, WindowState> s_windowStates;  // Per-window state
     static std::string s_currentWindowName;
-    static bool s_startUndocking;
-    static ImVec2 s_undockPosition;
 
     static void DrawWindowHeader(const WindowConfig& config);
     static void HandleHeaderInteraction(const char* window_id, const WindowConfig& config);
