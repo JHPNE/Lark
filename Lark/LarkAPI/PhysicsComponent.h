@@ -16,13 +16,16 @@ class component final
     constexpr physics_id get_id() const { return _id; }
     constexpr bool is_valid() const { return id::is_valid(_id); }
 
-    // Get DroneState
-    drones::DroneState get_drone_state();
+    // Safe accessor that can return nullptr
+    btRigidBody* try_get_rigid_body() const;
     [[nodiscard]] btRigidBody &get_rigid_body() const;
+    bool  has_rigid_body() const;
+
+    drones::DroneState get_drone_state();
     void set_drone_state(drones::DroneState state);
 
     // Physics operations
-    void step(float dt);
+    void step(float dt, Eigen::Vector3f wind);
 
   private:
     physics_id _id;

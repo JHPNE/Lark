@@ -1,4 +1,5 @@
 #include "GameLoop.h"
+#include "PhysicExtension/World/WorldRegistry.h"
 
 #if defined(_WIN32)
 #include <Windows.h>
@@ -46,13 +47,33 @@ bool GameLoop::initialize()
     if (_initialized)
         return false;
 
-    _prev_time = get_timer_value();
-    _initialized = true;
+    try
+    {
+        _prev_time = get_timer_value();
 
-    // Initialize World and Settings
-    world = physics::World();
+        // Create and register the world
+        world_ptr = std::make_unique<physics::World>();
 
-    return true;
+        // The World constructor automatically registers itself with WorldRegistry
+        // But we can double-check
+        if (!physics::WorldRegistry::instance().get_active_world())
+        {
+            printf("Failed to register physics world");
+            return false;
+        }
+
+        // Store raw pointer for easy access
+        world = world_ptr.get();
+
+        _initialized = true;
+        printf("GameLoop initialized successfully");
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        printf(("GameLoop initialization failed: " + std::string(e.what())).c_str());
+        return false;
+    }
 }
 
 void GameLoop::shutdown()
@@ -60,19 +81,22 @@ void GameLoop::shutdown()
     if (!_initialized)
         return;
 
-    // engine::cleanup_engine_systems();
+    // Clean up world (will automatically unregister from registry)
+    world_ptr.reset();
+    world = nullptr;
+
     _initialized = false;
 }
 
 void GameLoop::tick()
 {
-    if (!_initialized)
+    if (!_initialized || !world)
         return;
 
     _current_delta_time = calculate_delta_time();
     _accumulated_time += _current_delta_time;
 
-    world.update(_current_delta_time);
+    world->update(_current_delta_time);
     update_script_components(_current_delta_time);
 
     // Update FPS counter

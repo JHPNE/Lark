@@ -8,7 +8,6 @@
  */
 
 #pragma once
-
 #include "ComponentCommon.h"
 
 namespace lark

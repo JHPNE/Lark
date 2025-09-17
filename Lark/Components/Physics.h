@@ -1,7 +1,7 @@
 #pragma once
+#include "ComponentCommon.h"
 #include "PhysicExtension/Controller/Controller.h"
 #include "PhysicExtension/Utils/DroneDynamics.h"
-#include "PhysicExtension/Utils/Wind.h"
 #include "PhysicExtension/Vehicles/Multirotor.h"
 #include "btBulletDynamicsCommon.h"
 /**
@@ -9,8 +9,6 @@
  * @brief Phsyics component system for entity physics information
  */
 
-#pragma once
-#include "ComponentCommon.h"
 
 namespace lark::physics
 {
@@ -23,7 +21,6 @@ struct init_info
     drones::QuadParams params;
     drones::Control control;
     drones::ControlAbstraction abstraction;
-    std::shared_ptr<drones::Wind> wind{nullptr};
     std::shared_ptr<drones::Trajectory> trajectory{nullptr};
     drones::DroneState state;
     drones::ControlInput last_control;

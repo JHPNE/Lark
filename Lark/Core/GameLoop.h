@@ -125,7 +125,9 @@ class GameLoop
     u32 _frame_count{0}; ///< Frames counted for FPS calculation
     u32 _fps{0};         ///< Current FPS value
     f32 _fps_time{0.0f}; ///< Time accumulated for FPS calculation
-    physics::World world;
+
+    physics::World* world{nullptr};
+    std::unique_ptr<physics::World> world_ptr;
 };
 
 } // namespace lark

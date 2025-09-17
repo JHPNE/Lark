@@ -1,6 +1,6 @@
 #include "Physics.h"
-
 #include <utility>
+#include "PhysicExtension/Event/PhysicEvent.h"
 
 namespace lark::physics
 {
@@ -11,7 +11,6 @@ struct physics_data
     bool is_valid{false};
     drones::Multirotor vehicle;
     drones::Control control;
-    std::shared_ptr<drones::Wind> wind;
     std::shared_ptr<drones::Trajectory> trajectory;
 
     drones::DroneState state;
@@ -20,7 +19,6 @@ struct physics_data
     // Bullet integration
     btRigidBody *body{nullptr};
 
-    float sim_time{0.f};
     // add maybe vector of states for later
 };
 
@@ -77,7 +75,6 @@ component create(init_info info, game_entity::entity entity)
     assert(id::is_valid(id));
     const id::id_type index{(id::id_type)physics_components.size()};
 
-
     btTransform transform;
     transform.setIdentity();
     transform.setOrigin(btVector3(info.state.position.x(), info.state.position.y(), info.state.position.z()));
@@ -88,17 +85,24 @@ component create(init_info info, game_entity::entity entity)
     auto shape = extract_shape(info.scene->lod_groups[0]);
 
     btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, shape, inertia);
+    auto* rigid_body = new btRigidBody(rbInfo);
+
+    rigid_body->setUserPointer(reinterpret_cast<void*>(entity.get_id()));
 
     physics_components.emplace_back(physics_data{
         true,
         drones::Multirotor(info.params, info.state, info.abstraction),
         info.control,
-        std::move(info.wind),
         std::move(info.trajectory),
         info.state,
         info.last_control,
-        new btRigidBody(rbInfo)
+        rigid_body
     });
+
+    // Event Physics Object was created
+    PhysicObjectCreated event;
+    event.body = rigid_body;
+    PhysicEventBus::Get().Publish(event);
 
     id_mapping[id::index(id)] = index;
     return component{id};
@@ -111,6 +115,31 @@ void remove(component c)
 
     const physics_id id{c.get_id()};
     const id::id_type index{id_mapping[id::index(id)]};
+
+    // Bullet Cleanup
+    auto& data = physics_components[index];
+    if (data.body)
+    {
+        PhysicObjectRemoved event;
+        event.body = data.body;
+        PhysicEventBus::Get().Publish(event);
+
+        // Delete motion state
+        if (data.body->getMotionState())
+        {
+            delete data.body->getMotionState();
+        }
+
+        // Delete collision shape
+        if (data.body->getCollisionShape())
+        {
+            delete data.body->getCollisionShape();
+        }
+
+        delete data.body;
+        data.body = nullptr;
+    }
+
     const id::id_type last_index{(id::id_type)physics_components.size() - 1};
 
     if (index != last_index)
@@ -134,20 +163,16 @@ void remove(component c)
     }
 }
 
-void component::step(float dt)
+void component::step(float dt, Eigen::Vector3f wind)
 {
     assert(is_valid() && exists(_id));
     auto &data = physics_components[id_mapping[id::index(_id)]];
 
-    // Time
-    data.sim_time += dt;
-
-    // Wind
-    Eigen::Vector3f w = data.wind->update(data.sim_time, data.state.position);
-    data.state.wind = w;
+    // Wind from World
+    data.state.wind = wind;
 
     // Trajectory
-    lark::drones::TrajectoryPoint point = data.trajectory->update(data.sim_time);
+    drones::TrajectoryPoint point = data.trajectory->update(dt);
 
     // Controller
     data.last_control = data.control.computeMotorCommands(data.state, point);
@@ -167,7 +192,7 @@ void component::step(float dt)
 btRigidBody &component::get_rigid_body() const
 {
     assert(is_valid());
-    const id::id_type index = id::index(_id);
+    assert(exists(_id));
     auto &data = physics_components[id_mapping[id::index(_id)]];
 
     return *data.body;
@@ -180,6 +205,24 @@ drones::DroneState component::get_drone_state()
     auto &data = physics_components[id_mapping[id::index(_id)]];
 
     return data.state;
+}
+
+btRigidBody * component::try_get_rigid_body() const
+{
+    if (!is_valid() || !exists(_id))
+        return nullptr;
+
+    auto &data = physics_components[id_mapping[id::index(_id)]];
+    return data.body;
+}
+
+bool component::has_rigid_body() const
+{
+    if (!is_valid() || !exists(_id))
+        return false;
+
+    auto &data = physics_components[id_mapping[id::index(_id)]];
+    return data.body != nullptr;
 }
 
 void component::set_drone_state(drones::DroneState state)

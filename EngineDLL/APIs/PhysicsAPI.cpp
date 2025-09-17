@@ -1,15 +1,25 @@
 // EngineDLL/APIs/PhysicsAPI.cpp
 #include "PhysicsAPI.h"
 
+#include "PhysicExtension/World/WorldRegistry.h"
+
 #define ENGINEDLL_EXPORTS
 
 using namespace lark;
 
 extern "C"
 {
-    ENGINE_API bool PhysicsInitializeEnvironment(float gravity_x, float gravity_y, float gravity_z,
-                                                 float air_density, bool enable_collisions)
+    ENGINE_API bool PhysicsInitializeEnvironment(float gravity_x, float gravity_y, float gravity_z)
     {
+        auto* world = physics::WorldRegistry::instance().get_dynamics_world();
+        if (!world)
+        {
+            return false;
+        }
+
+        world->setGravity(btVector3(gravity_x, gravity_y, gravity_z));
+        // Set other parameters as needed
+
         return true;
     }
 

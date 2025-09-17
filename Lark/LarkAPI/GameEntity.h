@@ -12,6 +12,7 @@
 
 namespace lark
 {
+
 namespace game_entity
 {
 

@@ -1,6 +1,7 @@
 #include "World.h"
-
-#include "WorldSettings.h"
+#include "WorldRegistry.h"
+#include "PhysicExtension/Event/PhysicEvent.h"
+#include "Utils/MathTypes.h"
 
 namespace lark::physics
 {
@@ -46,10 +47,20 @@ World::World()
 
     // Set gravity (link this to WorldSettings if you like)
     m_dynamics_world->setGravity(btVector3(0, -9.81f, 0));
+    WorldRegistry::instance().set_active_world(this);
 }
 
 World::~World()
 {
+    // Unregister if we're the active world
+    if (WorldRegistry::instance().get_active_world() == this)
+    {
+        WorldRegistry::instance().set_active_world(nullptr);
+    }
+
+    // Clean up all rigid bodies before destroying the world
+    cleanup_all_bodies();
+
     delete m_dynamics_world;
     delete m_solver;
     delete m_broadphase;
@@ -57,8 +68,31 @@ World::~World()
     delete m_collision_config;
 }
 
+void World::cleanup_all_bodies()
+{
+    // Remove all rigid bodies from the world
+    for (int i = m_dynamics_world->getNumCollisionObjects() - 1; i >= 0; i--)
+    {
+        btCollisionObject* obj = m_dynamics_world->getCollisionObjectArray()[i];
+        btRigidBody* body = btRigidBody::upcast(obj);
+        if (body && body->getMotionState())
+        {
+            delete body->getMotionState();
+        }
+        m_dynamics_world->removeCollisionObject(obj);
+        delete obj;
+    }
+}
+
 void World::update(f32 dt)
 {
+    // Early exit if world not properly initialized
+    if (!m_dynamics_world)
+    {
+        printf("No World");
+        return;
+    }
+
     const auto &active_entities = game_entity::get_active_entities();
 
     // Update Drones and Add to bullet
@@ -68,7 +102,13 @@ void World::update(f32 dt)
         auto physics = entity.physics();
         if (physics.is_valid())
         {
-            physics.step(dt);
+
+            // Time needs to be synced to the sim_time
+            const Eigen::Vector3f wind = this->get_wind()->update(dt, physics.get_drone_state().position);
+            physics.step(dt, wind);
+
+            // Make sure rigid body is in the world
+            ensure_body_in_world(physics);
         }
     }
 
@@ -89,6 +129,15 @@ void World::update(f32 dt)
         {
             sync_physics_to_transform(physics, transform);
         }
+    }
+}
+
+void World::ensure_body_in_world(physics::component& physics_comp)
+{
+    btRigidBody* body = physics_comp.try_get_rigid_body(); // New method
+    if (body && !body->isInWorld())
+    {
+        m_dynamics_world->addRigidBody(body);
     }
 }
 } // namespace lark::physics

@@ -6,8 +6,7 @@ extern "C"
 {
 #endif
 
-    ENGINE_API bool PhysicsInitializeEnvironment(float gravity_x, float gravity_y, float gravity_z,
-                                                 float air_density, bool enable_collisions);
+    ENGINE_API bool PhysicsInitializeEnvironment(float gravity_x, float gravity_y, float gravity_z);
     ENGINE_API void PhysicsShutdownEnvironment();
     ENGINE_API bool PhysicsSetWindConstant(float vx, float vy, float vz);
     ENGINE_API bool PhysicsSetWindDryden(float mean_vx, float mean_vy, float mean_vz,
