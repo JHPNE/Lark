@@ -26,7 +26,7 @@ class Trajectory
 {
   public:
     virtual ~Trajectory() = default;
-    virtual TrajectoryPoint update(float t);
+    virtual TrajectoryPoint update(float t) = 0;
 
   protected:
     TrajectoryPoint point;

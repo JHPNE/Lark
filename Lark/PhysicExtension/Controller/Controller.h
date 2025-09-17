@@ -7,8 +7,8 @@ namespace lark::drones
 class Control
 {
   public:
-    explicit Control(const QuadParams &quad_params, const ControlGains &gains = ControlGains())
-        : m_dynamics(quad_params), m_gains(gains)
+    explicit Control(const QuadParams &quad_params)
+        : m_dynamics(quad_params)
     {
     }
 
@@ -17,6 +17,5 @@ class Control
 
   private:
     DroneDynamics m_dynamics;
-    ControlGains m_gains;
 };
 } // namespace lark::drones

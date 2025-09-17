@@ -12,6 +12,7 @@ extern "C"
         transform::init_info transform_info = engine::to_engine_transform(e->transform);
         script::init_info script_info = engine::to_engine_script(e->script);
         geometry::init_info geometry_info = engine::to_engine_geometry(e->geometry);
+        physics::init_info physics_info = engine::to_engine_physics(e->physics);
 
         game_entity::entity_info entity_info{&transform_info, &script_info, &geometry_info};
 

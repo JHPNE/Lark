@@ -31,6 +31,12 @@ struct geometry_component {
 };
 
 struct physics_component {
+    content_tools::scene *scene;
+    quad_params params;
+    drone_state drone_state;
+    control_abstraction control_abstraction;
+    control_input input;
+    trajectory trajectory;
 };
 
 struct game_entity_descriptor {

@@ -19,7 +19,6 @@ namespace lark::physics
 struct init_info
 {
     drones::QuadParams params;
-    drones::Control control;
     drones::ControlAbstraction abstraction;
     std::shared_ptr<drones::Trajectory> trajectory{nullptr};
     drones::DroneState state;

@@ -75,6 +75,10 @@ component create(init_info info, game_entity::entity entity)
     assert(id::is_valid(id));
     const id::id_type index{(id::id_type)physics_components.size()};
 
+    // Control
+    drones::Control control{info.params};
+
+    // Bullet
     btTransform transform;
     transform.setIdentity();
     transform.setOrigin(btVector3(info.state.position.x(), info.state.position.y(), info.state.position.z()));
@@ -92,7 +96,7 @@ component create(init_info info, game_entity::entity entity)
     physics_components.emplace_back(physics_data{
         true,
         drones::Multirotor(info.params, info.state, info.abstraction),
-        info.control,
+        drones::Control{info.params},
         std::move(info.trajectory),
         info.state,
         info.last_control,

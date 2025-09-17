@@ -68,3 +68,76 @@ struct quad_params
     control_gains c;
     lower_level_controller_prop l{};
 };
+
+struct drone_state
+{
+    glm::vec3 position;
+    glm::vec3 velocity;
+    glm::vec4 attitude;
+    glm::vec3 body_rates;
+    glm::vec3 wind;
+    glm::vec4 rotor_speeds;
+};
+
+enum class control_abstraction
+{
+    /// @brief Direct motor speed control (rad/s)
+    CMD_MOTOR_SPEEDS,
+
+    /// @brief Individual rotor thrust commands (N)
+    CMD_MOTOR_THRUSTS,
+
+    /// @brief Collective thrust (N) + body angular rates (rad/s)
+    CMD_CTBR,
+
+    /// @brief Collective thrust (N) + body moments (N⋅m)
+    CMD_CTBM,
+
+    /// @brief Collective thrust (N) + attitude quaternion
+    CMD_CTATT,
+
+    /// @brief Velocity vector in world frame (m/s)
+    CMD_VEL,
+
+    /// @brief Acceleration vector in world frame (m/s²)
+    CMD_ACC
+};
+
+struct control_input
+{
+    // Motor level commands
+    glm::vec4 cmd_motor_speeds;  // rad/s - for CMD_MOTOR_SPEEDS
+    glm::vec4 cmd_motor_thrusts; // N - for CMD_MOTOR_THRUSTS
+
+    // Force and moment commands
+    float cmd_thrust;    // N - collective thrust for CMD_CTBR, CMD_CTBM, CMD_CTATT
+    glm::vec3 cmd_moment; // N⋅m - for CMD_CTBM
+
+    // Attitude commands
+    glm::vec4 cmd_q; // quaternion [x,y,z,w] - for CMD_CTATT
+    glm::vec3 cmd_w; // rad/s - body rates for CMD_CTBR
+
+    // High-level commands
+    glm::vec3 cmd_v;   // m/s - velocity in world frame for CMD_VEL
+    glm::vec3 cmd_acc; // m/s² - acceleration in world frame for CMD_ACC
+};
+
+enum class trajectory_type
+{
+    Circular,
+    Chaos
+};
+
+struct trajectory
+{
+    trajectory_type type;
+    glm::vec3 position{0.f,0.f,0.f};
+    float delta{1.0f};
+    float radius{1.0f};
+    float frequency{0.5f};
+    int n_points{10};
+    float segment_time{1.0f};
+};
+
+
+

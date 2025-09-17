@@ -3,6 +3,7 @@
 #include "Geometry.h"
 #include "Transform.h"
 #include "Script.h"
+#include "Physics.h"
 #include "Core/GameLoop.h"
 #include "Geometry/MeshPrimitives.h"
 
