@@ -310,6 +310,37 @@ lark::tools::primitive_mesh_type ConvertPrimitiveType(content_tools::PrimitiveMe
     return static_cast<lark::tools::primitive_mesh_type>(type);
 }
 
+std::shared_ptr<drones::Wind> chooseWind(const wind& wind_config)
+{
+    switch (wind_config.type)
+    {
+    case wind_type::ConstantWind:
+        return std::make_shared<drones::ConstantWind>(
+            Eigen::Vector3f(wind_config.w.x, wind_config.w.y, wind_config.w.z)
+        );
+
+    case wind_type::SinusoidWind:
+        return std::make_shared<drones::SinusoidWind>(
+            Eigen::Vector3f(wind_config.amplitudes.x, wind_config.amplitudes.y, wind_config.amplitudes.z),
+            Eigen::Vector3f(wind_config.frequencies.x, wind_config.frequencies.y, wind_config.frequencies.z),
+            Eigen::Vector3f(wind_config.phase.x, wind_config.phase.y, wind_config.phase.z)
+        );
+
+    case wind_type::LadderWind:
+        return std::make_shared<drones::LadderWind>(
+            Eigen::Vector3f(wind_config.min.x, wind_config.min.y, wind_config.min.z),
+            Eigen::Vector3f(wind_config.max.x, wind_config.max.y, wind_config.max.z),
+            Eigen::Vector3f(wind_config.duration.x, wind_config.duration.y, wind_config.duration.z),
+            Eigen::Vector3f(wind_config.n_steps.x, wind_config.n_steps.y, wind_config.n_steps.z),
+            wind_config.random
+        );
+
+    case wind_type::NoWind:
+    default:
+        return std::make_shared<drones::NoWind>();
+    }
+}
+
 void cleanup_engine_systems()
 {
     std::vector<id::id_type> to_remove;

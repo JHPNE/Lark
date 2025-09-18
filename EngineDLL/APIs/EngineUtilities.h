@@ -25,4 +25,7 @@ void cleanup_engine_systems();
 
 extern std::unique_ptr<GameLoop> g_game_loop;
 extern util::vector<bool> active_entities;
+
+// Helper
+std::shared_ptr<drones::Wind> chooseWind(const wind& wind_config);
 } // namespace engine
