@@ -139,5 +139,32 @@ struct trajectory
     float segment_time{1.0f};
 };
 
+enum class wind_type
+{
+    NoWind,
+    ConstantWind,
+    SinusoidWind,
+    LadderWind
+};
+
+struct wind
+{
+    wind_type type;
+    glm::vec3 w;
+
+    // Additional parameters for different wind types
+    // SinusoidWind parameters
+    glm::vec3 amplitudes{1.0f, 1.0f, 1.0f};
+    glm::vec3 frequencies{1.0f, 1.0f, 1.0f};
+    glm::vec3 phase{0.0f, 0.0f, 0.0f};
+
+    // LadderWind parameters
+    glm::vec3 min{-1.0f, -1.0f, -1.0f};
+    glm::vec3 max{1.0f, 1.0f, 1.0f};
+    glm::vec3 duration{1.0f, 1.0f, 1.0f};
+    glm::vec3 n_steps{5.0f, 5.0f, 5.0f};
+    bool random{false};
+};
+
 
 
