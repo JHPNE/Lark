@@ -3,7 +3,7 @@
 
 #include "PhysicsMath.h"
 
-namespace lark::drones
+namespace lark::drone
 {
 using namespace physics_math;
 
@@ -11,7 +11,7 @@ class Wind
 {
   public:
     virtual ~Wind() = default;
-    virtual Eigen::Vector3f update(float t, Eigen::Vector3f position);
+    virtual Eigen::Vector3f update(float t, Eigen::Vector3f position) = 0;
 
   protected:
     Eigen::Vector3f wind;

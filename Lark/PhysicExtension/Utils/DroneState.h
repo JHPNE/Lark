@@ -1,7 +1,7 @@
 #pragma once
 #include "PhysicExtension/Utils/PhysicsMath.h"
 
-namespace lark::drones
+namespace lark::drone
 {
 using namespace lark::physics_math;
 

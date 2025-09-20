@@ -11,11 +11,11 @@ void handle_collisions() {}
 
 void sync_physics_to_transform(physics::component &physics_comp, transform::component &transform_comp)
 {
-    btRigidBody &body = physics_comp.get_rigid_body();
+    btRigidBody* body = physics_comp.get_rigid_body();
     // auto& drone_state = physics_comp.get_drone_state();
 
     // Get position and orientation from Bullet
-    btTransform transform = body.getWorldTransform();
+    btTransform transform = body->getWorldTransform();
     btVector3 position = transform.getOrigin();
     btQuaternion rotation = transform.getRotation();
 
@@ -25,11 +25,6 @@ void sync_physics_to_transform(physics::component &physics_comp, transform::comp
     math::v4 rot(rotation[0], rotation[1], rotation[2], rotation[3]);
     transform_comp.set_rotation(rot);
 
-    // Update drone state
-
-    //physics_comp.set_drone_state()
-    //drone_state.position = Eigen::Vector3f(position.x(), position.y(), position.z());
-    //drone_state.attitude = Eigen::Vector4f(rotation.x(), rotation.y(), rotation.z(), rotation.w());
 }
 
 } // namespace
@@ -100,14 +95,32 @@ void World::update(f32 dt)
     {
         game_entity::entity entity{entity_id};
         auto physics = entity.physics();
+        auto drone = entity.drone();
+        if (physics.is_valid() && drone.is_valid())
+        {
+            math::v3 pos, vel, ang_vel;
+            math::v4 orient;
+            physics.get_state(pos, orient, vel, ang_vel);
+
+            // Sync to drone
+            drone.sync_from_physics(pos, orient, vel, ang_vel);
+
+            // Update drone dynamics
+            const Eigen::Vector3f wind = this->get_wind()->update(dt,
+                Eigen::Vector3f(pos.x, pos.y, pos.z));
+            drone.update(dt, wind);
+
+            // Get forces and torques from drone
+            auto [torque, force] = drone.get_forces_and_torques();
+
+
+            // Apply to physics body
+            physics.apply_force(math::v3(force.x(), force.y(), force.z()));
+            physics.apply_torque(math::v3(torque.x(), torque.y(), torque.z()));
+        }
+
         if (physics.is_valid())
         {
-
-            // Time needs to be synced to the sim_time
-            const Eigen::Vector3f wind = this->get_wind()->update(dt, physics.get_drone_state().position);
-            physics.step(dt, wind);
-
-            // Make sure rigid body is in the world
             ensure_body_in_world(physics);
         }
     }
@@ -134,7 +147,7 @@ void World::update(f32 dt)
 
 void World::ensure_body_in_world(physics::component& physics_comp)
 {
-    btRigidBody* body = physics_comp.try_get_rigid_body(); // New method
+    btRigidBody* body = physics_comp.get_rigid_body(); // New method
     if (body && !body->isInWorld())
     {
         m_dynamics_world->addRigidBody(body);

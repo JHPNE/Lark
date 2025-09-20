@@ -4,7 +4,7 @@
 #include "PhysicExtension/Vehicles/Multirotor.h"
 #include <gtest/gtest.h>
 
-namespace lark::drones::test
+namespace lark::drone::test
 {
 using namespace physics_math;
 

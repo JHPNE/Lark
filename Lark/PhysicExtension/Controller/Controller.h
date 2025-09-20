@@ -2,7 +2,7 @@
 #include "PhysicExtension/Trajectory/Trajectory.h"
 #include "PhysicExtension/Utils/DroneDynamics.h"
 
-namespace lark::drones
+namespace lark::drone
 {
 class Control
 {

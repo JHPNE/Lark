@@ -2,7 +2,7 @@
 #include "PhysicExtension/Utils/PhysicsMath.h"
 #include <array>
 
-namespace lark::drones
+namespace lark::drone
 {
 using namespace physics_math;
 

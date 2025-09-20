@@ -4,6 +4,7 @@
 #include "../Components/ComponentCommon.h"
 #include "GeometryComponent.h"
 #include "PhysicsComponent.h"
+#include "DroneComponent.h"
 #include "ScriptComponent.h"
 #include "TransformComponent.h"
 #include <pybind11/embed.h>
@@ -30,6 +31,7 @@ class entity
     script::component script() const;
     geometry::component geometry() const;
     physics::component physics() const;
+    drone::component drone() const;
 
   private:
     entity_id _id;
@@ -69,6 +71,15 @@ class entity_physics : public game_entity::entity
   private:
 };
 } // namespace physics
+
+namespace drone
+{
+class entity_drone : public game_entity::entity
+{
+    public:
+        virtual ~entity_drone() = default;
+};
+}
 
 namespace script
 {

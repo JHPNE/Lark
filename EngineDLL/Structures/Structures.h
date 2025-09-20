@@ -2,7 +2,7 @@
 #include <CommonHeaders.h>
 #include "LarkAPI/GameEntity.h"
 #include "GeometryStructures.h"
-#include "PhysicsStructures.h"
+#include "DroneStructures.h"
 
 // Component Structures
 
@@ -31,12 +31,20 @@ struct geometry_component {
 };
 
 struct physics_component {
+    float mass;
+    glm::vec3 position;
+    glm::vec4 orientation;
+    glm::vec3 inertia;
     content_tools::scene *scene;
+    bool is_kinematic;
+};
+
+struct drone_component {
     quad_params params;
-    drone_state drone_state;
     control_abstraction control_abstraction;
-    control_input input;
     trajectory trajectory;
+    drone_state drone_state;
+    control_input input;
 };
 
 struct game_entity_descriptor {
@@ -44,4 +52,5 @@ struct game_entity_descriptor {
     script_component script;
     geometry_component geometry;
     physics_component physics;
+    drone_component drone;
 };

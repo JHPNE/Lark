@@ -2,7 +2,7 @@
 #pragma once
 #include "PhysicExtension/Utils/DroneDynamics.h"
 
-namespace lark::drones
+namespace lark::drone
 {
 struct StateDot
 {

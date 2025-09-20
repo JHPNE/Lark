@@ -1,7 +1,6 @@
 #pragma once
 #include "../Components/ComponentCommon.h"
 #include "BulletDynamics/Dynamics/btRigidBody.h"
-#include "PhysicExtension/Utils/DroneState.h"
 
 namespace lark::physics
 {
@@ -16,16 +15,12 @@ class component final
     constexpr physics_id get_id() const { return _id; }
     constexpr bool is_valid() const { return id::is_valid(_id); }
 
-    // Safe accessor that can return nullptr
-    btRigidBody* try_get_rigid_body() const;
-    [[nodiscard]] btRigidBody &get_rigid_body() const;
-    bool  has_rigid_body() const;
+    [[nodiscard]] btRigidBody* get_rigid_body() const;
 
-    drones::DroneState get_drone_state();
-    void set_drone_state(drones::DroneState state);
+    void apply_force(const math::v3& force, const math::v3& position=math::v3(0.f));
+    void apply_torque(const math::v3& torque);
 
-    // Physics operations
-    void step(float dt, Eigen::Vector3f wind);
+    void get_state(math::v3& position, math::v4& orientation, math::v3& velocity, math::v3& angular_velocity) const;
 
   private:
     physics_id _id;

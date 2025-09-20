@@ -4,6 +4,7 @@
 #include "Geometry/MeshPrimitives.h"
 #include "Physics.h"
 #include "Script.h"
+#include "Drone.h"
 #include "Transform.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -25,28 +26,28 @@ namespace {
    }
 
 
-   drones::ControlAbstraction extractAbstraction(control_abstraction abs)
+   drone::ControlAbstraction extractAbstraction(control_abstraction abs)
    {
        switch (abs)
        {
            case control_abstraction::CMD_ACC:
-               return drones::ControlAbstraction::CMD_ACC;
+               return drone::ControlAbstraction::CMD_ACC;
            case control_abstraction::CMD_VEL:
-               return drones::ControlAbstraction::CMD_VEL;
+               return drone::ControlAbstraction::CMD_VEL;
            case control_abstraction::CMD_CTATT:
-               return drones::ControlAbstraction::CMD_CTATT;
+               return drone::ControlAbstraction::CMD_CTATT;
            case control_abstraction::CMD_CTBM:
-               return drones::ControlAbstraction::CMD_CTBM;
+               return drone::ControlAbstraction::CMD_CTBM;
            case control_abstraction::CMD_CTBR:
-               return drones::ControlAbstraction::CMD_CTBR;
+               return drone::ControlAbstraction::CMD_CTBR;
            case control_abstraction::CMD_MOTOR_THRUSTS:
-               return drones::ControlAbstraction::CMD_MOTOR_THRUSTS;
+               return drone::ControlAbstraction::CMD_MOTOR_THRUSTS;
            case control_abstraction::CMD_MOTOR_SPEEDS:
-               return drones::ControlAbstraction::CMD_MOTOR_SPEEDS;
+               return drone::ControlAbstraction::CMD_MOTOR_SPEEDS;
        }
    }
-    drones::QuadParams extractParams(quad_params params) {
-       drones::QuadParams result;
+    drone::QuadParams extractParams(quad_params params) {
+       drone::QuadParams result;
         // inertia
         result.inertia_properties.mass = params.i.mass;
         result.inertia_properties.principal_inertia = glmToEigenV3(params.i.principal_inertia);
@@ -95,9 +96,9 @@ namespace {
        return result;
    }
 
-   drones::ControlInput extractControlInput(control_input input)
+   drone::ControlInput extractControlInput(control_input input)
    {
-       drones::ControlInput result;
+       drone::ControlInput result;
        result.cmd_acc = glmToEigenV3(input.cmd_acc);
        result.cmd_v = glmToEigenV3(input.cmd_v);
        result.cmd_w = glmToEigenV3(input.cmd_w);
@@ -112,9 +113,9 @@ namespace {
        return result;
    }
 
-   drones::DroneState extractState(drone_state state)
+   drone::DroneState extractState(drone_state state)
    {
-       drones::DroneState result{};
+       drone::DroneState result{};
        result.position = glmToEigenV3(state.position);
        result.velocity = glmToEigenV3(state.velocity);
        result.attitude = glmToEigenV4(state.attitude);
@@ -174,12 +175,12 @@ namespace {
    }
 
 
-   std::shared_ptr<drones::Trajectory> extractTrajectory(trajectory trajectory)
+   std::shared_ptr<drone::Trajectory> extractTrajectory(trajectory trajectory)
    {
        switch (trajectory.type)
        {
            case trajectory_type::Circular:
-               return std::make_shared<drones::Circular>(
+               return std::make_shared<drone::Circular>(
               glmToEigenV3(trajectory.position),
                     trajectory.radius,  // radius
                     trajectory.frequency,  // frequency
@@ -187,7 +188,7 @@ namespace {
                 );
 
            case trajectory_type::Chaos:
-               return std::make_shared<drones::Chaos>(
+               return std::make_shared<drone::Chaos>(
              glmToEigenV3(trajectory.position),
                    trajectory.delta,   // delta
                    trajectory.n_points,     // n_points
@@ -246,25 +247,43 @@ geometry::init_info to_engine_geometry(const geometry_component &geometry)
     return info;
 }
 
-physics::init_info to_engine_physics(const physics_component &physics)
-{
+physics::init_info to_engine_physics(const physics_component &physics) {
     physics::init_info info{};
-    if (physics.scene == nullptr || physics.params.i.mass == 0.0f)
+
+    if (physics.scene == nullptr || physics.scene->lod_groups.empty())
         return info;
 
-    info.params = extractParams(physics.params);
-
-    info.abstraction = extractAbstraction(physics.control_abstraction);
-
-    info.last_control = extractControlInput(physics.input);
+    info.mass = physics.mass;
+    info.initial_position = physics.position;
+    info.initial_orientation = physics.orientation;
+    info.inertia = physics.inertia;
 
     info.scene = std::make_shared<lark::tools::scene>();
     info.scene->lod_groups = extractLodGroups(physics.scene);
-    info.scene->name = physics.scene->name;
 
-    info.state = extractState(physics.drone_state);
+    if (!physics.scene->name.empty())
+    {
+        info.scene->name = physics.scene->name;
+    }
 
-    info.trajectory = extractTrajectory(physics.trajectory);
+    info.is_kinematic = physics.is_kinematic;
+
+    return info;
+}
+
+drone::init_info to_engine_drone(const drone_component& drone)
+{
+    drone::init_info info{};
+
+    info.params = extractParams(drone.params);
+
+    info.abstraction = extractAbstraction(drone.control_abstraction);
+
+    info.last_control = extractControlInput(drone.input);
+
+    info.initial_state = extractState(drone.drone_state);
+
+    info.trajectory = extractTrajectory(drone.trajectory);
 
     return info;
 }
@@ -310,24 +329,24 @@ lark::tools::primitive_mesh_type ConvertPrimitiveType(content_tools::PrimitiveMe
     return static_cast<lark::tools::primitive_mesh_type>(type);
 }
 
-std::shared_ptr<drones::Wind> chooseWind(const wind& wind_config)
+std::shared_ptr<drone::Wind> chooseWind(const wind& wind_config)
 {
     switch (wind_config.type)
     {
     case wind_type::ConstantWind:
-        return std::make_shared<drones::ConstantWind>(
+        return std::make_shared<drone::ConstantWind>(
             Eigen::Vector3f(wind_config.w.x, wind_config.w.y, wind_config.w.z)
         );
 
     case wind_type::SinusoidWind:
-        return std::make_shared<drones::SinusoidWind>(
+        return std::make_shared<drone::SinusoidWind>(
             Eigen::Vector3f(wind_config.amplitudes.x, wind_config.amplitudes.y, wind_config.amplitudes.z),
             Eigen::Vector3f(wind_config.frequencies.x, wind_config.frequencies.y, wind_config.frequencies.z),
             Eigen::Vector3f(wind_config.phase.x, wind_config.phase.y, wind_config.phase.z)
         );
 
     case wind_type::LadderWind:
-        return std::make_shared<drones::LadderWind>(
+        return std::make_shared<drone::LadderWind>(
             Eigen::Vector3f(wind_config.min.x, wind_config.min.y, wind_config.min.z),
             Eigen::Vector3f(wind_config.max.x, wind_config.max.y, wind_config.max.z),
             Eigen::Vector3f(wind_config.duration.x, wind_config.duration.y, wind_config.duration.z),
@@ -337,7 +356,7 @@ std::shared_ptr<drones::Wind> chooseWind(const wind& wind_config)
 
     case wind_type::NoWind:
     default:
-        return std::make_shared<drones::NoWind>();
+        return std::make_shared<drone::NoWind>();
     }
 }
 

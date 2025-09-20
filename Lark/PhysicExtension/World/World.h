@@ -18,8 +18,8 @@ class World
     void update(f32 dt);
 
     btDiscreteDynamicsWorld *dynamics_world() { return m_dynamics_world; }
-    void set_wind(std::shared_ptr<drones::Wind> wind) { m_wind = wind; }
-    drones::Wind* get_wind() const { return m_wind.get(); }
+    void set_wind(std::shared_ptr<drone::Wind> wind) { m_wind = wind; }
+    drone::Wind* get_wind() const { return m_wind.get(); }
 
   private:
 
@@ -34,7 +34,7 @@ class World
     btDiscreteDynamicsWorld *m_dynamics_world;
 
     // Wind
-    std::shared_ptr<drones::Wind> m_wind;
+    std::shared_ptr<drone::Wind> m_wind;
 };
 
 } // namespace lark::physics

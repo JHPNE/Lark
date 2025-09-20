@@ -2,7 +2,7 @@
 #include "PhysicExtension/World/WorldSettings.h"
 #include <random>
 
-namespace lark::drones
+namespace lark::drone
 {
 Vector4f Multirotor::GetCMDMotorSpeeds(DroneState state, ControlInput input)
 {

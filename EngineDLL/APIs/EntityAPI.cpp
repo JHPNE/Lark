@@ -13,8 +13,9 @@ extern "C"
         script::init_info script_info = engine::to_engine_script(e->script);
         geometry::init_info geometry_info = engine::to_engine_geometry(e->geometry);
         physics::init_info physics_info = engine::to_engine_physics(e->physics);
+        drone::init_info drone_info = engine::to_engine_drone(e->drone);
 
-        game_entity::entity_info entity_info{&transform_info, &script_info, &geometry_info};
+        game_entity::entity_info entity_info{&transform_info, &script_info, &geometry_info, &physics_info, &drone_info};
 
         auto entity = game_entity::create(entity_info);
         if (entity.is_valid())

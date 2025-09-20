@@ -3,6 +3,7 @@
 #include "Physics.h"
 #include "Script.h"
 #include "Transform.h"
+#include "Drone.h"
 
 namespace lark::game_entity
 {
@@ -13,6 +14,8 @@ util::vector<transform::component> transforms;
 util::vector<script::component> scripts;
 util::vector<geometry::component> geometries;
 util::vector<physics::component> physics_container;
+util::vector<drone::component> drones;
+
 
 std::vector<id::generation_type> generations;
 util::deque<entity_id> free_ids;
@@ -44,6 +47,7 @@ entity create(entity_info info)
         scripts.emplace_back();
         geometries.emplace_back();
         physics_container.emplace_back();
+        drones.emplace_back();
     }
 
     const entity new_entity{id};
@@ -77,10 +81,13 @@ entity create(entity_info info)
         physics_container[index] = physics::create(*info.physics, new_entity);
     }
 
-    if (new_entity.is_valid())
+    if (info.drone)
     {
-        active_entities.push_back(new_entity.get_id());
+        assert(!drones[index].is_valid());
+        drones[index] = drone::create(*info.drone, new_entity);
     }
+
+    active_entities.push_back(new_entity.get_id());
 
     return new_entity;
 }
@@ -110,6 +117,13 @@ void remove(entity_id id)
         auto physics_copy = physics_container[index];
         physics_container[index] = {};
         physics::remove(physics_copy);
+    }
+
+    if (drones[index].is_valid())
+    {
+        auto drone_copy = drones[index];
+        drones[index] = {};
+        drone::remove(drone_copy);
     }
 
     transform::remove(transforms[index]);
@@ -218,5 +232,11 @@ physics::component entity::physics() const
 {
     assert(is_alive(_id));
     return physics_container[id::index(_id)];
+}
+
+drone::component entity::drone() const
+{
+    assert(is_alive(_id));
+    return drones[id::index(_id)];
 }
 } // namespace lark::game_entity

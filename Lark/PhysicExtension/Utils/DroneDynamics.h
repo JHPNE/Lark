@@ -3,7 +3,7 @@
 #include "PhysicExtension/Utils/DroneStructure.h"
 #include "PhysicExtension/Utils/PhysicsMath.h"
 
-namespace lark::drones
+namespace lark::drone
 {
 
 // Shared dynamics calculations

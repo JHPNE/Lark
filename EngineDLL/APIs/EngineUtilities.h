@@ -4,6 +4,7 @@
 #include "Transform.h"
 #include "Script.h"
 #include "Physics.h"
+#include "Drone.h"
 #include "Core/GameLoop.h"
 #include "Geometry/MeshPrimitives.h"
 
@@ -16,6 +17,7 @@ namespace engine {
 transform::init_info to_engine_transform(const transform_component &transform);
 script::init_info to_engine_script(const script_component &script);
 geometry::init_info to_engine_geometry(const geometry_component &geometry);
+drone::init_info to_engine_drone(const drone_component& drone);
 physics::init_info to_engine_physics(const physics_component &physics);
 
 game_entity::entity entity_from_id(id::id_type id);
@@ -27,5 +29,5 @@ extern std::unique_ptr<GameLoop> g_game_loop;
 extern util::vector<bool> active_entities;
 
 // Helper
-std::shared_ptr<drones::Wind> chooseWind(const wind& wind_config);
+std::shared_ptr<drone::Wind> chooseWind(const wind& wind_config);
 } // namespace engine

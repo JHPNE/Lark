@@ -1,8 +1,5 @@
 #pragma once
 #include "ComponentCommon.h"
-#include "PhysicExtension/Controller/Controller.h"
-#include "PhysicExtension/Utils/DroneDynamics.h"
-#include "PhysicExtension/Vehicles/Multirotor.h"
 #include "btBulletDynamicsCommon.h"
 /**
  * @file Physics.h
@@ -18,13 +15,12 @@ namespace lark::physics
  */
 struct init_info
 {
-    drones::QuadParams params;
-    drones::ControlAbstraction abstraction;
-    std::shared_ptr<drones::Trajectory> trajectory{nullptr};
-    drones::DroneState state;
-    drones::ControlInput last_control;
-    std::shared_ptr<scene> scene{nullptr}; ///< Scene containing the geometry data
-};
+    float mass{1.0f};
+    math::v3 initial_position{0.0f};
+    math::v4 initial_orientation{0.0f, 0.0f, 0.0f, 1.0f};
+    math::v3 inertia{1.0f, 1.0f, 1.0f};
+    std::shared_ptr<scene> scene{nullptr}; // For collision shape
+    bool is_kinematic{false};};
 
 /**
  * @brief Creates a new transform component for an entity

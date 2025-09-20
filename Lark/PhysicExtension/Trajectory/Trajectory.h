@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-namespace lark::drones
+namespace lark::drone
 {
 using namespace physics_math;
 

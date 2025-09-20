@@ -2,7 +2,7 @@
 
 #include <PhysicExtension/World/WorldSettings.h>
 
-namespace lark::drones
+namespace lark::drone
 {
 ControlInput Control::computeMotorCommands(const DroneState &state,
                                            const TrajectoryPoint &desired) const

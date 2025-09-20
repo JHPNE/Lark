@@ -6,35 +6,26 @@ namespace lark::physics
 {
 namespace
 {
-struct physics_data
-{
-    bool is_valid{false};
-    drones::Multirotor vehicle;
-    drones::Control control;
-    std::shared_ptr<drones::Trajectory> trajectory;
+    struct physics_data
+    {
+        bool is_valid{false};
+        btRigidBody *body{nullptr};
+        float mass{1.0f};
+    };
 
-    drones::DroneState state;
-    drones::ControlInput last_control;
+    util::vector<physics_data> physics_components;
+    util::vector<id::id_type> id_mapping;
+    util::vector<id::generation_type> generations;
+    std::deque<physics_id> free_ids;
 
-    // Bullet integration
-    btRigidBody *body{nullptr};
-
-    // add maybe vector of states for later
-};
-
-util::vector<physics_data> physics_components;
-util::vector<id::id_type> id_mapping;
-util::vector<id::generation_type> generations;
-std::deque<physics_id> free_ids;
-
-bool exists(physics_id id)
-{
-    assert(id::is_valid(id));
-    const id::id_type index{id::index(id)};
-    assert(index < generations.size());
-    return (id::is_valid(id_mapping[index]) && generations[index] == id::generation(id) &&
-            physics_components[id_mapping[index]].is_valid);
-}
+    bool exists(physics_id id)
+    {
+        assert(id::is_valid(id));
+        const id::id_type index{id::index(id)};
+        assert(index < generations.size());
+        return (id::is_valid(id_mapping[index]) && generations[index] == id::generation(id) &&
+                physics_components[id_mapping[index]].is_valid);
+    }
 
     btConvexHullShape* extract_shape(const lod_group& group)
     {
@@ -75,32 +66,48 @@ component create(init_info info, game_entity::entity entity)
     assert(id::is_valid(id));
     const id::id_type index{(id::id_type)physics_components.size()};
 
-    // Control
-    drones::Control control{info.params};
-
     // Bullet
     btTransform transform;
     transform.setIdentity();
-    transform.setOrigin(btVector3(info.state.position.x(), info.state.position.y(), info.state.position.z()));
-    float mass = info.params.inertia_properties.mass;
+    transform.setOrigin(btVector3(info.initial_position.x, info.initial_position.y, info.initial_position.z));
+    transform.setRotation(btQuaternion(info.initial_orientation.x, info.initial_orientation.y,
+                                       info.initial_orientation.z, info.initial_orientation.w));
+
     auto* motionState = new btDefaultMotionState(transform);
 
-    btVector3 inertia(0,0,0);
-    auto shape = extract_shape(info.scene->lod_groups[0]);
+    // Get collision shape
+    btCollisionShape* shape = nullptr;
+    if (info.scene && !info.scene->lod_groups.empty()) {
+        shape = extract_shape(info.scene->lod_groups[0]);
+    } else {
+        // Default box shape
+        shape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
+    }
 
-    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, shape, inertia);
+    btVector3 inertia(info.inertia.x, info.inertia.y, info.inertia.z);
+    if (!info.is_kinematic && info.mass > 0) {
+        shape->calculateLocalInertia(info.mass, inertia);
+    }
+
+    btRigidBody::btRigidBodyConstructionInfo rbInfo(
+        info.is_kinematic ? 0 : info.mass,
+        motionState,
+        shape,
+        inertia
+    );
+
     auto* rigid_body = new btRigidBody(rbInfo);
-
     rigid_body->setUserPointer(reinterpret_cast<void*>(entity.get_id()));
+
+    if (info.is_kinematic) {
+        rigid_body->setCollisionFlags(rigid_body->getCollisionFlags() |
+                                      btCollisionObject::CF_KINEMATIC_OBJECT);
+    }
 
     physics_components.emplace_back(physics_data{
         true,
-        drones::Multirotor(info.params, info.state, info.abstraction),
-        drones::Control{info.params},
-        std::move(info.trajectory),
-        info.state,
-        info.last_control,
-        rigid_body
+        rigid_body,
+        info.mass
     });
 
     // Event Physics Object was created
@@ -167,73 +174,78 @@ void remove(component c)
     }
 }
 
-void component::step(float dt, Eigen::Vector3f wind)
+void component::apply_force(const math::v3& force, const math::v3& position)
 {
     assert(is_valid() && exists(_id));
-    auto &data = physics_components[id_mapping[id::index(_id)]];
-
-    // Wind from World
-    data.state.wind = wind;
-
-    // Trajectory
-    drones::TrajectoryPoint point = data.trajectory->update(dt);
-
-    // Controller
-    data.last_control = data.control.computeMotorCommands(data.state, point);
-
-    // Vehicle Step
-    data.state = data.vehicle.step(data.state, data.last_control, dt);
-
-    // contains torque and centeral force we give to bullet
-    auto [Mtot, Ftot] = data.vehicle.GetPairs();
-
-    data.body->applyCentralForce(btVector3(Ftot.x(), Ftot.y(), Ftot.z()));
-    data.body->applyTorque(btVector3(Mtot.x(), Mtot.y(), Mtot.z()));
-
-    // Other Captures here
+    auto& data = physics_components[id_mapping[id::index(_id)]];
+    if (data.body)
+    {
+        btVector3 btForce(force.x, force.y, force.z);
+        if (position.x == 0 && position.y == 0 && position.z == 0)
+        {
+            data.body->applyCentralForce(btForce);
+        }
+        else
+        {
+            btVector3 btPos(position.x, position.y, position.z);
+            data.body->applyForce(btForce, btPos);
+        }
+    }
 }
 
-btRigidBody &component::get_rigid_body() const
+void component::apply_torque(const math::v3& torque)
 {
-    assert(is_valid());
-    assert(exists(_id));
-    auto &data = physics_components[id_mapping[id::index(_id)]];
-
-    return *data.body;
+    assert(is_valid() && exists(_id));
+    auto& data = physics_components[id_mapping[id::index(_id)]];
+    if (data.body)
+    {
+        data.body->applyTorque(btVector3(torque.x, torque.y, torque.z));
+    }
 }
 
-drones::DroneState component::get_drone_state()
+void component::get_state(math::v3& position, math::v4& orientation,
+                      math::v3& velocity, math::v3& angular_velocity) const
 {
-    assert(is_valid());
-    const id::id_type index = id::index(_id);
-    auto &data = physics_components[id_mapping[id::index(_id)]];
+    assert(is_valid() && exists(_id));
+    auto& data = physics_components[id_mapping[id::index(_id)]];
+    if (data.body)
+    {
+        const btTransform& transform = data.body->getWorldTransform();
+        const btVector3& pos = transform.getOrigin();
+        const btQuaternion& rot = transform.getRotation();
+        const btVector3& vel = data.body->getLinearVelocity();
+        const btVector3& angVel = data.body->getAngularVelocity();
 
-    return data.state;
+        position = math::v3(pos.x(), pos.y(), pos.z());
+        orientation = math::v4(rot.x(), rot.y(), rot.z(), rot.w());
+        velocity = math::v3(vel.x(), vel.y(), vel.z());
+        angular_velocity = math::v3(angVel.x(), angVel.y(), angVel.z());
+    }
 }
 
-btRigidBody * component::try_get_rigid_body() const
+btRigidBody* component::get_rigid_body() const
 {
-    if (!is_valid() || !exists(_id))
-        return nullptr;
-
-    auto &data = physics_components[id_mapping[id::index(_id)]];
-    return data.body;
+    assert(is_valid() && exists(_id));
+    return physics_components[id_mapping[id::index(_id)]].body;
 }
 
-bool component::has_rigid_body() const
+void shutdown()
 {
-    if (!is_valid() || !exists(_id))
-        return false;
+    for (auto& data : physics_components)
+    {
+        if (data.body)
+        {
+            if (data.body->getMotionState())
+                delete data.body->getMotionState();
+            if (data.body->getCollisionShape())
+                delete data.body->getCollisionShape();
+            delete data.body;
+        }
+    }
 
-    auto &data = physics_components[id_mapping[id::index(_id)]];
-    return data.body != nullptr;
-}
-
-void component::set_drone_state(drones::DroneState state)
-{
-    assert(is_valid());
-     const id::id_type index = id::index(_id);
-    auto &data = physics_components[id_mapping[id::index(_id)]];
-    data.state = std::move(state);
+    physics_components.clear();
+    id_mapping.clear();
+    generations.clear();
+    free_ids.clear();
 }
 } // namespace lark::physics
