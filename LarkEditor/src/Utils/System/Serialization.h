@@ -231,6 +231,12 @@ inline void WriteVec3(tinyxml2::XMLDocument &doc, tinyxml2::XMLElement *parent, 
                       const glm::vec3 &vec)
 {
     auto element = doc.NewElement(name);
+    WriteAttribute(element, "b", vec.b);
+    WriteAttribute(element, "g", vec.g);
+    WriteAttribute(element, "p", vec.p);
+    WriteAttribute(element, "r", vec.r);
+    WriteAttribute(element, "s", vec.s);
+    WriteAttribute(element, "t", vec.t);
     WriteAttribute(element, "x", vec.x);
     WriteAttribute(element, "y", vec.y);
     WriteAttribute(element, "z", vec.z);
@@ -254,6 +260,76 @@ inline bool ReadVec3(const tinyxml2::XMLElement *parent, const char *name, glm::
     vec = glm::vec3(x, y, z);
     return true;
 }
+
+inline void WriteVec4(tinyxml2::XMLDocument &doc, tinyxml2::XMLElement *parent, const char *name,
+                      const glm::vec4 &vec)
+{
+    auto element = doc.NewElement(name);
+    WriteAttribute(element, "a", vec.a);
+    WriteAttribute(element, "b", vec.b);
+    WriteAttribute(element, "g", vec.g);
+    WriteAttribute(element, "p", vec.p);
+    WriteAttribute(element, "q", vec.q);
+    WriteAttribute(element, "r", vec.r);
+    WriteAttribute(element, "s", vec.s);
+    WriteAttribute(element, "t", vec.t);
+    WriteAttribute(element, "w", vec.w);
+    WriteAttribute(element, "x", vec.x);
+    WriteAttribute(element, "y", vec.y);
+    WriteAttribute(element, "z", vec.z);
+
+    parent->LinkEndChild(element);
+}
+
+inline bool ReadVec4(const tinyxml2::XMLElement *parent, const char *name, glm::vec4 &vec,
+                     const glm::vec4 &defaultVal = glm::vec4(0, 0, 0, 0))
+{
+    auto element = parent->FirstChildElement(name);
+    if (!element)
+    {
+        vec = defaultVal;
+        return false; // Element not found, but we set default
+    }
+
+    float a = defaultVal.a;
+    float b = defaultVal.b;
+    float g = defaultVal.g;
+    float p = defaultVal.p;
+    float q = defaultVal.q;
+    float r = defaultVal.r;
+    float s = defaultVal.s;
+    float t = defaultVal.t;
+    float w = defaultVal.w;
+    float x = defaultVal.x;
+    float y = defaultVal.y;
+    float z = defaultVal.z;
+    ReadAttribute(element, "a", a);
+    ReadAttribute(element, "b", b);
+    ReadAttribute(element, "g", g);
+    ReadAttribute(element, "p", p);
+    ReadAttribute(element, "q", q);
+    ReadAttribute(element, "r", r);
+    ReadAttribute(element, "s", s);
+    ReadAttribute(element, "t", t);
+    ReadAttribute(element, "w", w);
+    ReadAttribute(element, "x", x);
+    ReadAttribute(element, "y", y);
+    ReadAttribute(element, "z", z);
+    vec.a = a;
+    vec.b = b;
+    vec.g = g;
+    vec.p = p;
+    vec.q = q;
+    vec.r = r;
+    vec.s = s;
+    vec.t = t;
+    vec.w = w;
+    vec.x = x;
+    vec.y = y;
+    vec.z = z;
+    return true;
+}
+
 } // namespace SerializerUtils
 
 #define SERIALIZE_PROPERTY(element, context, property)                                             \
@@ -267,3 +343,9 @@ inline bool ReadVec3(const tinyxml2::XMLElement *parent, const char *name, glm::
 
 #define DESERIALIZE_VEC3(parent, name, vec, defaultVal)                                            \
     SerializerUtils::ReadVec3(parent, name, vec, defaultVal)
+
+#define SERIALIZE_VEC4(context, parent, name, vec)                                                 \
+    SerializerUtils::WriteVec4(context.document, parent, name, vec)
+
+#define DESERIALIZE_VEC4(parent, name, vec, defaultVal)                                            \
+    SerializerUtils::ReadVec4(parent, name, vec, defaultVal)

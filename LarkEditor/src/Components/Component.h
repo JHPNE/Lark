@@ -12,6 +12,8 @@ class Component;
 class Transform;
 class Script;
 class Geometry;
+class Physics;
+class Drone;
 class Scene;
 
 using namespace MathUtils;
@@ -46,12 +48,30 @@ struct GeometryInitializer : ComponentInitializer
     content_tools::PrimitiveMeshType meshType;
 };
 
+struct PhysicInitializer : ComponentInitializer
+{
+    float mass;
+    glm::vec3 inertia;
+    bool is_kinematic;
+};
+
+struct DroneInitializer : ComponentInitializer
+{
+    quad_params params;
+    control_abstraction control_abstraction;
+    trajectory trajectory;
+    drone_state drone_state;
+    control_input input;
+};
+
 enum class ComponentType
 {
     None = 0,
     Transform,
     Script,
     Geometry,
+    Physic,
+    Drone
     // Add other component types here
 };
 
@@ -77,6 +97,10 @@ class Component
             return "Script";
         case ComponentType::Geometry:
             return "Geometry";
+        case ComponentType::Physic:
+            return "Physic";
+        case ComponentType::Drone:
+            return "Drone";
         default:
             return "Unknown";
         }

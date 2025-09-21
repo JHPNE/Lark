@@ -5,7 +5,8 @@
 #include "Components/Geometry.h"
 #include "EngineAPI.h"
 #include "GameEntity.h"
-#include "Utils/System/Serialization.h"
+#include "Components/Drone.h"
+#include "Components/Physics.h"
 #include "Utils/Utils.h"
 #include <memory>
 #include <string>
@@ -198,11 +199,43 @@ class Scene : public std::enable_shared_from_this<Scene>
             {
                 desc.geometry.is_dynamic = false;
                 desc.geometry.scene = geometry->GetScene();
+
+                // Fill physic
+                if (auto *physic = entity->GetComponent<Physics>())
+                {
+                    auto *transform = entity->GetComponent<Transform>();
+                    desc.physics.scene = geometry->GetScene();
+                    desc.physics.is_kinematic = physic->IsKinematic();
+                    desc.physics.position = transform->GetPosition();
+
+                    // Calculate orientation from transform
+                    glm::quat orientation = glm::quat(glm::radians(transform->GetRotation()));
+                    desc.physics.orientation[0] = orientation.w;
+                    desc.physics.orientation[1] = orientation.x;
+                    desc.physics.orientation[2] = orientation.y;
+                    desc.physics.orientation[3] = orientation.z;
+
+                    // Set other physics properties
+                    desc.physics.mass = physic->GetMass();
+                    const glm::vec3& inertia = physic->GetInertia();
+                    desc.physics.inertia[0] = inertia.x;
+                    desc.physics.inertia[1] = inertia.y;
+                    desc.physics.inertia[2] = inertia.z;
+
+
+                    if (auto *drone = entity->GetComponent<Drone>())
+                    {
+                        desc.drone.params = drone->GetParams();
+                        desc.drone.control_abstraction = drone->GetControlAbstraction();
+                        desc.drone.drone_state = drone->GetDroneState();
+                        desc.drone.input = drone->GetControlInput();
+                        desc.drone.trajectory = drone->GetTrajectory();
+                    }
+                }
             }
         }
 
-        if (UpdateGameEntity(entityId, &desc))
-            printf("WOWOWOW");
+        UpdateGameEntity(entityId, &desc);
     }
 
     std::shared_ptr<GameEntity> GetEntity(uint32_t entityId) const
