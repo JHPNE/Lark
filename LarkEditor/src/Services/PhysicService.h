@@ -11,9 +11,9 @@ public:
         static PhysicService instance;
         return instance;
     }
-
-    bool SetWorldSettings(glm::vec3 gravity, wind windtype)
-    {
-       return ::SetWorldSettings(gravity, windtype);
-    }
+private:
+    PhysicService() = default;
+    ~PhysicService() = default;
+    PhysicService(const PhysicService&) = delete;
+    PhysicService& operator=(const PhysicService&) = delete;
 };

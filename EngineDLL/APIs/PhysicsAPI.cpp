@@ -9,26 +9,29 @@ using namespace lark;
 
 extern "C"
 {
-    ENGINE_API bool SetWorldSettings(glm::vec3 gravity, wind windtype)
+
+    bool SetEntityPhysic(lark::id::id_type entity_id, const physics_component &physics)
     {
-        auto* world = physics::WorldRegistry::instance().get_active_world();
-        if (!world)
-        {
+        if (!engine::is_entity_valid(entity_id))
             return false;
-        }
 
-        auto* dynamics_world = world->dynamics_world();
-        if (!dynamics_world)
-        {
+        auto entity = engine::entity_from_id(entity_id);
+        auto physic_comp = entity.physics();
+        if (!physic_comp.is_valid())
             return false;
-        }
 
-        // Set gravity
-        dynamics_world->setGravity(btVector3(gravity.x, gravity.y, gravity.z));
+        return true;
+    }
 
-        // Set wind using the chooseWind function
-        auto wind_system = engine::chooseWind(windtype);
-        world->set_wind(wind_system);
+    bool GetEntityPhysic(lark::id::id_type entity_id, physics_component *physics)
+    {
+        if (!engine::is_entity_valid(entity_id))
+            return false;
+
+        auto entity = engine::entity_from_id(entity_id);
+        auto physic_comp = entity.physics();
+        if (!physic_comp.is_valid())
+            return false;
 
         return true;
     }

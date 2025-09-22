@@ -25,6 +25,8 @@ private:
     void DrawTransformComponent();
     void DrawScriptComponent();
     void DrawGeometryComponent();
+    void DrawPhysicsComponent();
+    void DrawDroneComponent();
     void DrawAddComponentButton();
 
     bool m_show = true;

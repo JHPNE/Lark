@@ -69,6 +69,16 @@ void ComponentView::DrawSingleSelection() {
     if (m_viewModel->HasGeometry.Get()) {
         DrawGeometryComponent();
     }
+
+    // Physics Component
+    if (entity->GetComponent<Physics>()) {
+        DrawPhysicsComponent();
+    }
+
+    // Drone Component
+    if (entity->GetComponent<Drone>()) {
+        DrawDroneComponent();
+    }
     
     // Add Component Button
     DrawAddComponentButton();
@@ -259,6 +269,130 @@ void ComponentView::DrawGeometryComponent() {
 
     CustomWidgets::EndSection();
 }
+
+void ComponentView::DrawPhysicsComponent()
+{
+    if (!CustomWidgets::BeginSection("Physics", true)) return;
+
+
+    auto* physics = m_viewModel->SelectedEntity.Get()->GetComponent<Physics>();
+    if (!physics)
+    {
+        CustomWidgets::EndSection();
+        return;
+    }
+
+    CustomWidgets::BeginPropertyTable();
+
+    float mass = physics->GetMass();
+    if (CustomWidgets::PropertyFloat("Mass", &mass, 0.01f, 1000.0f, "%.2f"))
+    {
+        physics->SetMass(mass);
+
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    bool kinematic = physics->IsKinematic();
+    if (CustomWidgets::PropertyBool("Kinematic", &kinematic)) {
+        physics->SetKinematic(kinematic);
+        // Update entity
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    glm::vec3 inertia = physics->GetInertia();
+    if (CustomWidgets::PropertyFloat3("Inertia", &inertia.x, "%.3f")) {
+        physics->SetInertia(inertia);
+        // Update entity
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    CustomWidgets::EndPropertyTable();
+
+    ImGui::Spacing();
+
+    if (CustomWidgets::ColoredButton("Remove Physics", WidgetColorType::Danger, ImVec2(120, 0))) {
+        // Execute remove physics command
+    }
+
+    CustomWidgets::EndSection();
+}
+
+void ComponentView::DrawDroneComponent() {
+    if (!CustomWidgets::BeginSection("Drone", true))
+        return;
+
+    auto* drone = m_viewModel->SelectedEntity.Get()->GetComponent<Drone>();
+    if (!drone) {
+        CustomWidgets::EndSection();
+        return;
+    }
+
+    CustomWidgets::BeginPropertyTable();
+
+    // Control abstraction dropdown
+    const char* controlModes[] = {
+        "Motor Speeds", "Motor Thrusts", "Body Rates",
+        "Body Moments", "Attitude", "Velocity", "Acceleration"
+    };
+    int currentMode = static_cast<int>(drone->GetControlAbstraction());
+
+    ImGui::Text("Control Mode");
+    ImGui::SameLine(Sizing::PropertyLabelWidth);
+    ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+    if (ImGui::Combo("##ControlMode", &currentMode, controlModes, IM_ARRAYSIZE(controlModes))) {
+        drone->SetControlAbstraction(static_cast<control_abstraction>(currentMode));
+        // Update entity
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+    ImGui::PopItemWidth();
+
+    // Trajectory type
+    const char* trajectoryTypes[] = {"Circular", "Chaos"};
+    int trajType = static_cast<int>(drone->GetTrajectory().type);
+
+    ImGui::Text("Trajectory");
+    ImGui::SameLine(Sizing::PropertyLabelWidth);
+    ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+    if (ImGui::Combo("##Trajectory", &trajType, trajectoryTypes, IM_ARRAYSIZE(trajectoryTypes))) {
+        drone->GetTrajectory().type = static_cast<trajectory_type>(trajType);
+        // Update entity
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+    ImGui::PopItemWidth();
+
+    CustomWidgets::EndPropertyTable();
+
+    // Drone state display (read-only)
+    if (ImGui::CollapsingHeader("Drone State")) {
+        const auto& state = drone->GetDroneState();
+        ImGui::Text("Position: (%.2f, %.2f, %.2f)",
+                   state.position.x, state.position.y, state.position.z);
+        ImGui::Text("Velocity: (%.2f, %.2f, %.2f)",
+                   state.velocity.x, state.velocity.y, state.velocity.z);
+        ImGui::Text("Rotor Speeds: (%.1f, %.1f, %.1f, %.1f)",
+                   state.rotor_speeds.x, state.rotor_speeds.y,
+                   state.rotor_speeds.z, state.rotor_speeds.w);
+    }
+
+    ImGui::Spacing();
+
+    if (CustomWidgets::ColoredButton("Remove Drone", WidgetColorType::Danger, ImVec2(120, 0))) {
+        // Execute remove drone command
+    }
+
+    CustomWidgets::EndSection();
+}
+
 
 void ComponentView::DrawAddComponentButton()
 {
