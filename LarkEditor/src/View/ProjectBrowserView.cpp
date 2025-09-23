@@ -1,546 +1,277 @@
-#pragma once
 #include "ProjectBrowserView.h"
+#include "../ViewModels/ProjectBrowserViewModel.h"
+#include "../Style/CustomWidgets.h"
+#include "../Style/Theme.h"
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <cstring>
 
-#include "Style.h"
-#include "Utils/Etc/Logger.h"
-#include "Utils/Utils.h"
-#include "imgui.h"
-#include <cstdlib>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <tinyxml2.h>
+using namespace LarkStyle;
 
-#include "GeometryViewerView.h"
-
-namespace detail
+ProjectBrowserView::ProjectBrowserView()
+    : m_viewModel(std::make_unique<ProjectBrowserViewModel>())
 {
-
-std::string ReadFileContent(const fs::path &path)
-{
-    std::ifstream file(path, std::ios::binary);
-    if (!file)
-        return "";
-    return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
-} // namespace detail
+
+ProjectBrowserView::~ProjectBrowserView() = default;
 
 void ProjectBrowserView::Draw()
 {
-    if (!m_show)
-        return;
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
 
-    // Move popup handling AFTER the main window to ensure proper focus
-    bool shouldShowPathPopup = Utils::s_showEnginePathPopup;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.05f, 0.05f, 0.06f, 1.0f));
 
-    ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration |
+                                   ImGuiWindowFlags_NoMove |
+                                   ImGuiWindowFlags_NoResize |
+                                   ImGuiWindowFlags_NoSavedSettings |
+                                   ImGuiWindowFlags_NoBringToFrontOnFocus;
 
-    // Add these flags to ensure the window is interactable
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
-
-    // Ensure window is focused when first shown
-    if (m_firstFrame) {
-        ImGui::SetNextWindowFocus();
-        m_firstFrame = false;
-    }
-
-    if (ImGui::Begin("Project Browser", &m_show, window_flags))
+    bool open = ImGui::Begin("ProjectBrowser", nullptr, window_flags);
+    if (open)
     {
-        DrawWindowGradientBackground(ImVec4(0.10f, 0.10f, 0.13f, 0.30f),
-                                     ImVec4(0.10f, 0.10f, 0.13f, 0.80f));
+        DrawBackground();
 
-        // Tabs for New/Open project
-        if (ImGui::BeginTabBar("ProjectTabs"))
-        {
-            if (ImGui::BeginTabItem("New Project"))
-            {
-                m_isNewProject = true;
-                DrawNewProject();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Open Project"))
-            {
-                m_isNewProject = false;
-                DrawOpenProject();
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
-        }
+        ImVec2 windowSize = ImGui::GetWindowSize();
+        float splitPos = windowSize.x * 0.45f;
+
+        DrawLeftPanel(splitPos);
+        DrawRightPanel(splitPos);
+        DrawStatusBar();
     }
     ImGui::End();
 
-    // Handle popup AFTER the main window
-    if (shouldShowPathPopup)
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(3);
+
+    if (m_viewModel->ShouldCloseWindow())
     {
-        if (Utils::ShowSetEnginePathPopup())
-        {
-            LoadTemplates();
-        }
+        m_loadedProject = m_viewModel->LoadedProject.Get();
+        m_shouldTransition = true;
     }
 }
 
-void ProjectBrowserView::DrawNewProject()
+void ProjectBrowserView::DrawBackground()
 {
-    ImGui::BeginChild("NewProject", ImVec2(0, -30)); // Leave space for Create button
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImVec2 pos = ImGui::GetWindowPos();
+    ImVec2 size = ImGui::GetWindowSize();
 
-    // Project name input - use char buffer for ImGui
-    static char nameBuffer[256] = "NewProject";
-    ImGui::Text("Project Name");
-    ImGui::SetNextItemWidth(-1);
-    if (ImGui::InputText("##ProjectName", nameBuffer, sizeof(nameBuffer)))
-    {
-        m_newProjectName = nameBuffer;
-    }
+    draw_list->AddRectFilledMultiColor(
+        pos,
+        ImVec2(pos.x + size.x, pos.y + size.y),
+        IM_COL32(13, 13, 15, 255),
+        IM_COL32(13, 13, 15, 255),
+        IM_COL32(20, 20, 25, 255),
+        IM_COL32(20, 20, 25, 255)
+    );
 
-    // Project path input - use char buffer for ImGui
-    static char pathBuffer[1024] = "";
-    if (m_projectPath.string().length() < sizeof(pathBuffer))
-    {
-        strcpy(pathBuffer, m_projectPath.string().c_str());
-    }
-    ImGui::Text("Project Path");
-    ImGui::SetNextItemWidth(-1);
-    if (ImGui::InputText("##ProjectPath", pathBuffer, sizeof(pathBuffer)))
-    {
-        m_projectPath = pathBuffer;
-        ValidateProjectPath();
-    }
+    float gridSize = 30.0f;
+    ImU32 gridColor = IM_COL32(255, 255, 255, 5);
 
-    ImGui::Separator();
+    for (float x = pos.x; x < pos.x + size.x; x += gridSize)
+        draw_list->AddLine(ImVec2(x, pos.y), ImVec2(x, pos.y + size.y), gridColor);
 
-    // Templates
-    const float templateListWidth = 200.0f;
-    ImGui::BeginChild("TemplateList", ImVec2(templateListWidth, 0), true);
-    for (size_t i = 0; i < m_templates.size(); i++)
-    {
-        if (ImGui::Selectable(m_templates[i]->GetType().c_str(), m_selectedTemplate == i))
-        {
-            m_selectedTemplate = i;
-        }
-    }
-    ImGui::EndChild();
-
-    ImGui::SameLine();
-
-    // Template preview
-    ImGui::BeginChild("TemplatePreview", ImVec2(0, 0), true);
-    if (m_selectedTemplate >= 0 && m_selectedTemplate < m_templates.size())
-    {
-        auto tmpl = m_templates[m_selectedTemplate];
-        ImGui::Text("Type: %s", tmpl->GetType().c_str());
-        ImGui::Text("Folders:");
-        for (const auto &folder : tmpl->GetFolders())
-        {
-            ImGui::BulletText("%s", folder.c_str());
-        }
-        // TODO: Add screenshot preview when we implement texture loading
-    }
-    ImGui::EndChild();
-
-    ImGui::EndChild(); // End of NewProject child
-
-    // Create button at the bottom
-    if (ImGui::Button("Create Project", ImVec2(-1, 0)))
-    {
-        CreateNewProject();
-    }
+    for (float y = pos.y; y < pos.y + size.y; y += gridSize)
+        draw_list->AddLine(ImVec2(pos.x, y), ImVec2(pos.x + size.x, y), gridColor);
 }
 
-void ProjectBrowserView::DrawOpenProject()
+void ProjectBrowserView::DrawLeftPanel(float width)
 {
-    ImGui::BeginChild("OpenProject", ImVec2(0, -30));
-
-    if (m_recentProjects.empty())
+    ImGui::SetCursorPos(ImVec2(50, 100));
+    if (ImGui::BeginChild("LeftPanel", ImVec2(width - 100, -150), false))
     {
-        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No recent projects");
-    }
-    else
-    {
-        // Project list on the left
-        const float listWidth = 200.0f;
-        ImGui::BeginChild("ProjectList", ImVec2(listWidth, 0), true);
+        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+        ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "LARK EDITOR");
+        ImGui::PopFont();
 
-        for (size_t i = 0; i < m_recentProjects.size(); i++)
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Create New Project");
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 8));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.1f, 0.1f, 0.11f, 1.0f));
+
+        static char nameBuffer[256] = "";
+        if (nameBuffer[0] == '\0')
         {
-            const auto &project = m_recentProjects[i];
-            if (ImGui::Selectable(project.name.c_str(), m_selectedRecentProject == (int)i))
-            {
-                m_selectedRecentProject = (int)i;
-            }
-
-            // Add context menu for each project
-            if (ImGui::BeginPopupContextItem())
-            {
-                if (ImGui::MenuItem("Remove from list"))
-                {
-                    m_recentProjects.erase(m_recentProjects.begin() + i);
-                    WriteProjectData();
-                    if (m_selectedRecentProject >= m_recentProjects.size())
-                    {
-                        m_selectedRecentProject = m_recentProjects.empty() ? -1 : 0;
-                    }
-                }
-                ImGui::EndPopup();
-            }
+            strncpy(nameBuffer, m_viewModel->NewProjectName.Get().c_str(), sizeof(nameBuffer) - 1);
+            nameBuffer[sizeof(nameBuffer) - 1] = '\0';
         }
 
-        ImGui::EndChild();
+        ImGui::Text("Project Name");
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::InputText("##ProjectName", nameBuffer, sizeof(nameBuffer)))
+            m_viewModel->NewProjectName = std::string(nameBuffer);
+
+        ImGui::Spacing();
+
+        static char pathBuffer[1024] = "";
+        if (pathBuffer[0] == '\0')
+        {
+            std::string pathStr = m_viewModel->NewProjectPath.Get().string();
+            strncpy(pathBuffer, pathStr.c_str(), sizeof(pathBuffer) - 1);
+            pathBuffer[sizeof(pathBuffer) - 1] = '\0';
+        }
+
+        ImGui::Text("Location");
+        ImGui::SetNextItemWidth(-100);
+        if (ImGui::InputText("##ProjectPath", pathBuffer, sizeof(pathBuffer)))
+            m_viewModel->NewProjectPath = fs::path(pathBuffer);
+
         ImGui::SameLine();
+        if (ImGui::Button("Browse", ImVec2(90, 0)))
+            m_viewModel->BrowsePathCommand->Execute();
 
-        // Project details on the right
-        ImGui::BeginChild("ProjectDetails", ImVec2(0, 0), true);
-        if (m_selectedRecentProject >= 0 && m_selectedRecentProject < m_recentProjects.size())
+        ImGui::Spacing();
+
+        ImGui::Text("Template");
+        auto templates = m_viewModel->Templates.Get();
+        if (!templates.empty())
         {
-            const auto &project = m_recentProjects[m_selectedRecentProject];
+            std::vector<const char*> templateNames;
+            for (const auto& tmpl : templates)
+                templateNames.push_back(tmpl->GetType().c_str());
 
-            ImGui::Text("Name: %s", project.name.c_str());
-            ImGui::Text("Path: %s", project.path.string().c_str());
-            ImGui::Text("Last Opened: %s", project.date.c_str());
+            int selected = m_viewModel->SelectedTemplateIndex.Get();
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::Combo("##Template", &selected, templateNames.data(), templateNames.size()))
+                m_viewModel->SelectedTemplateIndex = selected;
+        }
 
-            // Check if project file exists
-            if (!fs::exists(project.GetFullPath()))
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
+
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.5f, 0.9f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.35f, 0.75f, 1.0f));
+
+        if (ImGui::Button("Create Project", ImVec2(-1, 40)))
+            m_viewModel->CreateProjectCommand->Execute();
+
+        ImGui::PopStyleColor(3);
+    }
+    ImGui::EndChild();
+}
+
+void ProjectBrowserView::DrawRightPanel(float startX)
+{
+    ImVec2 windowSize = ImGui::GetWindowSize();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImVec2 pos = ImGui::GetWindowPos();
+
+    // Right panel background
+    draw_list->AddRectFilled(
+        ImVec2(pos.x + startX, pos.y),
+        ImVec2(pos.x + windowSize.x, pos.y + windowSize.y),
+        IM_COL32(20, 20, 22, 200)
+    );
+
+    ImGui::SetCursorPos(ImVec2(startX + 50, 100));
+    if (ImGui::BeginChild("RightPanel", ImVec2(windowSize.x - startX - 100, -150), false))
+    {
+        ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "Recent Projects");
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        auto recentProjects = m_viewModel->RecentProjects.Get();
+        if (recentProjects.empty())
+        {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "No recent projects");
+        }
+        else
+        {
+            for (size_t i = 0; i < recentProjects.size(); ++i)
             {
-                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Project file not found!");
-            }
-        }
-        ImGui::EndChild();
-    }
+                const auto& project = recentProjects[i];
+                ImGui::PushID(static_cast<int>(i));
 
-    ImGui::EndChild(); // End of OpenProject child
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(15, 10));
+                ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.15f, 0.15f, 0.17f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.2f, 0.2f, 0.22f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.25f, 0.25f, 0.27f, 1.0f));
 
-    // Open button
-    ImGui::BeginDisabled(m_selectedRecentProject < 0);
-    if (ImGui::Button("Open Project", ImVec2(-1, 0)))
-    {
-        OpenSelectedProject();
-    }
-    ImGui::EndDisabled();
-}
+                bool selected = (m_viewModel->SelectedRecentIndex.Get() == static_cast<int>(i));
+                if (ImGui::Selectable("##card", selected, 0, ImVec2(0, 60)))
+                    m_viewModel->SelectedRecentIndex = static_cast<int>(i);
 
-void ProjectBrowserView::LoadRecentProjects()
-{
-    m_appDataPath = Utils::GetApplicationDataPath();
-    m_projectDataPath = m_appDataPath / "ProjectData.xml";
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+                    m_viewModel->OpenProjectCommand->Execute(static_cast<int>(i));
 
-    if (!fs::exists(m_appDataPath))
-    {
-        fs::create_directories(m_appDataPath);
-    }
+                // --- FIX: draw overlay text via draw list ---
+                ImVec2 cardMin = ImGui::GetItemRectMin();
+                ImDrawList* dl = ImGui::GetWindowDrawList();
 
-    // Sort m_recentProjects
-    std::sort(m_recentProjects.begin(), m_recentProjects.end(),
-              [](const ProjectData &a, const ProjectData &b) { return a.date > b.date; });
+                dl->AddText(ImVec2(cardMin.x + 15, cardMin.y + 10),
+                            IM_COL32(230, 230, 230, 255),
+                            project.name.c_str());
 
-    ReadProjectData();
-}
+                dl->AddText(ImVec2(cardMin.x + 15, cardMin.y + 28),
+                            IM_COL32(150, 150, 150, 255),
+                            project.path.string().c_str());
 
-bool ProjectBrowserView::ReadProjectData()
-{
-    Logger::Get().Log(MessageType::Info, "ReadProjectData called");
+                std::string lastOpened = "Last opened: " + project.date;
+                dl->AddText(ImVec2(cardMin.x + 15, cardMin.y + 44),
+                            IM_COL32(130, 130, 130, 255),
+                            lastOpened.c_str());
+                // --- end fix ---
 
-    m_recentProjects.clear();
-    Logger::Get().Log(MessageType::Info, "Cleared existing projects");
-
-    if (!fs::exists(m_projectDataPath))
-    {
-        Logger::Get().Log(MessageType::Warning,
-                          "Project data file not found: " + m_projectDataPath.string());
-        return false;
-    }
-
-    try
-    {
-        tinyxml2::XMLDocument doc;
-        if (doc.LoadFile(m_projectDataPath.string().c_str()) != tinyxml2::XML_SUCCESS)
-        {
-            Logger::Get().Log(MessageType::Error,
-                              "Failed to load project data file: " + m_projectDataPath.string());
-            return false;
-        }
-
-        auto root = doc.FirstChildElement("ProjectDataList");
-        if (!root)
-        {
-            Logger::Get().Log(MessageType::Error, "No ProjectDataList element found");
-            return false;
-        }
-
-        auto projectsElement = root->FirstChildElement("Projects");
-        if (!projectsElement)
-        {
-            Logger::Get().Log(MessageType::Error, "No Projects element found");
-            return false;
-        }
-
-        int count = 0;
-        for (auto element = projectsElement->FirstChildElement("ProjectData"); element;
-             element = element->NextSiblingElement("ProjectData"))
-        {
-            count++;
-
-            ProjectData data;
-            auto dateElement = element->FirstChildElement("Date");
-            auto nameElement = element->FirstChildElement("ProjectName");
-            auto pathElement = element->FirstChildElement("ProjectPath");
-
-            if (!dateElement || !nameElement || !pathElement)
-            {
-                Logger::Get().Log(MessageType::Error, "Missing required elements in ProjectData");
-                continue;
-            }
-
-            data.date = dateElement->GetText() ? dateElement->GetText() : "";
-            data.name = nameElement->GetText() ? nameElement->GetText() : "";
-            data.path = pathElement->GetText() ? pathElement->GetText() : "";
-
-            if (fs::exists(data.GetFullPath()))
-            {
-                m_recentProjects.push_back(data);
-                Logger::Get().Log(MessageType::Info, "Added project to list");
-            }
-            else
-            {
-                Logger::Get().Log(MessageType::Warning,
-                                  "Project file not found: " + data.GetFullPath().string());
-            }
-        }
-
-        Logger::Get().Log(MessageType::Info,
-                          "Found " + std::to_string(count) + " projects in XML, " + "Added " +
-                              std::to_string(m_recentProjects.size()) + " valid projects");
-
-        // Sort by date
-        if (!m_recentProjects.empty())
-        {
-            std::sort(m_recentProjects.begin(), m_recentProjects.end(),
-                      [](const ProjectData &a, const ProjectData &b) { return a.date > b.date; });
-        }
-
-        return true;
-    }
-    catch (const std::exception &e)
-    {
-        Logger::Get().Log(MessageType::Error,
-                          "Error reading project data: " + std::string(e.what()));
-        return false;
-    }
-}
-
-// TODO: seperate update and write we dont wanna rewrite everytime
-bool ProjectBrowserView::WriteProjectData()
-{
-    try
-    {
-        if (!fs::exists(m_appDataPath))
-        {
-            fs::create_directories(m_appDataPath);
-        }
-
-        tinyxml2::XMLDocument doc;
-        SerializationContext context(doc);
-
-        auto decl = doc.NewDeclaration();
-        doc.LinkEndChild(decl);
-
-        auto root = doc.NewElement("ProjectDataList");
-        root->SetAttribute("xmlns",
-                           "http://schemas.datacontract.org/2004/07/DrosimEditor.SimProject");
-        root->SetAttribute("xmlns:i", "http://www.w3.org/2001/XMLSchema-instance");
-        doc.LinkEndChild(root);
-
-        auto projectsElement = doc.NewElement("Projects");
-        root->LinkEndChild(projectsElement);
-
-        for (const auto &project : m_recentProjects)
-        {
-            if (project.name.empty() || project.path.empty())
-                continue;
-            if (!fs::exists(project.path))
-                continue;
-
-            auto projectElement = doc.NewElement("ProjectData");
-            project.Serialize(projectElement, context);
-            projectsElement->LinkEndChild(projectElement);
-        }
-
-        return doc.SaveFile(m_projectDataPath.string().c_str()) == tinyxml2::XML_SUCCESS;
-    }
-    catch (const std::exception &e)
-    {
-        Logger::Get().Log(MessageType::Error,
-                          "Error writing project data: " + std::string(e.what()));
-        return false;
-    }
-}
-
-void ProjectBrowserView::LoadTemplates()
-{
-
-    std::string enginePathString = Utils::GetEnvVar("LARK_ENGINE");
-
-    if (enginePathString.empty())
-    {
-        Utils::s_showEnginePathPopup = true;
-        Logger::Get().Log(MessageType::Error, "Engine path not set");
-        return;
-    }
-
-    // TODO: Make template path configurable
-    fs::path templatePath = Utils::GetEngineResourcePath();
-    m_templates = ProjectTemplate::LoadTemplates(templatePath);
-
-    if (m_templates.empty())
-    {
-        Logger::Get().Log(MessageType::Warning,
-                          "No project templates found in: " + templatePath.string());
-    }
-}
-
-bool ProjectBrowserView::ValidateProjectPath()
-{
-    try
-    {
-        if (m_newProjectName.empty())
-        {
-            Logger::Get().Log(MessageType::Error, "Project name cannot be empty");
-            return false;
-        }
-
-        if (m_projectPath.empty())
-        {
-            Logger::Get().Log(MessageType::Error, "Project path cannot be empty");
-            return false;
-        }
-
-        fs::path fullPath = m_projectPath / m_newProjectName;
-
-        if (fs::exists(fullPath))
-        {
-            Logger::Get().Log(MessageType::Error, "Project directory already exists");
-            return false;
-        }
-
-        return true;
-    }
-    catch (const std::exception &e)
-    {
-        Logger::Get().Log(MessageType::Error, "Invalid project path: " + std::string(e.what()));
-        return false;
-    }
-}
-
-void ProjectBrowserView::OpenSelectedProject()
-{
-    if (m_selectedRecentProject >= 0 && m_selectedRecentProject < m_recentProjects.size())
-    {
-        auto &projectData = m_recentProjects[m_selectedRecentProject];
-
-        // Check if project file exists
-        if (!fs::exists(projectData.GetFullPath()))
-        {
-            Logger::Get().Log(MessageType::Error,
-                              "Project file not found: " + projectData.GetFullPath().string());
-            return;
-        }
-
-        // clean up if there is a currently loaded project before loading a new one
-        if (m_loadedProject)
-        {
-            Logger::Get().Log(MessageType::Info,
-                              "Unloading current project: " + m_loadedProject->GetName());
-
-            //GeometryViewerView::Get().ClearGeometries();
-
-            for (auto &scene : m_loadedProject->GetScenes())
-            {
-                for (auto &entity : scene->GetEntities())
+                if (ImGui::BeginPopupContextItem("ProjectContext"))
                 {
-                    entity->SetSelected(false);
+                    if (ImGui::MenuItem("Open"))
+                        m_viewModel->OpenProjectCommand->Execute(static_cast<int>(i));
+                    if (ImGui::MenuItem("Remove from list"))
+                        m_viewModel->RemoveRecentCommand->Execute(static_cast<int>(i));
+                    ImGui::EndPopup();
                 }
+
+                ImGui::PopStyleColor(3);
+                ImGui::PopStyleVar();
+                ImGui::PopID();
+                ImGui::Spacing();
             }
-
-            m_loadedProject->Unload();
-
-            m_loadedProject.reset();
-
-            Logger::Get().Log(MessageType::Info, "Sucessfully unloaded current project");
-        }
-
-        if (auto project = Project::Load(projectData.GetFullPath()))
-        {
-            // Update last opened time
-            auto now = std::chrono::system_clock::now();
-            auto timeT = std::chrono::system_clock::to_time_t(now);
-            std::stringstream ss;
-            ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
-            projectData.date = ss.str();
-
-            // Move this project to the top of the list
-            std::rotate(m_recentProjects.begin(),
-                        m_recentProjects.begin() + m_selectedRecentProject,
-                        m_recentProjects.begin() + m_selectedRecentProject + 1);
-
-            // load project instance
-            m_loadedProject = project;
-
-            // Save updated project data
-            WriteProjectData();
-
-            Logger::Get().Log(MessageType::Info,
-                              "Project opened successfully: " + projectData.name);
-            m_show = false;
         }
     }
+    ImGui::EndChild();
 }
 
-bool ProjectBrowserView::CreateNewProject()
+
+void ProjectBrowserView::DrawStatusBar()
 {
-    if (!ValidateProjectPath() || m_selectedTemplate >= m_templates.size())
+    ImVec2 windowSize = ImGui::GetWindowSize();
+    float barHeight = 30.0f;
+
+    // Position at bottom
+    ImGui::SetCursorPosY(windowSize.y - barHeight);
+
+    if (ImGui::BeginChild("StatusBar", ImVec2(windowSize.x, barHeight), false,
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
-        return false;
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImVec2 pos = ImGui::GetWindowPos();
+        ImVec2 size = ImGui::GetWindowSize();
+
+        // Background
+        draw_list->AddRectFilled(
+            pos,
+            ImVec2(pos.x + size.x, pos.y + size.y),
+            IM_COL32(25, 25, 28, 255)
+        );
+
+        // Text aligned left
+        ImGui::SetCursorPos(ImVec2(10, (barHeight - ImGui::GetTextLineHeight()) * 0.5f));
+        ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Status: Ready");
     }
-
-    if (m_loadedProject)
-    {
-        Logger::Get().Log(MessageType::Info, "Unloading current project before creating new one");
-
-        //GeometryViewerView::Get().ClearGeometries();
-
-        for (auto &scene : m_loadedProject->GetScenes())
-        {
-            for (auto &entity : scene->GetEntities())
-            {
-                entity->SetSelected(false);
-            }
-        }
-
-        m_loadedProject->Unload();
-        m_loadedProject.reset();
-    }
-
-    auto tmpl = m_templates[m_selectedTemplate];
-    if (auto project = Project::Create(m_newProjectName, m_projectPath, *tmpl))
-    {
-        ProjectData projectData;
-        projectData.name = m_newProjectName;
-        projectData.path = m_projectPath / m_newProjectName;
-
-        // Get current time
-        auto now = std::chrono::system_clock::now();
-        auto timeT = std::chrono::system_clock::to_time_t(now);
-        std::stringstream ss;
-        ss << std::put_time(std::localtime(&timeT), "%Y-%m-%d %H:%M:%S");
-        projectData.date = ss.str();
-
-        m_recentProjects.push_back(projectData);
-        m_loadedProject = project;
-        WriteProjectData();
-
-        Logger::Get().Log(MessageType::Info, "Project created successfully");
-        m_show = false;
-        return true;
-    }
-
-    return false;
+    ImGui::EndChild();
 }

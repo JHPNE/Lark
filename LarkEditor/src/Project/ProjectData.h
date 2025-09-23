@@ -32,4 +32,16 @@ class ProjectData : public ISerializable
 
         return true;
     }
+
+    Version GetVersion() const override { return {1, 0, 0}; }
+
+    bool operator==(const ProjectData& other) const {
+        return name == other.name &&
+               path == other.path &&
+               date == other.date;
+    }
+
+    bool operator!=(const ProjectData& other) const {
+        return !(*this == other);
+    }
 };

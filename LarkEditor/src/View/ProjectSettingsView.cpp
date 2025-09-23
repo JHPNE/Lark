@@ -159,6 +159,8 @@ void ProjectSettingsView::DrawCameraTab()
     }
 }
 
+// LarkEditor/src/View/ProjectSettingsView.cpp
+
 void ProjectSettingsView::DrawGeometryTab()
 {
     if (!m_viewModel->HasProject.Get())
@@ -167,127 +169,162 @@ void ProjectSettingsView::DrawGeometryTab()
         return;
     }
 
-    CustomWidgets::BeginSection("Create Primitive", true);
+    // Push unique ID for the entire geometry tab to avoid conflicts
+    ImGui::PushID("GeometryTabMain");
 
-    // Primitive type selection
-    const char* types[] = {"Cube", "UV Sphere", "Cylinder"};
-    int type = m_viewModel->PrimitiveType.Get();
-
-    ImGui::Text("Type");
-    ImGui::SameLine(Sizing::PropertyLabelWidth);
-    ImGui::PushItemWidth(Sizing::PropertyControlWidth);
-    if (ImGui::Combo("##Type", &type, types, IM_ARRAYSIZE(types)))
+    // Create Primitive Section
+    if (CustomWidgets::BeginSection("Create Primitive", true))
     {
-        m_viewModel->PrimitiveType = type;
+        // Push ID for this section
+        ImGui::PushID("PrimitiveSection");
 
-        // Update default segments based on type
+        // Primitive type selection
+        const char* types[] = {"Cube", "UV Sphere", "Cylinder"};
+        int type = m_viewModel->PrimitiveType.Get();
+
+        ImGui::Text("Type");
+        ImGui::SameLine(Sizing::PropertyLabelWidth);
+        ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+
+        // Use unique ID for combo
+        if (ImGui::Combo("##PrimitiveType", &type, types, IM_ARRAYSIZE(types)))
+        {
+            m_viewModel->PrimitiveType = type;
+
+            // Update default segments based on type
+            switch (type)
+            {
+                case 0: // Cube
+                    m_viewModel->PrimitiveSegments = glm::ivec3(1, 1, 1);
+                    break;
+                case 1: // Sphere
+                    m_viewModel->PrimitiveSegments = glm::ivec3(32, 16, 1);
+                    break;
+                case 2: // Cylinder
+                    m_viewModel->PrimitiveSegments = glm::ivec3(32, 1, 1);
+                    break;
+            }
+        }
+        ImGui::PopItemWidth();
+
+        ImGui::Spacing();
+
+        // Size - with unique IDs
+        ImGui::PushID("SizeControls");
+        CustomWidgets::BeginPropertyTable();
+        glm::vec3 size = m_viewModel->PrimitiveSize.Get();
+        if (CustomWidgets::PropertyFloat3("Size", &size.x))
+        {
+            m_viewModel->PrimitiveSize = size;
+        }
+        CustomWidgets::EndPropertyTable();
+        ImGui::PopID();
+
+        ImGui::Spacing();
+
+        // Segments - with unique IDs for each control
+        glm::ivec3 segments = m_viewModel->PrimitiveSegments.Get();
+        ImGui::Text("Segments");
+        ImGui::Indent();
+        ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+
+        ImGui::PushID("SegmentControls");
         switch (type)
         {
             case 0: // Cube
-                m_viewModel->PrimitiveSegments = glm::ivec3(1, 1, 1);
+                if (ImGui::DragInt3("##CubeSegments", &segments.x, 1, 1, 10))
+                {
+                    m_viewModel->PrimitiveSegments = segments;
+                }
                 break;
+
             case 1: // Sphere
-                m_viewModel->PrimitiveSegments = glm::ivec3(32, 16, 1);
+                ImGui::PushID(0);
+                if (ImGui::DragInt("Longitude##SphereSeg", &segments.x, 1, 8, 64))
+                {
+                    m_viewModel->PrimitiveSegments = segments;
+                }
+                ImGui::PopID();
+
+                ImGui::PushID(1);
+                if (ImGui::DragInt("Latitude##SphereSeg", &segments.y, 1, 4, 32))
+                {
+                    m_viewModel->PrimitiveSegments = segments;
+                }
+                ImGui::PopID();
                 break;
+
             case 2: // Cylinder
-                m_viewModel->PrimitiveSegments = glm::ivec3(32, 1, 1);
+                ImGui::PushID(0);
+                if (ImGui::DragInt("Radial##CylSeg", &segments.x, 1, 8, 64))
+                {
+                    m_viewModel->PrimitiveSegments = segments;
+                }
+                ImGui::PopID();
+
+                ImGui::PushID(1);
+                if (ImGui::DragInt("Height##CylSeg", &segments.y, 1, 1, 10))
+                {
+                    m_viewModel->PrimitiveSegments = segments;
+                }
+                ImGui::PopID();
+
+                ImGui::PushID(2);
+                if (ImGui::DragInt("Cap##CylSeg", &segments.z, 1, 1, 5))
+                {
+                    m_viewModel->PrimitiveSegments = segments;
+                }
+                ImGui::PopID();
                 break;
         }
-    }
-    ImGui::PopItemWidth();
+        ImGui::PopID(); // SegmentControls
 
-    ImGui::Spacing();
+        ImGui::PopItemWidth();
+        ImGui::Unindent();
 
-    // Size
-    CustomWidgets::BeginPropertyTable();
-    glm::vec3 size = m_viewModel->PrimitiveSize.Get();
-    if (CustomWidgets::PropertyFloat3("Size", &size.x))
-    {
-        m_viewModel->PrimitiveSize = size;
-    }
-    CustomWidgets::EndPropertyTable();
+        ImGui::Spacing();
 
-    ImGui::Spacing();
+        // LOD with unique ID
+        int lod = m_viewModel->PrimitiveLOD.Get();
+        ImGui::Text("LOD");
+        ImGui::SameLine(Sizing::PropertyLabelWidth);
+        ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+        if (ImGui::SliderInt("##PrimitiveLOD", &lod, 0, 4))
+        {
+            m_viewModel->PrimitiveLOD = lod;
+        }
+        ImGui::PopItemWidth();
 
-    // Segments
-    glm::ivec3 segments = m_viewModel->PrimitiveSegments.Get();
-    ImGui::Text("Segments");
-    ImGui::Indent();
-    ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
 
-    switch (type)
-    {
-        case 0: // Cube
-            if (ImGui::DragInt3("##Segments", &segments.x, 1, 1, 10))
-            {
-                m_viewModel->PrimitiveSegments = segments;
-            }
-            break;
+        // Button with unique ID
+        ImGui::PushID("CreateBtn");
+        if (CustomWidgets::AccentButton("Create Primitive", ImVec2(-1, 32)))
+        {
+            m_viewModel->CreatePrimitiveCommand->Execute();
+        }
+        ImGui::PopID();
 
-        case 1: // Sphere
-            if (ImGui::DragInt("Longitude##Seg", &segments.x, 1, 8, 64))
-            {
-                m_viewModel->PrimitiveSegments = segments;
-            }
-            if (ImGui::DragInt("Latitude##Seg", &segments.y, 1, 4, 32))
-            {
-                m_viewModel->PrimitiveSegments = segments;
-            }
-            break;
-
-        case 2: // Cylinder
-            if (ImGui::DragInt("Radial##Seg", &segments.x, 1, 8, 64))
-            {
-                m_viewModel->PrimitiveSegments = segments;
-            }
-            if (ImGui::DragInt("Height##Seg", &segments.y, 1, 1, 10))
-            {
-                m_viewModel->PrimitiveSegments = segments;
-            }
-            if (ImGui::DragInt("Cap##Seg", &segments.z, 1, 1, 5))
-            {
-                m_viewModel->PrimitiveSegments = segments;
-            }
-            break;
+        ImGui::PopID(); // PrimitiveSection
+        CustomWidgets::EndSection();
     }
 
-    ImGui::PopItemWidth();
-    ImGui::Unindent();
-
-    ImGui::Spacing();
-
-    // LOD
-    int lod = m_viewModel->PrimitiveLOD.Get();
-    ImGui::Text("LOD");
-    ImGui::SameLine(Sizing::PropertyLabelWidth);
-    ImGui::PushItemWidth(Sizing::PropertyControlWidth);
-    if (ImGui::SliderInt("##LOD", &lod, 0, 4))
-    {
-        m_viewModel->PrimitiveLOD = lod;
-    }
-    ImGui::PopItemWidth();
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    if (CustomWidgets::AccentButton("Create Primitive", ImVec2(-1, 32)))
-    {
-        m_viewModel->CreatePrimitiveCommand->Execute();
-    }
-
-    CustomWidgets::EndSection();
-
+    // Import Section with unique ID
+    ImGui::PushID("ImportSection");
     CustomWidgets::SeparatorText("Import");
 
-    if (CustomWidgets::Button("Load from File", ImVec2(-1, 32)))
+    if (CustomWidgets::Button("Load from File##ImportBtn", ImVec2(-1, 32)))
     {
         m_showFileDialog = true;
     }
+    ImGui::PopID(); // ImportSection
 
     // File dialog handling
     if (m_showFileDialog)
     {
+        ImGui::PushID("FileDialogSection");
         static FileDialog fileDialog;
         if (fileDialog.Show(&m_showFileDialog))
         {
@@ -297,7 +334,10 @@ void ProjectSettingsView::DrawGeometryTab()
                 m_viewModel->LoadGeometryCommand->Execute(std::string(path));
             }
         }
+        ImGui::PopID(); // FileDialogSection
     }
+
+    ImGui::PopID(); // GeometryTabMain
 }
 
 void ProjectSettingsView::DrawWorldTab()

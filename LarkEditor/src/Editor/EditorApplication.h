@@ -10,7 +10,14 @@ namespace editor
 {
 class EditorApplication
 {
+
   public:
+    enum class AppState
+    {
+        ProjectBrowser,
+        Editor
+    };
+
     static EditorApplication &Get()
     {
         static EditorApplication instance;
@@ -28,26 +35,18 @@ class EditorApplication
     EditorApplication() = default;
     ~EditorApplication() = default;
 
-    void BeginFrame();
+    void DrawEditor();
+    void CreateDockingEnvironment();
+    void DrawProjectBrowser();
+    auto InitializeEditorViews(std::shared_ptr<Project> project)-> void;
     void EndFrame();
     void Update();
-
-    void DrawMenuAndToolbar();
 
     GLFWwindow *m_window = nullptr;
     ImVec4 m_clearColor = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
     bool m_Running = false;
+    AppState m_state = AppState::ProjectBrowser;
 
-    void CreateNewScript(const char *scriptName);
-
-    // Add member for script creation popup state
-    bool m_showScriptCreation = false;
-    char m_scriptNameBuffer[256] = "NewScript";
-
-    bool m_showGeometryCreation = false;
-    char m_geometryNameBuffer[256] = "C:/Users/yeeezy/Documents/monke.obj";
-
-    std::unique_ptr<lark::editor::Geometry> m_geometry;
     std::unique_ptr<TitleBarView> m_titleBar;
 };
 } // namespace editor

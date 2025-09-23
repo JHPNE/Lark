@@ -1,10 +1,7 @@
 #pragma once
-#include "../Project/Project.h"
-#include "../Project/ProjectData.h"
-#include "../Project/ProjectTemplate.h"
-#include <filesystem>
-#include <memory>
-#include <vector>
+#include "ProjectBrowserView.h"
+#include "../ViewModels/ProjectBrowserViewModel.h"
+#include "Style/CustomWidgets.h"
 
 class ProjectBrowserView
 {
@@ -14,59 +11,22 @@ class ProjectBrowserView
         static ProjectBrowserView instance;
         return instance;
     }
+    ProjectBrowserView();
+    ~ProjectBrowserView();
 
     void Draw();
-    bool &GetShowState() { return m_show; }
-    [[nodiscard]] std::shared_ptr<Project> GetLoadedProject() const { return m_loadedProject; }
-    void SetLoadedProject(const std::shared_ptr<Project> &project) { m_loadedProject = project; }
+    void DrawBackground();
 
-    void SetNewProjectMode(bool isNew) {
-        m_isNewProject = isNew;
-    }
+    void DrawLeftPanel(float width);
+    void DrawRightPanel(float width);
+
+    void DrawStatusBar();
+
+    std::shared_ptr<Project> GetLoadedProject() { return m_loadedProject; }
+    [[nodiscard]] bool ShouldTransition() const {return m_shouldTransition; }
 
   private:
-    ProjectBrowserView()
-    {
-        LoadTemplates();
-        LoadRecentProjects();
-    }
-
-    void DrawNewProject();
-    void DrawOpenProject();
-    void LoadTemplates();
-    bool ValidateProjectPath();
-
-    // Project management
-    void LoadRecentProjects();
-    bool ReadProjectData();
-    bool WriteProjectData();
-    void OpenSelectedProject();
-    bool CreateNewProject(); // Added this method
-
-    // UI state
-    bool m_firstFrame = true;
-    bool m_show = false;
-    bool m_isNewProject = true;
-    std::string m_newProjectName = "NewProject";
-#ifdef _WIN32
-    fs::path m_projectPath = fs::path(std::getenv("USERPROFILE")) / "Documents" / "Drosim";
-#else
-    fs::path m_projectPath = fs::path(std::getenv("HOME")) / "Documents" / "Drosim";
-#endif
-
-    // Project templates
-    std::vector<std::shared_ptr<ProjectTemplate>> m_templates;
-    int m_selectedTemplate = 0;
-
-    // Recent projects
-    std::vector<ProjectData> m_recentProjects;
-    int m_selectedRecentProject = -1;
-    fs::path m_appDataPath;
-    fs::path m_projectDataPath;
-
-    // Currently loaded project
+    std::unique_ptr<ProjectBrowserViewModel> m_viewModel;
     std::shared_ptr<Project> m_loadedProject;
-
-    // Constants
-    static constexpr size_t MAX_RECENT_PROJECTS = 10;
+    bool m_shouldTransition = false;
 };

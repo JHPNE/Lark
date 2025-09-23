@@ -111,9 +111,13 @@ bool CustomWidgets::PropertyFloat3(const char* label, float* values, const char*
     char id[256];
     snprintf(id, sizeof(id), "##%s", label);
 
+    // Push an ID to make each component unique
+    ImGui::PushID(id);
+
     float itemWidth = (Sizing::PropertyControlWidth - 8.0f) / 3.0f;
     bool changed = false;
 
+    const char* labels[] = {"##X", "##Y", "##Z"};
     for (int i = 0; i < 3; i++) {
         if (i > 0) ImGui::SameLine(0, 4);
 
@@ -123,15 +127,14 @@ bool CustomWidgets::PropertyFloat3(const char* label, float* values, const char*
         ImGui::PushStyleColor(ImGuiCol_FrameBgActive, Colors::InputBgActive);
         ImGui::PushStyleColor(ImGuiCol_Border, Colors::BorderSubtle);
 
-        char subId[256];
-        snprintf(subId, sizeof(subId), "%s_%d", id, i);
-
-        changed |= ImGui::DragFloat(subId, &values[i], 0.01f, 0.0f, 0.0f, format);
+        // Use the predefined label to ensure uniqueness
+        changed |= ImGui::DragFloat(labels[i], &values[i], 0.01f, 0.0f, 0.0f, format);
 
         ImGui::PopStyleColor(4);
         ImGui::PopItemWidth();
     }
 
+    ImGui::PopID(); // Pop the property ID
     ImGui::PopStyleVar();
     ImGui::PopItemWidth();
 

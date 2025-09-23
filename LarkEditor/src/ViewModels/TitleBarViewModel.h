@@ -181,17 +181,22 @@ private:
 
         NewProjectCommand = std::make_unique<RelayCommand<>>(
             []() {
+                // close current project etc
+                    /*
                 auto& browser = ProjectBrowserView::Get();
                 browser.GetShowState() = true;
                 browser.SetNewProjectMode(true);
+                */
             }
         );
 
         OpenProjectCommand = std::make_unique<RelayCommand<>>(
             []() {
+                /*
                 auto& browser = ProjectBrowserView::Get();
                 browser.GetShowState() = true;
                 browser.SetNewProjectMode(false);
+                */
             }
         );
 
