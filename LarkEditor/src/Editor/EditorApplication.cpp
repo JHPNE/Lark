@@ -14,6 +14,7 @@
 #include "imgui_impl_opengl3.h"
 #include "Rendering/GeometryRenderer.h"
 #include "Style/CustomWidgets.h"
+#include "View/ProjectSettingsView.h"
 
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -174,6 +175,10 @@ void EditorApplication::Update()
 
         GeometryViewerView::Get().SetActiveProject(loadedProject);
         GeometryViewerView::Get().Draw();
+
+        // Project Settings
+        ProjectSettingsView::Get().SetActiveProject(loadedProject);
+        ProjectSettingsView::Get().Draw();
     }
 }
 

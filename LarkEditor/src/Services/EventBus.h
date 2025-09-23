@@ -5,6 +5,7 @@
 #include <typeindex>
 #include <memory>
 #include <string>
+#include <glm/glm.hpp>
 
 // Base event class
 struct Event
@@ -29,6 +30,14 @@ struct EntityRemovedEvent : Event
 struct SceneChangedEvent : Event
 {
     uint32_t sceneId;
+};
+
+struct PrimitiveMeshCreatedEvent : Event
+{
+    int primitive_type;
+    glm::vec3 size;
+    glm::ivec3 segments;
+    int lod;
 };
 
 struct GeometryVisibilityChangedEvent : Event

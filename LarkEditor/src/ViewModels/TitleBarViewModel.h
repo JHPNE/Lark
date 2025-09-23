@@ -2,6 +2,7 @@
 #include "../ViewModels/ObservableProperty.h"
 #include "../Commands/ICommand.h"
 #include "../View/ProjectBrowserView.h"
+#include "../View/ProjectSettingsView.h"
 #include "../Project/Project.h"
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "../Utils/Etc/Logger.h"
@@ -56,6 +57,7 @@ public:
     std::unique_ptr<RelayCommand<>> StopCommand;
     std::unique_ptr<RelayCommand<>> CreateScriptCommand;
     std::unique_ptr<RelayCommand<>> ExitCommand;
+    std::unique_ptr<RelayCommand<>> ShowProjectSettingsCommand;
 
     TitleBarViewModel(GLFWwindow* window) : m_window(window) {
         InitializeCommands();
@@ -255,6 +257,13 @@ private:
             [this]() {
                 return !m_currentProject.expired();
             }
+        );
+
+        ShowProjectSettingsCommand = std::make_unique<RelayCommand<>>(
+            []() {
+                ProjectSettingsView::Get().GetShowState() = true;
+            },
+            [this]() { return !m_currentProject.expired(); }
         );
     }
 

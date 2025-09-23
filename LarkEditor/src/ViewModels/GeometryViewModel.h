@@ -264,6 +264,21 @@ private:
             }
         );
 
+        EventBus::Get().Subscribe<PrimitiveMeshCreatedEvent>(
+             [this](const PrimitiveMeshCreatedEvent& e) {
+                 HandlePrimitiveMeshCreated(e);
+            }
+        );
+    }
+
+    void HandlePrimitiveMeshCreated(const PrimitiveMeshCreatedEvent& e)
+    {
+        PrimitiveType = e.primitive_type;
+        PrimitiveSegments = e.segments;
+        PrimitiveSize = e.size;
+        PrimitiveLOD = e.lod;
+
+        ExecuteCreatePrimitive();
     }
 
     void HandleGeometryVisibilityChanged(uint32_t entityId, bool visible)

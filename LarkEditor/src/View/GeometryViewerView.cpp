@@ -1,10 +1,13 @@
 #include "GeometryViewerView.h"
 #include "../ViewModels/GeometryViewModel.h"
 #include "FileDialog.h"
+#include "ProjectSettingsView.h"
+
 #include <ImGuizmo.h>
 
 #include "Style/CustomWidgets.h"
 #include "Style/CustomWindow.h"
+#include "ViewModels/ProjectSettingsViewModel.h"
 
 using namespace LarkStyle;
 
@@ -37,7 +40,6 @@ void GeometryViewerView::Draw()
     ImGuizmo::BeginFrame();
 
     DrawViewport();
-    DrawControls();
 }
 
 void GeometryViewerView::EnsureFramebuffer(float width, float height)
@@ -371,142 +373,6 @@ void GeometryViewerView::DrawControls()
 
             CustomWidgets::EndSection();
         }
-
-        // Geometry creation
-        if (CustomWidgets::BeginSection("Create Geometry", false))
-        {
-            // Primitive type - Use raw ImGui without PropertyTable
-            const char* types[] = {"Cube", "UV Sphere", "Cylinder"};
-            int type = m_viewModel->PrimitiveType.Get();
-
-            ImGui::Text("Type");
-            ImGui::SameLine(Sizing::PropertyLabelWidth);
-            ImGui::PushItemWidth(Sizing::PropertyControlWidth);
-            if (ImGui::Combo("##Type", &type, types, IM_ARRAYSIZE(types)))
-            {
-                m_viewModel->PrimitiveType = type;
-
-                // Update default segments based on type
-                switch (type)
-                {
-                    case 0: // Cube
-                        m_viewModel->PrimitiveSegments = glm::ivec3(1, 1, 1);
-                        break;
-                    case 1: // Sphere
-                        m_viewModel->PrimitiveSegments = glm::ivec3(32, 16, 1);
-                        break;
-                    case 2: // Cylinder
-                        m_viewModel->PrimitiveSegments = glm::ivec3(32, 1, 1);
-                        break;
-                }
-            }
-            ImGui::PopItemWidth();
-
-            ImGui::Spacing();
-
-            // Size - Use PropertyFloat3
-            CustomWidgets::BeginPropertyTable();
-            glm::vec3 size = m_viewModel->PrimitiveSize.Get();
-            if (CustomWidgets::PropertyFloat3("Size", &size.x))
-            {
-                m_viewModel->PrimitiveSize = size;
-            }
-            CustomWidgets::EndPropertyTable();
-
-            ImGui::Spacing();
-
-            // Segments - Use raw ImGui without PropertyTable
-            glm::ivec3 segments = m_viewModel->PrimitiveSegments.Get();
-
-            ImGui::Text("Segments");
-            ImGui::Indent();
-            ImGui::PushItemWidth(Sizing::PropertyControlWidth);
-
-            switch (type)
-            {
-                case 0: // Cube
-                    if (ImGui::DragInt3("##Segments", &segments.x, 1, 1, 10))
-                    {
-                        m_viewModel->PrimitiveSegments = segments;
-                    }
-                    break;
-
-                case 1: // Sphere
-                    if (ImGui::DragInt("Longitude##Seg", &segments.x, 1, 8, 64))
-                    {
-                        m_viewModel->PrimitiveSegments = segments;
-                    }
-                    if (ImGui::DragInt("Latitude##Seg", &segments.y, 1, 4, 32))
-                    {
-                        m_viewModel->PrimitiveSegments = segments;
-                    }
-                    break;
-
-                case 2: // Cylinder
-                    if (ImGui::DragInt("Radial##Seg", &segments.x, 1, 8, 64))
-                    {
-                        m_viewModel->PrimitiveSegments = segments;
-                    }
-                    if (ImGui::DragInt("Height##Seg", &segments.y, 1, 1, 10))
-                    {
-                        m_viewModel->PrimitiveSegments = segments;
-                    }
-                    if (ImGui::DragInt("Cap##Seg", &segments.z, 1, 1, 5))
-                    {
-                        m_viewModel->PrimitiveSegments = segments;
-                    }
-                    break;
-            }
-
-            ImGui::PopItemWidth();
-            ImGui::Unindent();
-
-            ImGui::Spacing();
-
-            // LOD
-            int lod = m_viewModel->PrimitiveLOD.Get();
-            ImGui::Text("LOD");
-            ImGui::SameLine(Sizing::PropertyLabelWidth);
-            ImGui::PushItemWidth(Sizing::PropertyControlWidth);
-            if (ImGui::SliderInt("##LOD", &lod, 0, 4))
-            {
-                m_viewModel->PrimitiveLOD = lod;
-            }
-            ImGui::PopItemWidth();
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            if (CustomWidgets::AccentButton("Create Primitive", ImVec2(-1, 32)))
-            {
-                m_viewModel->CreatePrimitiveCommand->Execute();
-            }
-
-            CustomWidgets::SeparatorText("Import");
-
-            // Load from file
-            if (CustomWidgets::Button("Load from File", ImVec2(-1, 32)))
-            {
-                m_showFileDialog = true;
-            }
-
-            CustomWidgets::EndSection();
-        }
-
-        // File dialog handling outside of section
-        if (m_showFileDialog)
-        {
-            static FileDialog fileDialog;
-            if (fileDialog.Show(&m_showFileDialog))
-            {
-                const char* path = fileDialog.GetSelectedPathAsChar();
-                if (path && strlen(path) > 0)
-                {
-                    m_viewModel->LoadGeometryCommand->Execute(std::string(path));
-                }
-            }
-        }
     }
     CustomWindow::End();
     ImGui::PopID();
@@ -514,22 +380,10 @@ void GeometryViewerView::DrawControls()
 
 glm::mat4 GeometryViewerView::CalculateViewMatrix()
 {
-    glm::vec3 cameraPos = m_viewModel->CameraPosition.Get();
-    glm::vec3 cameraRot = m_viewModel->CameraRotation.Get();
-    float distance = m_viewModel->CameraDistance.Get();
+    if (auto* settingsVM = ProjectSettingsView::Get().GetViewModel())
+    {
+        return settingsVM->GetViewMatrix();
+    }
 
-    glm::vec3 forward(0.0f, 0.0f, -1.0f);
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
-
-    // Apply rotations
-    glm::mat4 rotation = glm::mat4(1.0f);
-    rotation = glm::rotate(rotation, glm::radians(cameraRot.x), glm::vec3(1.0f, 0.0f, 0.0f));
-    rotation = glm::rotate(rotation, glm::radians(cameraRot.y), glm::vec3(0.0f, 1.0f, 0.0f));
-    rotation = glm::rotate(rotation, glm::radians(cameraRot.z), glm::vec3(0.0f, 0.0f, 1.0f));
-
-    forward = glm::vec3(rotation * glm::vec4(forward, 0.0f));
-    up = glm::vec3(rotation * glm::vec4(up, 0.0f));
-
-    glm::vec3 actualCameraPos = cameraPos - (forward * distance);
-    return glm::lookAt(actualCameraPos, cameraPos, up);
+    return glm::lookAt(glm::vec3(0, 0, 10), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 }

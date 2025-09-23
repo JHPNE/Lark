@@ -175,6 +175,11 @@ void TitleBarView::DrawMenuItems() {
                 m_viewModel->StopCommand->Execute();
             }
         }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Settings")) {
+            m_viewModel->ShowProjectSettingsCommand->Execute();
+        }
     }
 
     ImGui::PopStyleColor(3);
