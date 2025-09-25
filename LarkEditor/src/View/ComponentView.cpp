@@ -71,7 +71,7 @@ void ComponentView::DrawSingleSelection() {
     }
 
     // Physics Component
-    if (entity->GetComponent<Physics>()) {
+    if (m_viewModel->HasPhysics.Get()){
         DrawPhysicsComponent();
     }
 
@@ -284,6 +284,7 @@ void ComponentView::DrawPhysicsComponent()
 
     CustomWidgets::BeginPropertyTable();
 
+    // TODO: updates over ComponetnViewModel and Service instead of directly
     float mass = physics->GetMass();
     if (CustomWidgets::PropertyFloat("Mass", &mass, 0.01f, 1000.0f, "%.2f"))
     {
@@ -405,7 +406,34 @@ void ComponentView::DrawAddComponentButton()
     float off = (avail - buttonWidth) * 0.5f;
     if (off > 0.0f) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
 
+    // Button click - just opens the popup
     if (CustomWidgets::Button("+ Add Component", ImVec2(buttonWidth, 36))) {
         ImGui::OpenPopup("AddComponentPopup");
+    }
+
+    // Handle the popup OUTSIDE of the button condition
+    if (ImGui::BeginPopup("AddComponentPopup")) {
+        if (ImGui::MenuItem("Physics Component") && m_viewModel->HasGeometry.Get() && !m_viewModel->SelectedEntity.Get()->GetComponent<Physics>())
+        {
+            m_viewModel->AddPhysicsCommand->Execute();
+        }
+
+        if (ImGui::MenuItem("Script Component"))
+        {
+            m_viewModel->AddScriptCommand->Execute();
+        }
+
+        if (ImGui::MenuItem("Drone Component")) {
+            // Add drone component logic here
+        }
+
+        // Add separator if needed
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Cancel")) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
     }
 }

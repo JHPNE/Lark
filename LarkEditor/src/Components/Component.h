@@ -50,9 +50,9 @@ struct GeometryInitializer : ComponentInitializer
 
 struct PhysicInitializer : ComponentInitializer
 {
-    float mass;
-    glm::vec3 inertia;
-    bool is_kinematic;
+    float mass{1.0f};
+    glm::vec3 inertia{glm::vec3(0.f)};
+    bool is_kinematic{false};
 };
 
 struct DroneInitializer : ComponentInitializer

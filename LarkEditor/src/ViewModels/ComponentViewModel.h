@@ -40,6 +40,12 @@ public:
     ObservableProperty<bool> GeometryVisible{true};
     ObservableProperty<GeometryType> GeometryType{GeometryType::PrimitiveType};
 
+    // Physics Component Properties
+    ObservableProperty<bool> HasPhysics{false};
+    ObservableProperty<float> Mass;
+    ObservableProperty<bool> IsKinematic;
+    ObservableProperty<glm::vec3> Inertia;
+
     // UI State
     ObservableProperty<bool> IsEditingTransform{false};
     ObservableProperty<std::string> StatusMessage{""};
@@ -54,6 +60,7 @@ public:
     std::unique_ptr<RelayCommand<>> RemoveGeometryCommand;
     std::unique_ptr<RelayCommand<bool>> SetGeometryVisibilityCommand;
     std::unique_ptr<RelayCommand<>> RandomizeGeometryCommand;
+    std::unique_ptr<RelayCommand<>> AddPhysicsCommand;
     std::unique_ptr<RelayCommand<>> RefreshCommand;
 
     ComponentViewModel()
@@ -151,6 +158,12 @@ private:
             [this]() { return HasGeometry.Get() && HasSingleSelection.Get(); }
         );
 
+        // Physics commands
+        AddPhysicsCommand = std::make_unique<RelayCommand<>>(
+            [this]() { ExecuteAddPhysics(); },
+            [this]() { return HasSingleSelection.Get() && HasGeometry.Get() && !HasPhysics.Get(); }
+        );
+
         // Refresh command
         RefreshCommand = std::make_unique<RelayCommand<>>(
             [this]() { RefreshSelection(); }
@@ -196,7 +209,7 @@ private:
         auto scene = m_project->GetActiveScene();
         std::vector<std::shared_ptr<GameEntity>> entities;
 
-        for (uint32_t id : selectedIds) {
+        for (auto id : selectedIds) {
             if (auto entity = scene->GetEntity(id)) {
                 entities.push_back(entity);
             }
@@ -247,6 +260,18 @@ private:
         } else {
             HasGeometry = false;
             GeometryName = std::string("");
+        }
+
+        if (auto* physic = entity->GetComponent<Physics>())
+        {
+            HasPhysics = true;
+            Mass = physic->GetMass();
+            Inertia = physic->GetInertia();
+            IsKinematic = physic->IsKinematic();
+        }
+        else
+        {
+            HasPhysics = false;
         }
     }
 
@@ -316,6 +341,7 @@ private:
         HasTransform = false;
         HasScript = false;
         HasGeometry = false;
+        HasPhysics = false;
     }
 
     void RefreshSelection() {
@@ -352,7 +378,8 @@ private:
         }
     }
 
-    void ExecuteAddScript(const std::string& scriptName) {
+    void ExecuteAddScript(const std::string& scriptName)
+    {
         if (!SelectedEntity.Get()) return;
 
         ScriptInitializer scriptInit;
@@ -372,7 +399,35 @@ private:
         }
     }
 
-    void ExecuteRemoveScript() {
+    void ExecuteAddPhysics()
+    {
+        if (!SelectedEntity.Get() || !SelectedEntity.Get()->GetComponent<Geometry>()) return;
+
+        PhysicInitializer physicInit;
+        physicInit.mass = 1.0f;
+        physicInit.inertia = glm::vec3(1.0f, 1.0f, 1.0f);
+        physicInit.is_kinematic = false;
+
+        if (auto* physic = SelectedEntity.Get()->AddComponent<Physics>(&physicInit))
+        {
+            // Update the observable properties
+            HasPhysics = true;
+            Mass = physic->GetMass();
+            Inertia = physic->GetInertia();
+            IsKinematic = physic->IsKinematic();
+
+            // Update entity in scene
+            if (m_project && m_project->GetActiveScene()) {
+                m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
+            }
+
+            UpdateStatus("Physics added");
+            Logger::Get().Log(MessageType::Info, "Added Physics");
+        }
+    }
+
+    void ExecuteRemoveScript()
+    {
         if (!SelectedEntity.Get()) return;
 
         if (SelectedEntity.Get()->RemoveComponent<Script>()) {
