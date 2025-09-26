@@ -196,6 +196,36 @@ bool updateEntity(entity_id id, entity_info info)
         assert(geometries[index].is_valid());
     }
 
+    if (info.physics && info.physics->scene)
+    {
+
+        if (physics_container[index].is_valid())
+        {
+            auto physics_copy= physics_container[index];
+            physics_container[index] = {};
+            physics::remove(physics_copy);
+        }
+
+        assert(!physics_container[index].is_valid());
+        physics_container[index] = physics::create(*info.physics, updated_entity);
+        assert(physics_container[index].is_valid());
+    }
+
+    if (info.drone)
+    {
+
+        if (drones[index].is_valid())
+        {
+            auto drones_copy = drones[index];
+            drones[index] = {};
+            drone::remove(drones_copy);
+        }
+
+        assert(!drones[index].is_valid());
+        drones[index] = drone::create(*info.drone, updated_entity);
+        assert(drones[index].is_valid());
+    }
+
     return true;
 }
 

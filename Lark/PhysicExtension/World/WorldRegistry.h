@@ -1,10 +1,18 @@
 #pragma once
 #include <btBulletDynamicsCommon.h>
 #include <mutex>
+#include "PhysicExtension/Utils/Wind.h"
 
 namespace lark::physics
 {
     class World; // Forward declaration
+
+
+    struct PendingSettings
+    {
+        std::shared_ptr<drone::Wind> wind;
+        btVector3 gravity;
+    };
 
     class WorldRegistry
     {
@@ -34,6 +42,11 @@ namespace lark::physics
         void add_rigid_body(btRigidBody* body);
         void remove_rigid_body(btRigidBody* body);
 
+        void set_pending_gravity(btVector3 gravity);
+        void set_pending_wind(std::shared_ptr<drone::Wind> wind);
+        PendingSettings take_pending_settings() {return pending_; };
+
+
     private:
         void SubscribeToEvents();
 
@@ -44,6 +57,7 @@ namespace lark::physics
 
         World* active_world = nullptr;
         std::mutex mutex_;
+        PendingSettings pending_;
     };
 
 } // namespace lark::physics

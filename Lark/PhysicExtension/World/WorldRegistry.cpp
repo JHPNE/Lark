@@ -43,15 +43,25 @@ namespace lark::physics
         }
     }
 
+    void WorldRegistry::set_pending_wind(std::shared_ptr<drone::Wind> wind){
+        pending_.wind = wind;
+    }
+
+    void WorldRegistry::set_pending_gravity(btVector3 gravity){
+        pending_.gravity = gravity;
+    }
+
+
+
     void WorldRegistry::SubscribeToEvents() {
        PhysicEventBus::Get().Subscribe<PhysicObjectCreated>(
- [this](const PhysicObjectCreated& e) {
+           [this](const PhysicObjectCreated& e) {
             add_rigid_body(e.body);
            }
        );
 
        PhysicEventBus::Get().Subscribe<PhysicObjectRemoved>(
- [this](const PhysicObjectRemoved& e) {
+           [this](const PhysicObjectRemoved& e) {
             remove_rigid_body(e.body);
            }
        );

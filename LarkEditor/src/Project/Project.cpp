@@ -353,6 +353,10 @@ bool Project::Deserialize(const tinyxml2::XMLElement *element, SerializationCont
                 {
                     HandleGeometryDeserialization(compElement, entity, context);
                 }
+                else if (compName == "Physic")
+                {
+                    HandlePhysicDeserialization(compElement, entity, context);
+                }
             }
 
             // Now create the engine entity with all components

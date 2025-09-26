@@ -46,6 +46,16 @@ public:
     ObservableProperty<bool> IsKinematic;
     ObservableProperty<glm::vec3> Inertia;
 
+    // Drone Component Properties
+    ObservableProperty<bool> HasDrone{false};
+    ObservableProperty<control_abstraction> DroneControlAbstraction{control_abstraction::CMD_MOTOR_SPEEDS};
+    ObservableProperty<trajectory_type> DroneTrajectoryType{trajectory_type::Circular};
+    ObservableProperty<float> DroneMass{1.0f};
+    ObservableProperty<float> DroneArmLength{0.25f};
+    ObservableProperty<glm::vec3> DronePosition{0.0f, 0.0f, 0.0f};
+    ObservableProperty<glm::vec3> DroneVelocity{0.0f, 0.0f, 0.0f};
+    ObservableProperty<glm::vec4> DroneRotorSpeeds{0.0f, 0.0f, 0.0f, 0.0f};
+
     // UI State
     ObservableProperty<bool> IsEditingTransform{false};
     ObservableProperty<std::string> StatusMessage{""};
@@ -61,6 +71,11 @@ public:
     std::unique_ptr<RelayCommand<bool>> SetGeometryVisibilityCommand;
     std::unique_ptr<RelayCommand<>> RandomizeGeometryCommand;
     std::unique_ptr<RelayCommand<>> AddPhysicsCommand;
+    std::unique_ptr<RelayCommand<>> RemovePhysicsCommand;
+    std::unique_ptr<RelayCommand<>> AddDroneCommand;
+    std::unique_ptr<RelayCommand<>> RemoveDroneCommand;
+    std::unique_ptr<RelayCommand<control_abstraction>> UpdateDroneControlCommand;
+    std::unique_ptr<RelayCommand<trajectory_type>> UpdateDroneTrajectoryCommand;
     std::unique_ptr<RelayCommand<>> RefreshCommand;
 
     ComponentViewModel()
@@ -162,6 +177,32 @@ private:
         AddPhysicsCommand = std::make_unique<RelayCommand<>>(
             [this]() { ExecuteAddPhysics(); },
             [this]() { return HasSingleSelection.Get() && HasGeometry.Get() && !HasPhysics.Get(); }
+        );
+
+        RemovePhysicsCommand= std::make_unique<RelayCommand<>>(
+            [this]() {},
+            [this]() { return HasPhysics.Get(); }
+        );
+
+        // Drone Commands
+        AddDroneCommand = std::make_unique<RelayCommand<>>(
+        [this]() { ExecuteAddDrone(); },
+        [this]() { return HasSingleSelection.Get() && HasPhysics.Get() && !HasDrone.Get(); }
+    );
+
+        RemoveDroneCommand = std::make_unique<RelayCommand<>>(
+            [this]() { ExecuteRemoveDrone(); },
+            [this]() { return HasDrone.Get(); }
+        );
+
+        UpdateDroneControlCommand = std::make_unique<RelayCommand<control_abstraction>>(
+            [this](control_abstraction ca) { ExecuteUpdateDroneControl(ca); },
+            [this](control_abstraction) { return HasDrone.Get(); }
+        );
+
+        UpdateDroneTrajectoryCommand = std::make_unique<RelayCommand<trajectory_type>>(
+            [this](trajectory_type type) { ExecuteUpdateDroneTrajectory(type); },
+            [this](trajectory_type) { return HasDrone.Get(); }
         );
 
         // Refresh command
@@ -273,6 +314,11 @@ private:
         {
             HasPhysics = false;
         }
+
+        if (entity->GetComponent<Drone>())
+        {
+            RefreshDroneComponent(entity);
+        }
     }
 
     void RefreshMultiSelection(const std::vector<std::shared_ptr<GameEntity>>& entities) {
@@ -347,6 +393,181 @@ private:
     void RefreshSelection() {
         auto& selectionService = SelectionService::Get();
         HandleSelectionChanged(selectionService.GetSelectedEntities());
+    }
+
+    void RefreshDroneComponent(std::shared_ptr<GameEntity> entity) {
+        if (auto* drone = entity->GetComponent<Drone>()) {
+            HasDrone = true;
+            DroneControlAbstraction = drone->GetControlAbstraction();
+
+            const auto& params = drone->GetParams();
+            DroneMass = params.i.mass;
+            DroneArmLength = glm::length(params.g.rotor_positions[0]);
+
+            const auto& trajectory = drone->GetTrajectory();
+            DroneTrajectoryType = trajectory.type;
+
+            const auto& state = drone->GetDroneState();
+            DronePosition = state.position;
+            DroneVelocity = state.velocity;
+            DroneRotorSpeeds = state.rotor_speeds;
+        } else {
+            HasDrone = false;
+            // Reset to defaults
+            DroneControlAbstraction = control_abstraction::CMD_MOTOR_SPEEDS;
+            DroneTrajectoryType = trajectory_type::Circular;
+            DroneMass = 1.0f;
+            DroneArmLength = 0.25f;
+            DronePosition = glm::vec3(0.0f);
+            DroneVelocity = glm::vec3(0.0f);
+            DroneRotorSpeeds = glm::vec4(0.0f);
+        }
+    }
+
+    void ExecuteAddDrone() {
+        if (!SelectedEntity.Get() || !HasPhysics.Get()) return;
+
+        DroneInitializer droneInit;
+        droneInit.params = CreateDefaultQuadParams();
+        droneInit.control_abstraction = control_abstraction::CMD_VEL;
+        droneInit.trajectory = CreateDefaultTrajectory();
+        droneInit.drone_state = CreateDefaultDroneState();
+        droneInit.input = control_input{};
+
+        if (auto* drone = SelectedEntity.Get()->AddComponent<Drone>(&droneInit)) {
+            HasDrone = true;
+            RefreshDroneComponent(SelectedEntity.Get());
+
+            // Update entity in scene
+            if (m_project && m_project->GetActiveScene()) {
+                m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
+            }
+
+            UpdateStatus("Drone component added");
+            Logger::Get().Log(MessageType::Info, "Added drone component");
+        }
+    }
+
+    void ExecuteRemoveDrone() {
+        if (!SelectedEntity.Get()) return;
+
+        if (SelectedEntity.Get()->RemoveComponent<Drone>()) {
+            HasDrone = false;
+
+            // Update entity in scene
+            if (m_project && m_project->GetActiveScene()) {
+                m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
+            }
+
+            UpdateStatus("Drone component removed");
+            Logger::Get().Log(MessageType::Info, "Removed drone component");
+        }
+    }
+
+    void ExecuteUpdateDroneControl(control_abstraction ca) {
+        if (!SelectedEntity.Get() || !HasDrone.Get()) return;
+
+        if (auto* drone = SelectedEntity.Get()->GetComponent<Drone>()) {
+            drone->SetControlAbstraction(ca);
+            DroneControlAbstraction = ca;
+
+            // Update entity in scene
+            if (m_project && m_project->GetActiveScene()) {
+                m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
+            }
+
+            UpdateStatus("Drone control mode updated");
+        }
+    }
+
+    void ExecuteUpdateDroneTrajectory(trajectory_type type) {
+        if (!SelectedEntity.Get() || !HasDrone.Get()) return;
+
+        if (auto* drone = SelectedEntity.Get()->GetComponent<Drone>()) {
+            auto& traj = drone->GetTrajectory();
+            traj.type = type;
+            DroneTrajectoryType = type;
+
+            // Update entity in scene
+            if (m_project && m_project->GetActiveScene()) {
+                m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
+            }
+
+            UpdateStatus("Drone trajectory updated");
+        }
+    }
+
+    [[nodiscard]] quad_params CreateDefaultQuadParams() const {
+        quad_params params;
+
+        // Inertia properties
+        params.i.mass = DroneMass.Get();
+        params.i.principal_inertia = glm::vec3(0.0023f, 0.0023f, 0.004f);
+        params.i.product_inertia = glm::vec3(0.0f);
+
+        // Geometry properties
+        float arm = DroneArmLength.Get();
+        params.g.rotor_radius = 0.1f;
+        params.g.rotor_positions[0] = glm::vec3(arm, 0, 0);
+        params.g.rotor_positions[1] = glm::vec3(0, arm, 0);
+        params.g.rotor_positions[2] = glm::vec3(-arm, 0, 0);
+        params.g.rotor_positions[3] = glm::vec3(0, -arm, 0);
+        params.g.rotor_directions = glm::vec4(1, -1, 1, -1);
+
+        // Aerodynamics
+        params.a.parasitic_drag = glm::vec3(0.2f);
+
+        // Rotor properties
+        params.r.k_eta = 1e-3f;
+        params.r.k_m = 2.5e-2f;
+        params.r.k_d = 0.0f;
+        params.r.k_z = 0.0f;
+        params.r.k_h = 0.0f;
+        params.r.k_flap = 0.0f;
+
+        // Motor properties
+        params.m.tau_m = 0.02f;
+        params.m.rotor_speed_min = 0.0f;
+        params.m.rotor_speed_max = 2500.0f;
+        params.m.motor_noise_std = 0.0f;
+
+        // Control gains
+        params.c.kp_pos = glm::vec3(6.5f, 6.5f, 15.0f);
+        params.c.kd_pos = glm::vec3(4.0f, 4.0f, 9.0f);
+        params.c.kp_att = 544.0f;
+        params.c.kd_att = 46.64f;
+        params.c.kp_vel = glm::vec3(0.65f, 0.65f, 1.5f);
+
+        // Lower level controller
+        params.l.k_w = 0.18f;
+        params.l.k_v = 0.18f;
+        params.l.kp_att = 70000;
+        params.l.kd_att = 7000.0f;
+
+        return params;
+    }
+
+    trajectory CreateDefaultTrajectory() const {
+        trajectory traj;
+        traj.type = DroneTrajectoryType.Get();
+        traj.position = glm::vec3(0.0f);
+        traj.radius = 1.0f;
+        traj.frequency = 0.5f;
+        traj.delta = 1.0f;
+        traj.n_points = 10;
+        traj.segment_time = 1.0f;
+        return traj;
+    }
+
+    drone_state CreateDefaultDroneState() const {
+        drone_state state;
+        state.position = DronePosition.Get();
+        state.velocity = DroneVelocity.Get();
+        state.attitude = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f); // Identity quaternion
+        state.body_rates = glm::vec3(0.0f);
+        state.wind = glm::vec3(0.0f);
+        state.rotor_speeds = DroneRotorSpeeds.Get();
+        return state;
     }
 
     void ExecuteUpdateTransform(const TransformData& data) {

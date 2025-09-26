@@ -40,8 +40,19 @@ World::World()
     m_dynamics_world =
         new btDiscreteDynamicsWorld(m_dispatcher, m_broadphase, m_solver, m_collision_config);
 
+    auto pending = WorldRegistry::instance().take_pending_settings();
+    if (pending.wind)
+    {
+        this->set_wind(pending.wind);
+    }
+
+    if (pending.gravity)
+    {
+        m_dynamics_world->setGravity(pending.gravity);
+    }
+
+    m_dynamics_world->setGravity(pending.gravity);
     // Set gravity (link this to WorldSettings if you like)
-    m_dynamics_world->setGravity(btVector3(0, -9.81f, 0));
     WorldRegistry::instance().set_active_world(this);
 }
 
@@ -105,10 +116,12 @@ void World::update(f32 dt)
             // Sync to drone
             drone.sync_from_physics(pos, orient, vel, ang_vel);
 
+            auto wind = this->get_wind();
+
+            Eigen::Vector3f wind_vec = wind->update(dt, Eigen::Vector3f(pos.x, pos.y, pos.z));
+
             // Update drone dynamics
-            const Eigen::Vector3f wind = this->get_wind()->update(dt,
-                Eigen::Vector3f(pos.x, pos.y, pos.z));
-            drone.update(dt, wind);
+            drone.update(dt, wind_vec);
 
             // Get forces and torques from drone
             auto [torque, force] = drone.get_forces_and_torques();

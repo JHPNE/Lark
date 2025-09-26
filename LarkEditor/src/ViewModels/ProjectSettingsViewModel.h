@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include "../Services/ProjectSettings.h"
 #include "Services/EventBus.h"
+#include "Services/PhysicService.h"
 
 class ProjectSettingsViewModel
 {
@@ -41,6 +42,7 @@ public:
     std::unique_ptr<RelayCommand<std::string>> LoadGeometryCommand;
 
     ProjectSettingsViewModel()
+        : m_service(PhysicService::Get())
     {
         InitializeCommands();
         SetDefaultValues();
@@ -92,6 +94,7 @@ public:
 
 private:
     std::shared_ptr<Project> m_project;
+    PhysicService& m_service;
 
     void InitializeCommands()
     {
@@ -245,13 +248,11 @@ private:
         // Apply gravity
         /*
         SetGravity(world.gravity.x, world.gravity.y, world.gravity.z);
+        */
 
         // Apply wind settings
-        SetWind(world.windType,
-                world.windVector.x, world.windVector.y, world.windVector.z,
-                world.windAmplitudes.x, world.windAmplitudes.y, world.windAmplitudes.z,
-                world.windFrequencies.x, world.windFrequencies.y, world.windFrequencies.z);
-
+        m_service.setWind(world.windType, world.windVector, world.windAmplitudes, world.windFrequencies);
+        /*
         // Apply time settings
         SetTimeScale(world.timeScale);
         */

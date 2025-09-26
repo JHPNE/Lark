@@ -328,8 +328,8 @@ void ComponentView::DrawDroneComponent() {
     if (!CustomWidgets::BeginSection("Drone", true))
         return;
 
-    auto* drone = m_viewModel->SelectedEntity.Get()->GetComponent<Drone>();
-    if (!drone) {
+    if (!m_viewModel->HasDrone.Get()) {
+        ImGui::TextColored(Colors::TextDim, "No drone component");
         CustomWidgets::EndSection();
         return;
     }
@@ -341,33 +341,25 @@ void ComponentView::DrawDroneComponent() {
         "Motor Speeds", "Motor Thrusts", "Body Rates",
         "Body Moments", "Attitude", "Velocity", "Acceleration"
     };
-    int currentMode = static_cast<int>(drone->GetControlAbstraction());
+    int currentMode = static_cast<int>(m_viewModel->DroneControlAbstraction.Get());
 
     ImGui::Text("Control Mode");
     ImGui::SameLine(Sizing::PropertyLabelWidth);
     ImGui::PushItemWidth(Sizing::PropertyControlWidth);
     if (ImGui::Combo("##ControlMode", &currentMode, controlModes, IM_ARRAYSIZE(controlModes))) {
-        drone->SetControlAbstraction(static_cast<control_abstraction>(currentMode));
-        // Update entity
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->UpdateDroneControlCommand->Execute(static_cast<control_abstraction>(currentMode));
     }
     ImGui::PopItemWidth();
 
     // Trajectory type
     const char* trajectoryTypes[] = {"Circular", "Chaos"};
-    int trajType = static_cast<int>(drone->GetTrajectory().type);
+    int trajType = static_cast<int>(m_viewModel->DroneTrajectoryType.Get());
 
     ImGui::Text("Trajectory");
     ImGui::SameLine(Sizing::PropertyLabelWidth);
     ImGui::PushItemWidth(Sizing::PropertyControlWidth);
     if (ImGui::Combo("##Trajectory", &trajType, trajectoryTypes, IM_ARRAYSIZE(trajectoryTypes))) {
-        drone->GetTrajectory().type = static_cast<trajectory_type>(trajType);
-        // Update entity
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->UpdateDroneTrajectoryCommand->Execute(static_cast<trajectory_type>(trajType));
     }
     ImGui::PopItemWidth();
 
@@ -375,20 +367,25 @@ void ComponentView::DrawDroneComponent() {
 
     // Drone state display (read-only)
     if (ImGui::CollapsingHeader("Drone State")) {
-        const auto& state = drone->GetDroneState();
         ImGui::Text("Position: (%.2f, %.2f, %.2f)",
-                   state.position.x, state.position.y, state.position.z);
+            m_viewModel->DronePosition.Get().x,
+            m_viewModel->DronePosition.Get().y,
+            m_viewModel->DronePosition.Get().z);
         ImGui::Text("Velocity: (%.2f, %.2f, %.2f)",
-                   state.velocity.x, state.velocity.y, state.velocity.z);
+            m_viewModel->DroneVelocity.Get().x,
+            m_viewModel->DroneVelocity.Get().y,
+            m_viewModel->DroneVelocity.Get().z);
         ImGui::Text("Rotor Speeds: (%.1f, %.1f, %.1f, %.1f)",
-                   state.rotor_speeds.x, state.rotor_speeds.y,
-                   state.rotor_speeds.z, state.rotor_speeds.w);
+            m_viewModel->DroneRotorSpeeds.Get().x,
+            m_viewModel->DroneRotorSpeeds.Get().y,
+            m_viewModel->DroneRotorSpeeds.Get().z,
+            m_viewModel->DroneRotorSpeeds.Get().w);
     }
 
     ImGui::Spacing();
 
     if (CustomWidgets::ColoredButton("Remove Drone", WidgetColorType::Danger, ImVec2(120, 0))) {
-        // Execute remove drone command
+        m_viewModel->RemoveDroneCommand->Execute();
     }
 
     CustomWidgets::EndSection();
@@ -423,8 +420,10 @@ void ComponentView::DrawAddComponentButton()
             m_viewModel->AddScriptCommand->Execute();
         }
 
-        if (ImGui::MenuItem("Drone Component")) {
-            // Add drone component logic here
+        if (ImGui::MenuItem("Drone Component", nullptr, false,
+                       m_viewModel->HasPhysics.Get() && !m_viewModel->HasDrone.Get()))
+        {
+            m_viewModel->AddDroneCommand->Execute();
         }
 
         // Add separator if needed

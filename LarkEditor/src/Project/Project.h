@@ -129,43 +129,23 @@ class Project : public std::enable_shared_from_this<Project>, public ISerializab
     {
         GeometryInitializer geometryInit;
 
-        // Read basic geometry data
-        if (auto nameElement = compElement->FirstChildElement("GeometryName"))
-        {
-            geometryInit.geometryName = nameElement->Attribute("GeometryName")
-                                            ? nameElement->Attribute("GeometryName")
-                                            : "";
-        }
-        if (auto visibleElement = compElement->FirstChildElement("Visible"))
-        {
-            geometryInit.visible = visibleElement->BoolAttribute("Visible");
-        }
-        else
-        {
-            geometryInit.visible = true;
-        }
-        if (auto sourceElement = compElement->FirstChildElement("GeometrySource"))
-        {
-            geometryInit.geometrySource = sourceElement->Attribute("GeometrySourceElement")
-                                              ? sourceElement->Attribute("GeometrySourceElement")
-                                              : "";
-
-            const char *typeStr = sourceElement->Attribute("GeometryType");
-            geometryInit.geometryType = (typeStr && std::strcmp(typeStr, "O") == 0)
-                                            ? GeometryType::ObjImport
-                                            : GeometryType::PrimitiveType;
-
-            const char *meshTypeStr = sourceElement->Attribute("PrimitiveMeshType");
-            geometryInit.meshType = (meshTypeStr && std::strcmp(meshTypeStr, "cube") == 0)
-                                        ? content_tools::PrimitiveMeshType::cube
-                                        : content_tools::PrimitiveMeshType::uv_sphere;
-        }
-
         auto *geometry = entity->AddComponent<Geometry>(&geometryInit);
         if (geometry)
         {
             geometry->Deserialize(compElement, context);
-            // geometry->loadGeometry();
+        }
+    }
+
+    void HandlePhysicDeserialization(const tinyxml2::XMLElement * compElement,
+                                     const std::shared_ptr<GameEntity> &entity,
+                                     SerializationContext &context)
+    {
+        PhysicInitializer physicInit;
+
+        auto *physic = entity->AddComponent<Physics>(&physicInit);
+        if (physic)
+        {
+            physic->Deserialize(compElement, context);
         }
     }
 
