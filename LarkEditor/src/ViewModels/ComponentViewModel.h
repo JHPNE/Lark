@@ -50,11 +50,11 @@ public:
     ObservableProperty<bool> HasDrone{false};
     ObservableProperty<control_abstraction> DroneControlAbstraction{control_abstraction::CMD_MOTOR_SPEEDS};
     ObservableProperty<trajectory_type> DroneTrajectoryType{trajectory_type::Circular};
-    ObservableProperty<float> DroneMass{1.0f};
-    ObservableProperty<float> DroneArmLength{0.25f};
+    ObservableProperty<float> DroneMass{0.5f};
+    ObservableProperty<float> DroneArmLength{0.17f};
     ObservableProperty<glm::vec3> DronePosition{0.0f, 0.0f, 0.0f};
     ObservableProperty<glm::vec3> DroneVelocity{0.0f, 0.0f, 0.0f};
-    ObservableProperty<glm::vec4> DroneRotorSpeeds{0.0f, 0.0f, 0.0f, 0.0f};
+    ObservableProperty<glm::vec4> DroneRotorSpeeds{1788.53f, 1788.53f, 1788.53f, 1788.53f};
 
     // UI State
     ObservableProperty<bool> IsEditingTransform{false};
@@ -502,33 +502,34 @@ private:
 
         // Inertia properties
         params.i.mass = DroneMass.Get();
-        params.i.principal_inertia = glm::vec3(0.0023f, 0.0023f, 0.004f);
-        params.i.product_inertia = glm::vec3(0.0f);
+        params.i.principal_inertia = {3.65e-3f, 3.68e-3f, 7.03e-3f};
+        params.i.product_inertia = {0.0f, 0.0f, 0.0f};
 
         // Geometry properties
         float arm = DroneArmLength.Get();
+        const float sqrt2_2 = 0.70710678118f;
         params.g.rotor_radius = 0.1f;
-        params.g.rotor_positions[0] = glm::vec3(arm, 0, 0);
-        params.g.rotor_positions[1] = glm::vec3(0, arm, 0);
-        params.g.rotor_positions[2] = glm::vec3(-arm, 0, 0);
-        params.g.rotor_positions[3] = glm::vec3(0, -arm, 0);
+        params.g.rotor_positions[0] = {arm * sqrt2_2, arm * sqrt2_2, 0.0f}; // Front right
+        params.g.rotor_positions[1] = {arm * sqrt2_2, -arm * sqrt2_2, 0.0f}; // back right
+        params.g.rotor_positions[2] = {-arm * sqrt2_2, -arm * sqrt2_2, 0.0f}; // back left
+        params.g.rotor_positions[3] = {-arm * sqrt2_2, arm * sqrt2_2, 0.0f}; // front left
         params.g.rotor_directions = glm::vec4(1, -1, 1, -1);
 
         // Aerodynamics
-        params.a.parasitic_drag = glm::vec3(0.2f);
+        params.a.parasitic_drag = {0.5e-2f, 0.5e-2f, 1e-2f};
 
         // Rotor properties
-        params.r.k_eta = 1e-3f;
-        params.r.k_m = 2.5e-2f;
-        params.r.k_d = 0.0f;
-        params.r.k_z = 0.0f;
-        params.r.k_h = 0.0f;
+        params.r.k_eta = 5.57e-06f;
+        params.r.k_m = 1.36e-07f;
+        params.r.k_d = 1.19e-04f;
+        params.r.k_z = 2.32e-04f;
+        params.r.k_h = 3.39e-3f;
         params.r.k_flap = 0.0f;
 
         // Motor properties
-        params.m.tau_m = 0.02f;
+        params.m.tau_m = 0.005f;
         params.m.rotor_speed_min = 0.0f;
-        params.m.rotor_speed_max = 2500.0f;
+        params.m.rotor_speed_max = 1500.0f;
         params.m.motor_noise_std = 0.0f;
 
         // Control gains
@@ -539,10 +540,10 @@ private:
         params.c.kp_vel = glm::vec3(0.65f, 0.65f, 1.5f);
 
         // Lower level controller
-        params.l.k_w = 0.18f;
-        params.l.k_v = 0.18f;
-        params.l.kp_att = 70000;
-        params.l.kd_att = 7000.0f;
+        params.l.k_w = 1;
+        params.l.k_v = 10;
+        params.l.kp_att = 544;
+        params.l.kd_att = 46.64f;
 
         return params;
     }
@@ -563,7 +564,7 @@ private:
         drone_state state;
         state.position = DronePosition.Get();
         state.velocity = DroneVelocity.Get();
-        state.attitude = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f); // Identity quaternion
+        state.attitude = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
         state.body_rates = glm::vec3(0.0f);
         state.wind = glm::vec3(0.0f);
         state.rotor_speeds = DroneRotorSpeeds.Get();
