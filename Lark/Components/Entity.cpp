@@ -81,7 +81,7 @@ entity create(entity_info info)
         physics_container[index] = physics::create(*info.physics, new_entity);
     }
 
-    if (info.drone)
+    if (info.drone && info.drone->params.inertia_properties.mass > 0)
     {
         assert(!drones[index].is_valid());
         drones[index] = drone::create(*info.drone, new_entity);
@@ -211,7 +211,7 @@ bool updateEntity(entity_id id, entity_info info)
         assert(physics_container[index].is_valid());
     }
 
-    if (info.drone)
+    if (info.drone && info.drone->params.inertia_properties.mass > 0)
     {
 
         if (drones[index].is_valid())

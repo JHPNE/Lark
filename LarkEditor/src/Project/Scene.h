@@ -210,10 +210,10 @@ class Scene : public std::enable_shared_from_this<Scene>
 
                     // Calculate orientation from transform
                     glm::quat orientation = glm::quat(glm::radians(transform->GetRotation()));
-                    desc.physics.orientation[0] = orientation.w;
-                    desc.physics.orientation[1] = orientation.x;
-                    desc.physics.orientation[2] = orientation.y;
-                    desc.physics.orientation[3] = orientation.z;
+                    desc.physics.orientation[0] = orientation.x;
+                    desc.physics.orientation[1] = orientation.y;
+                    desc.physics.orientation[2] = orientation.z;
+                    desc.physics.orientation[3] = orientation.w;
 
                     // Set other physics properties
                     desc.physics.mass = physic->GetMass();

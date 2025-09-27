@@ -9,22 +9,19 @@ namespace
 {
 void handle_collisions() {}
 
-void sync_physics_to_transform(physics::component &physics_comp, transform::component &transform_comp)
+void sync_drone_to_transform(drone::component &drone_comp, transform::component &transform_comp)
 {
-    btRigidBody* body = physics_comp.get_rigid_body();
-    // auto& drone_state = physics_comp.get_drone_state();
+    // Get drone state
+    drone::DroneState state = drone_comp.get_state();
 
-    // Get position and orientation from Bullet
-    btTransform transform = body->getWorldTransform();
-    btVector3 position = transform.getOrigin();
-    btQuaternion rotation = transform.getRotation();
-
-    math::v3 pos(position[0], position[1], position[2]);
+    // Update position from drone
+    math::v3 pos(state.position.x(), state.position.y(), state.position.z());
     transform_comp.set_position(pos);
 
-    math::v4 rot(rotation[0], rotation[1], rotation[2], rotation[3]);
+    // Update rotation from drone attitude quaternion
+    // DroneState stores as [x,y,z,w]
+    math::v4 rot(state.attitude.x(), state.attitude.y(), state.attitude.z(), state.attitude.w());
     transform_comp.set_rotation(rot);
-
 }
 
 } // namespace
@@ -101,61 +98,61 @@ void World::update(f32 dt)
 
     const auto &active_entities = game_entity::get_active_entities();
 
+    // Frame counter for debug output
+    static int frame_count = 0;
+    frame_count++;
+
     // Update Drones and Add to bullet
     for (const auto &entity_id : active_entities)
     {
         game_entity::entity entity{entity_id};
-        auto physics = entity.physics();
         auto drone = entity.drone();
-        if (physics.is_valid() && drone.is_valid())
+        auto transform = entity.transform();
+        if (drone.is_valid())
         {
-            math::v3 pos, vel, ang_vel;
-            math::v4 orient;
-            physics.get_state(pos, orient, vel, ang_vel);
+            // Get current drone state
+            drone::DroneState current_state = drone.get_state();
 
-            // Sync to drone
-            drone.sync_from_physics(pos, orient, vel, ang_vel);
-
+            // Get wind at current position
             auto wind = this->get_wind();
+            Eigen::Vector3f wind_vec = wind->update(dt, current_state.position);
 
-            Eigen::Vector3f wind_vec = wind->update(dt, Eigen::Vector3f(pos.x, pos.y, pos.z));
-
-            // Update drone dynamics
+            // Update drone dynamics (this runs the full simulation step)
             drone.update(dt, wind_vec);
 
-            // Get forces and torques from drone
-            auto [torque, force] = drone.get_forces_and_torques();
+            // Sync updated drone state to transform
+            sync_drone_to_transform(drone, transform);
 
+            // Debug output every second (assuming 60 FPS)
+            if (frame_count % 60 == 0) {
+                drone::DroneState state = drone.get_state();
+                printf("Drone State - Pos: (%.2f, %.2f, %.2f) Vel: (%.2f, %.2f, %.2f) "
+                       "Orient: (%.2f, %.2f, %.2f, %.2f)\n",
+                       state.position.x(), state.position.y(), state.position.z(),
+                       state.velocity.x(), state.velocity.y(), state.velocity.z(),
+                       state.attitude.x(), state.attitude.y(), state.attitude.z(), state.attitude.w());
 
-            // Apply to physics body
-            physics.apply_force(math::v3(force.x(), force.y(), force.z()));
-            physics.apply_torque(math::v3(torque.x(), torque.y(), torque.z()));
+                // Also show rotor speeds for debugging
+                printf("  Rotor Speeds: [%.1f, %.1f, %.1f, %.1f] rad/s\n",
+                       state.rotor_speeds[0], state.rotor_speeds[1],
+                       state.rotor_speeds[2], state.rotor_speeds[3]);
+            }
         }
 
-        if (physics.is_valid())
+        // For non-drone entities with physics, we can still register them with Bullet
+        // but skip the simulation for now
+        auto physics = entity.physics();
+        if (physics.is_valid() && !drone.is_valid())
         {
             ensure_body_in_world(physics);
         }
     }
 
-    // Update Bullet
-    m_dynamics_world->stepSimulation(dt);
+    // Skip Bullet simulation for now
+    // m_dynamics_world->stepSimulation(dt);
 
-    // Handle Collisions
+    // Handle any custom collisions if needed
     handle_collisions();
-
-    // Sync Transforms
-    for (const auto &entity_id : active_entities)
-    {
-        game_entity::entity entity{entity_id};
-        auto physics = entity.physics();
-        auto transform = entity.transform();
-
-        if (physics.is_valid() && transform.is_valid())
-        {
-            sync_physics_to_transform(physics, transform);
-        }
-    }
 }
 
 void World::ensure_body_in_world(physics::component& physics_comp)
