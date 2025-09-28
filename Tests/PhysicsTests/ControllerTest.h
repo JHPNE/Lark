@@ -1,6 +1,9 @@
 #pragma once
 #include "PhysicExtension/Controller/Controller.h"
 #include "PhysicExtension/Utils/DroneState.h"
+#include "CSVParser.h"
+#include "PhysicExtension/Vehicles/Multirotor.h"
+
 #include <gtest/gtest.h>
 
 namespace lark::drone::test
@@ -103,6 +106,43 @@ class ControllerTest : public ::testing::Test
         EXPECT_NEAR(actual(2), expected(2), tolerance) << "Component 2 mismatch";
         EXPECT_NEAR(actual(3), expected(3), tolerance) << "Component 3 mismatch";
     }
+
+    void compareStates(const DroneState& actual,
+                      const CSVParser::SimulationData& expected,
+                      const std::string& label,
+                      float pos_tol = 1e-3f,
+                      float vel_tol = 1e-3f,
+                      float quat_tol = 1e-4f,
+                      float rate_tol = 1e-3f) {
+
+        EXPECT_NEAR(actual.position.x(), expected.position.x(), pos_tol)
+            << label << " - Position X mismatch";
+        EXPECT_NEAR(actual.position.y(), expected.position.y(), pos_tol)
+            << label << " - Position Y mismatch";
+        EXPECT_NEAR(actual.position.z(), expected.position.z(), pos_tol)
+            << label << " - Position Z mismatch";
+
+        EXPECT_NEAR(actual.velocity.x(), expected.velocity.x(), vel_tol)
+            << label << " - Velocity X mismatch";
+        EXPECT_NEAR(actual.velocity.y(), expected.velocity.y(), vel_tol)
+            << label << " - Velocity Y mismatch";
+        EXPECT_NEAR(actual.velocity.z(), expected.velocity.z(), vel_tol)
+            << label << " - Velocity Z mismatch";
+
+        // Quaternion comparison (handle possible sign flip)
+        float dot = actual.attitude.dot(expected.quaternion);
+        if (std::abs(dot) < 0.999f) {  // Not close enough
+            EXPECT_NEAR(std::abs(dot), 1.0f, quat_tol)
+                << label << " - Quaternion mismatch";
+        }
+
+        EXPECT_NEAR(actual.body_rates.x(), expected.body_rates.x(), rate_tol)
+            << label << " - Body rate X mismatch";
+        EXPECT_NEAR(actual.body_rates.y(), expected.body_rates.y(), rate_tol)
+            << label << " - Body rate Y mismatch";
+        EXPECT_NEAR(actual.body_rates.z(), expected.body_rates.z(), rate_tol)
+            << label << " - Body rate Z mismatch";
+    }
 };
 
 TEST_F(ControllerTest, StateInitialization)
@@ -143,5 +183,82 @@ TEST_F(ControllerTest, ControllerOutputVerificationHummingbird)
     EXPECT_NEAR(result.cmd_thrust, expected_cmd_thrust, 1e-4f);
     EXPECT_VEC3_NEAR(result.cmd_v, expected_cmd_v, 1e-4f);
     EXPECT_VEC3_NEAR(result.cmd_w, expected_cmd_w, 1e-2f);
+}
+
+TEST_F(ControllerTest, CompareWithPythonSimulation) {
+    // Load reference data from Python simulation
+    auto reference_data = CSVParser::parseCSV("/Users/am/CLionProjects/Lark/basic_usage.csv");
+    ASSERT_FALSE(reference_data.empty()) << "Failed to load reference data";
+
+    // Debug: print first few data points
+    std::cout << "First data point:" << std::endl;
+    std::cout << "  Time: " << reference_data[0].time << std::endl;
+    std::cout << "  Position: " << reference_data[0].position.transpose() << std::endl;
+    std::cout << "  Velocity: " << reference_data[0].velocity.transpose() << std::endl;
+
+    // Setup simulation with initial conditions from Python data
+    QuadParams params = createHummingbirdParams();
+
+    DroneState state;
+    state.position = reference_data[0].position;
+    state.velocity = reference_data[0].velocity;
+    state.attitude = reference_data[0].quaternion;
+    state.body_rates = reference_data[0].body_rates;
+    state.wind = reference_data[0].wind;
+    state.rotor_speeds = reference_data[0].rotor_speeds;
+
+    // Create vehicle and controller
+    lark::drone::Multirotor vehicle(params, state, ControlAbstraction::CMD_MOTOR_SPEEDS);
+    Control controller(params);
+
+    // Assuming the Python simulation used a specific trajectory, recreate it
+    // You might need to adjust this based on your Python simulation
+    auto trajectory = std::make_shared<Circular>(
+        Vector3f::Zero(),  // Use desired position as center
+        1.0f, 0.2f, false
+    );
+
+    const float dt = 0.01f;  // Match Python timestep
+
+    // Compare at each timestep
+    for (size_t i = 1; i < reference_data.size(); ++i) {
+        float t = reference_data[i].time;
+
+        // Create trajectory point from reference data
+        TrajectoryPoint desired;
+        desired.position = reference_data[i].position_des;
+        desired.velocity = reference_data[i].velocity_des;
+        desired.acceleration = reference_data[i].acceleration_des;
+        desired.jerk = reference_data[i].jerk_des;
+        desired.snap = reference_data[i].snap_des;
+        desired.yaw = reference_data[i].yaw_des;
+        desired.yaw_dot = reference_data[i].yaw_dot_des;
+
+        // Compute control
+        ControlInput control = controller.computeMotorCommands(state, desired);
+
+        // Verify control outputs match Python
+        EXPECT_NEAR(control.cmd_thrust, reference_data[i].cmd_thrust, 0.1f)
+            << "Thrust mismatch at t=" << t;
+
+        for (int j = 0; j < 3; ++j) {
+            EXPECT_NEAR(control.cmd_moment[j], reference_data[i].cmd_moment[j], 0.01f)
+                << "Moment[" << j << "] mismatch at t=" << t;
+        }
+
+        // Step dynamics
+        state = vehicle.step(state, control, dt);
+
+        // Compare state with Python
+        std::string label = "t=" + std::to_string(t);
+        compareStates(state, reference_data[i], label);
+
+        // Optional: stop early if diverging too much
+        Vector3f pos_error = state.position - reference_data[i].position;
+        if (pos_error.norm() > 1.0f) {
+            FAIL() << "Simulation diverged from Python at t=" << t
+                   << ", position error: " << pos_error.norm();
+        }
+    }
 }
 } // namespace lark::drones::test
