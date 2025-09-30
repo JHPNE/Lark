@@ -1,16 +1,28 @@
-# Lark 
+# Lark
 
 ## Overview
-Lark is a simulation framework that utilizes Data-Oriented Programming to efficiently manage and simulate complex entities and behaviors. The primary language used is C#, with performance-critical components written in C++.
+
+Lark is a simulation framework that utilizes Data-Oriented Programming to efficiently manage and simulate complex
+entities and behaviors. The primary language used is C#, with performance-critical components written in C++.
+
+## Important!!
+
+Old Implementation guide Below not working anymore
 
 ## Implementation
+
 ### Data-Oriented Programming
-Lark uses Data-Oriented Programming to optimize data layout and access patterns. This approach minimizes cache misses and improves performance, particularly in simulations involving numerous entities.
+
+Lark uses Data-Oriented Programming to optimize data layout and access patterns. This approach minimizes cache misses
+and improves performance, particularly in simulations involving numerous entities.
 
 ## How to Implement New Components
+
 ### Creating a New Component
+
 1. **Header File:**
-   Create a header file for your component in the `Lark/Components/` directory. Define the component's data structure and necessary functions. For example:
+   Create a header file for your component in the `Lark/Components/` directory. Define the component's data structure
+   and necessary functions. For example:
    ```cpp
    #pragma once
    #include "Entity.h"
@@ -84,24 +96,33 @@ Lark uses Data-Oriented Programming to optimize data layout and access patterns.
    ```
 
 3. **Integration:**
-   Integrate the new component in the relevant parts of the system where other components like `Script` and `Transform` are integrated.
+   Integrate the new component in the relevant parts of the system where other components like `Script` and `Transform`
+   are integrated.
 
 ## API
+
 ### Entity Management
+
 APIs for managing entities, including creating, updating, and deleting entities.
 
 ### Component Management
+
 APIs for managing components, including attaching, detaching, and updating components for entities.
 
 ### Simulation Control
+
 APIs for controlling the simulation, including starting, stopping, and pausing the simulation.
 
 ## Contributing
+
 ### Code Style
+
 Follow the repository's code style guidelines for consistency.
 
 ### Testing
+
 Ensure all new features and bug fixes are covered by tests.
 
 ### Documentation
+
 Update the documentation to reflect any changes made to the codebase.
