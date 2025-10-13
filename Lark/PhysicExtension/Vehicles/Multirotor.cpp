@@ -1,6 +1,9 @@
 #include "Multirotor.h"
 #include "PhysicExtension/World/WorldSettings.h"
+
+#include <iostream>
 #include <random>
+#include <utility>
 
 namespace lark::drone
 {
@@ -58,7 +61,6 @@ Vector4f Multirotor::GetCMDMotorSpeeds(DroneState state, ControlInput input)
         R_des.col(0) = b1_des;
         R_des.col(1) = b2_des;
         R_des.col(2) = b3_des;
-        R_des.transposeInPlace();
 
         Matrix3f subMatrix = R_des.transpose() * R - R.transpose() * R_des;
         S_err = 0.5f * (subMatrix);
@@ -97,7 +99,6 @@ Vector4f Multirotor::GetCMDMotorSpeeds(DroneState state, ControlInput input)
         R_des.col(0) = b1_des;
         R_des.col(1) = b2_des;
         R_des.col(2) = b3_des;
-        R_des.transposeInPlace();
 
         Matrix3f subMatrix = R_des.transpose() * R - R.transpose() * R_des;
         S_err = 0.5f * (subMatrix);
@@ -263,12 +264,18 @@ SDot Multirotor::s_dot_fn(DroneState state, Vector4f cmd_rotor_speeds)
     Vector3f test2 = MtotB - test;
     Vector3f w_dot = m_dynamics.GetInverseInertia() * test2;
 
+    std::cout << "Angular dynamics debug:\n";
+    std::cout << "  MtotB: " << MtotB.transpose() << "\n";
+    std::cout << "  w_hat @ (I@w): " << test.transpose() << "\n";
+    std::cout << "  MtotB - w_hat@(I@w): " << test2.transpose() << "\n";
+    std::cout << "  w_dot: " << w_dot.transpose() << "\n";
+
     return {x_dot, v_dot, q_dot, w_dot, wind_dot, rotor_accel};
 }
 
 DroneState Multirotor::step(DroneState state, ControlInput input, float dt)
 {
-    Vector4f cmd_rotor_speeds = GetCMDMotorSpeeds(state, input);
+    Vector4f cmd_rotor_speeds = GetCMDMotorSpeeds(state, std::move(input));
 
     // Clamp rotor speeds
     cmd_rotor_speeds =

@@ -2,19 +2,18 @@
 
 ## Overview
 
-Lark is a simulation framework that utilizes Data-Oriented Programming to efficiently manage and simulate complex
-entities and behaviors. The primary language used is C#, with performance-critical components written in C++.
+Lark is a simulation framework MVP that utilizes Data-Oriented Programming to efficiently manage and simulate complex
+entities and behaviors. Lark is a learning project and still on going.
 
 ## Important!!
 
-Old Implementation guide Below not working anymore
+Old Implementation guide below not up to date.
 
 ## Implementation
 
 ### Data-Oriented Programming
 
-Lark uses Data-Oriented Programming to optimize data layout and access patterns. This approach minimizes cache misses
-and improves performance, particularly in simulations involving numerous entities.
+Lark uses mostly Data-Oriented Programming to optimize data layout and access patterns.
 
 ## How to Implement New Components
 
@@ -101,28 +100,16 @@ and improves performance, particularly in simulations involving numerous entitie
 
 ## API
 
-### Entity Management
-
-APIs for managing entities, including creating, updating, and deleting entities.
-
-### Component Management
-
-APIs for managing components, including attaching, detaching, and updating components for entities.
-
-### Simulation Control
-
-APIs for controlling the simulation, including starting, stopping, and pausing the simulation.
-
-## Contributing
-
-### Code Style
-
-Follow the repository's code style guidelines for consistency.
+See EngineDLL
 
 ### Testing
 
-Ensure all new features and bug fixes are covered by tests.
+See Tests
 
 ### Documentation
 
-Update the documentation to reflect any changes made to the codebase.
+### Credits
+
+This repository was implemented using guides like the Primal GameEngine
+Series (https://www.youtube.com/c/GameEngineSeries) as well as the
+Rotorpy Repository (https://github.com/spencerfolk/rotorpy)

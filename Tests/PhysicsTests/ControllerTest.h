@@ -190,15 +190,19 @@ TEST_F(ControllerTest, CompareWithPythonSimulation) {
     auto reference_data = CSVParser::parseCSV("/Users/am/CLionProjects/Lark/basic_usage.csv");
     ASSERT_FALSE(reference_data.empty()) << "Failed to load reference data";
 
-    // Debug: print first few data points
-    std::cout << "First data point:" << std::endl;
-    std::cout << "  Time: " << reference_data[0].time << std::endl;
-    std::cout << "  Position: " << reference_data[0].position.transpose() << std::endl;
-    std::cout << "  Velocity: " << reference_data[0].velocity.transpose() << std::endl;
+    std::cout << "Loaded " << reference_data.size() << " data points from CSV\n";
 
-    // Setup simulation with initial conditions from Python data
+    // Setup simulation with Hummingbird parameters
     QuadParams params = createHummingbirdParams();
 
+    // ✅ Set control gains (these were missing in createHummingbirdParams)
+    params.control_gains.kp_pos = {6.5f, 6.5f, 15.0f};
+    params.control_gains.kd_pos = {4.0f, 4.0f, 9.0f};
+    params.control_gains.kp_att = 544.0f;
+    params.control_gains.kd_att = 46.64f;
+    params.control_gains.kp_vel = {0.65f, 0.65f, 1.5f};
+
+    // Load initial state from CSV
     DroneState state;
     state.position = reference_data[0].position;
     state.velocity = reference_data[0].velocity;
@@ -208,23 +212,16 @@ TEST_F(ControllerTest, CompareWithPythonSimulation) {
     state.rotor_speeds = reference_data[0].rotor_speeds;
 
     // Create vehicle and controller
-    lark::drone::Multirotor vehicle(params, state, ControlAbstraction::CMD_MOTOR_SPEEDS);
+    Multirotor vehicle(params, state, ControlAbstraction::CMD_MOTOR_SPEEDS);
     Control controller(params);
 
-    // Assuming the Python simulation used a specific trajectory, recreate it
-    // You might need to adjust this based on your Python simulation
-    auto trajectory = std::make_shared<Circular>(
-        Vector3f::Zero(),  // Use desired position as center
-        1.0f, 0.2f, false
-    );
-
-    const float dt = 0.01f;  // Match Python timestep
+    const float dt = 0.01f;
 
     // Compare at each timestep
-    for (size_t i = 1; i < reference_data.size(); ++i) {
+    for (size_t i = 0; i < reference_data.size() - 1; ++i) {
         float t = reference_data[i].time;
 
-        // Create trajectory point from reference data
+        // Create trajectory point from reference data at timestep i
         TrajectoryPoint desired;
         desired.position = reference_data[i].position_des;
         desired.velocity = reference_data[i].velocity_des;
@@ -234,11 +231,11 @@ TEST_F(ControllerTest, CompareWithPythonSimulation) {
         desired.yaw = reference_data[i].yaw_des;
         desired.yaw_dot = reference_data[i].yaw_dot_des;
 
-        // Compute control
+        // Compute control using current state (at timestep i)
         ControlInput control = controller.computeMotorCommands(state, desired);
 
-        // Verify control outputs match Python
-        EXPECT_NEAR(control.cmd_thrust, reference_data[i].cmd_thrust, 0.1f)
+        // Verify control outputs match Python at timestep i
+        EXPECT_NEAR(control.cmd_thrust, reference_data[i].cmd_thrust, 0.01f)
             << "Thrust mismatch at t=" << t;
 
         for (int j = 0; j < 3; ++j) {
@@ -246,17 +243,25 @@ TEST_F(ControllerTest, CompareWithPythonSimulation) {
                 << "Moment[" << j << "] mismatch at t=" << t;
         }
 
-        // Step dynamics
+        // Check for control divergence
+        if (std::abs(control.cmd_thrust - reference_data[i].cmd_thrust) > 0.1f) {
+            std::cout << "⚠️  Control diverged at t=" << t << std::endl;
+            std::cout << "  C++ thrust: " << control.cmd_thrust << std::endl;
+            std::cout << "  Py thrust:  " << reference_data[i].cmd_thrust << std::endl;
+            break;
+        }
+
+        // Step dynamics to get state at timestep i+1
         state = vehicle.step(state, control, dt);
 
-        // Compare state with Python
-        std::string label = "t=" + std::to_string(t);
-        compareStates(state, reference_data[i], label);
+        // Compare state with Python's state at timestep i+1
+        std::string label = "t=" + std::to_string(reference_data[i+1].time);
+        compareStates(state, reference_data[i+1], label, 1e-3f, 1e-3f, 1e-4f, 1e-3f);
 
-        // Optional: stop early if diverging too much
-        Vector3f pos_error = state.position - reference_data[i].position;
+        // Check for state divergence
+        Vector3f pos_error = state.position - reference_data[i+1].position;
         if (pos_error.norm() > 1.0f) {
-            FAIL() << "Simulation diverged from Python at t=" << t
+            FAIL() << "Simulation diverged from Python at t=" << reference_data[i+1].time
                    << ", position error: " << pos_error.norm();
         }
     }

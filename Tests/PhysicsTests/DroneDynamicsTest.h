@@ -164,23 +164,34 @@ TEST_F(DroneDynamicsTest, ControlAllocationMatrixStructure)
     // Column 2 (Rotor 3): [1, y3, -x3, k_m/k_eta * dir3]
     // Column 3 (Rotor 4): [1, y4, -x4, k_m/k_eta * dir4]
 
-    Matrix4f expected_f_to_TM = drone_dynamics.GetControlAllocationMatrix();
+    Matrix4f f_to_TM = drone_dynamics.GetControlAllocationMatrix();
 
     // Verify specific values for Hummingbird configuration
     const float d = 0.17f;
     const float sqrt2_2 = 0.70710678118f;
+    const float k = params.rotor_properties.k_m / params.rotor_properties.k_eta;
 
-    // Check thrust row (should be all 1s)
-    EXPECT_FLOAT_EQ(expected_f_to_TM(0, 0), 1.0f);
-    EXPECT_FLOAT_EQ(expected_f_to_TM(1, 0), 1.0f);
-    EXPECT_FLOAT_EQ(expected_f_to_TM(2, 0), 1.0f);
-    EXPECT_FLOAT_EQ(expected_f_to_TM(3, 0), 1.0f);
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_FLOAT_EQ(f_to_TM(0, i), 1.0f) << "Rotor " << i << " thrust coefficient";
+    }
 
-    // Check roll moments
-    EXPECT_NEAR(expected_f_to_TM(0, 1), d * sqrt2_2, 1e-6f);  // Rotor 1
-    EXPECT_NEAR(expected_f_to_TM(1, 1), -d * sqrt2_2, 1e-6f); // Rotor 2
-    EXPECT_NEAR(expected_f_to_TM(2, 1), -d * sqrt2_2, 1e-6f); // Rotor 3
-    EXPECT_NEAR(expected_f_to_TM(3, 1), d * sqrt2_2, 1e-6f);  // Rotor 4
+    // Check roll moments (row 1): should be ±y positions
+    EXPECT_NEAR(f_to_TM(1, 0), d * sqrt2_2, 1e-6f);   // Rotor 1: +y
+    EXPECT_NEAR(f_to_TM(1, 1), -d * sqrt2_2, 1e-6f);  // Rotor 2: -y
+    EXPECT_NEAR(f_to_TM(1, 2), -d * sqrt2_2, 1e-6f);  // Rotor 3: -y
+    EXPECT_NEAR(f_to_TM(1, 3), d * sqrt2_2, 1e-6f);   // Rotor 4: +y
+
+    // Check pitch moments (row 2): should be ∓x positions
+    EXPECT_NEAR(f_to_TM(2, 0), -d * sqrt2_2, 1e-6f);  // Rotor 1: -x
+    EXPECT_NEAR(f_to_TM(2, 1), -d * sqrt2_2, 1e-6f);  // Rotor 2: -x
+    EXPECT_NEAR(f_to_TM(2, 2), d * sqrt2_2, 1e-6f);   // Rotor 3: +x
+    EXPECT_NEAR(f_to_TM(2, 3), d * sqrt2_2, 1e-6f);   // Rotor 4: +x
+
+    // Check yaw moments (row 3): should be k * direction
+    EXPECT_NEAR(f_to_TM(3, 0), k * 1, 1e-6f);   // Rotor 1: CCW
+    EXPECT_NEAR(f_to_TM(3, 1), k * -1, 1e-6f);  // Rotor 2: CW
+    EXPECT_NEAR(f_to_TM(3, 2), k * 1, 1e-6f);   // Rotor 3: CCW
+    EXPECT_NEAR(f_to_TM(3, 3), k * -1, 1e-6f);  // Rotor 4: CW
 }
 
 } // namespace lark::drones::test

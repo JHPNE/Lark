@@ -39,14 +39,14 @@ class DroneDynamics
     {
         Matrix4f matrix = Matrix4f::Zero();
 
+        // Build matrix COLUMN by COLUMN (one column per rotor)
         for (size_t i = 0; i < m_quad_params.geometric_properties.num_rotors; ++i)
         {
-            matrix(i, 0) = 1.0f;                                                      // Thrust
-            matrix(i, 1) = m_quad_params.geometric_properties.rotor_positions[i].y(); // Roll moment
-            matrix(i, 2) =
-                -m_quad_params.geometric_properties.rotor_positions[i].x(); // Pitch moment
-            matrix(i, 3) = m_torque_thrust_ratio *
-                           m_quad_params.geometric_properties.rotor_directions[i]; // Yaw moment
+            matrix(0, i) = 1.0f;  // Row 0, col i: thrust contribution
+            matrix(1, i) = m_quad_params.geometric_properties.rotor_positions[i].y();   // Roll
+            matrix(2, i) = -m_quad_params.geometric_properties.rotor_positions[i].x();  // Pitch
+            matrix(3, i) = m_torque_thrust_ratio *
+                           m_quad_params.geometric_properties.rotor_directions[i];  // Yaw
         }
 
         f_to_TM = matrix;

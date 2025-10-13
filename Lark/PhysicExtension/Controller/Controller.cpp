@@ -41,7 +41,6 @@ ControlInput Control::computeMotorCommands(const DroneState &state,
     R_des.col(0) = b1_des;
     R_des.col(1) = b2_des;
     R_des.col(2) = b3_des;
-    R_des.transposeInPlace();
 
     // Orientation error
     Matrix3f test = R_des.transpose() * R;
@@ -65,7 +64,7 @@ ControlInput Control::computeMotorCommands(const DroneState &state,
 
     Vector4f TM(u1, u2.x(), u2.y(), u2.z());
     Matrix4f TM_to_f = m_dynamics.GetInverseControlAllocationMatrix();
-    Vector4f cmd_rotor_thrust = TM_to_f.transpose() * TM;
+    Vector4f cmd_rotor_thrust = TM_to_f * TM;
     Vector4f cmd_motor_speeds =
         cmd_rotor_thrust / m_dynamics.GetQuadParams().rotor_properties.k_eta;
     cmd_motor_speeds =
@@ -76,7 +75,7 @@ ControlInput Control::computeMotorCommands(const DroneState &state,
     input.cmd_thrust = u1;
     input.cmd_moment = u2;
     input.cmd_w = cmd_w;
-    input.cmd_q = rotationMatrixToQuaternion(R_des.transpose());
+    input.cmd_q = rotationMatrixToQuaternion(R_des);
     auto b = -m_dynamics.GetQuadParams().control_gains.kp_vel.cwiseProduct(pos_err);
     input.cmd_v = b + desired.velocity;
     input.cmd_acc = F_des / m_dynamics.GetQuadParams().inertia_properties.mass;
