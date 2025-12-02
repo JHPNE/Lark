@@ -32,7 +32,7 @@ void SceneView::Draw()
     config.defaultSize = ImVec2(350, 600);
     config.minSize = ImVec2(250, 400);
 
-    if (CustomWindow::Begin("Scene Manager", config)) {
+    if (CustomWindow::Begin("SceneManager", config)) {
         if (CustomWidgets::AccentButton("+ Add Scene", ImVec2(100, 0)))
         {
             m_viewModel->AddSceneCommand->Execute();
