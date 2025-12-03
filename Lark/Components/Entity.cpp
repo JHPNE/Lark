@@ -4,6 +4,7 @@
 #include "Script.h"
 #include "Transform.h"
 #include "Drone.h"
+#include "Material.h"
 
 namespace lark::game_entity
 {
@@ -15,6 +16,7 @@ util::vector<script::component> scripts;
 util::vector<geometry::component> geometries;
 util::vector<physics::component> physics_container;
 util::vector<drone::component> drones;
+util::vector<material::component> materials;
 
 
 std::vector<id::generation_type> generations;
@@ -48,6 +50,7 @@ entity create(entity_info info)
         geometries.emplace_back();
         physics_container.emplace_back();
         drones.emplace_back();
+        materials.emplace_back();
     }
 
     const entity new_entity{id};
@@ -72,7 +75,15 @@ entity create(entity_info info)
     {
         assert(!geometries[index].is_valid());
         geometries[index] = geometry::create(*info.geometry, new_entity);
+
+        // Create Material Component requirement geometry at least
+        if (info.material)
+        {
+            assert(!materials[index].is_valid());
+            materials[index] = material::create(*info.material, new_entity);
+        }
     }
+
 
     // check if geometry is existing then drone component is available
     if (info.physics && info.physics->scene)
@@ -110,6 +121,22 @@ void remove(entity_id id)
         auto geometry_copy = geometries[index];
         geometries[index] = {};
         geometry::remove(geometry_copy);
+
+        // also remove material if this happens
+
+        if (materials[index].is_valid())
+        {
+            auto material_copy = materials[index];
+            materials[index] = {};
+            material::remove(material_copy);
+        }
+    }
+
+    if (materials[index].is_valid())
+    {
+        auto material_copy = materials[index];
+        materials[index] = {};
+        material::remove(material_copy);
     }
 
     if (physics_container[index].is_valid())
@@ -196,6 +223,21 @@ bool updateEntity(entity_id id, entity_info info)
         assert(geometries[index].is_valid());
     }
 
+    if (info.material)
+    {
+
+        if (materials[index].is_valid())
+        {
+            auto material_copy = materials[index];
+            materials[index] = {};
+            material::remove(material_copy);
+        }
+
+        assert(!materials[index].is_valid());
+        materials[index] = material::create(*info.material, updated_entity);
+        assert(materials[index].is_valid());
+    }
+
     if (info.physics && info.physics->scene)
     {
 
@@ -268,5 +310,11 @@ drone::component entity::drone() const
 {
     assert(is_alive(_id));
     return drones[id::index(_id)];
+}
+
+material::component entity::material() const
+{
+    assert(is_alive(_id));
+    return materials[id::index(_id)];
 }
 } // namespace lark::game_entity

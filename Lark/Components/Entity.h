@@ -23,6 +23,7 @@ INIT_INFO(script);
 INIT_INFO(geometry);
 INIT_INFO(physics);
 INIT_INFO(drone);
+INIT_INFO(material);
 #undef INIT_INFO
 
 namespace game_entity
@@ -41,6 +42,7 @@ struct entity_info
     geometry::init_info *geometry{nullptr};   ///< Geometry component initialization info
     physics::init_info *physics{nullptr};     ///< Physics component initialization info
     drone::init_info *drone{nullptr};     ///< Drone component initialization info
+    material::init_info *material{nullptr};     ///< Material component initialization info
 };
 
 /**

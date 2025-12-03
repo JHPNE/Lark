@@ -112,7 +112,7 @@ void CustomWindow::DrawWindowHeader(const WindowConfig& config) {
     bool mouse_in_header = mouse_pos.x >= header_min.x && mouse_pos.x <= header_max.x &&
                            mouse_pos.y >= header_min.y && mouse_pos.y <= header_max.y;
 
-    if (is_docked && mouse_in_header && ImGui::IsKeyDown(ImGuiKey_ModShift)) {
+    if (is_docked && mouse_in_header && ImGui::IsKeyDown(ImGuiKey_LeftShift)) {
         // Draw highlight overlay
         draw_list->AddRectFilled(
             header_min,
@@ -192,7 +192,7 @@ void CustomWindow::HandleHeaderInteraction(const char* window_id, const WindowCo
                            mouse_pos.y >= header_min.y && mouse_pos.y <= header_max.y;
 
     // Store undocking request for THIS specific window
-    if (mouse_in_header && ImGui::IsMouseClicked(0) && ImGui::IsKeyDown(ImGuiKey_ModShift)) {
+    if (mouse_in_header && ImGui::IsMouseClicked(0) && ImGui::IsKeyDown(ImGuiKey_LeftShift)) {
         auto& windowState = s_windowStates[window_id];
         windowState.startUndocking = true;
         windowState.undockPosition = ImVec2(mouse_pos.x - window_size.x * 0.5f, mouse_pos.y - 10);

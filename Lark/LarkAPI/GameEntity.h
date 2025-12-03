@@ -7,6 +7,7 @@
 #include "DroneComponent.h"
 #include "ScriptComponent.h"
 #include "TransformComponent.h"
+#include "MaterialComponent.h"
 #include <pybind11/embed.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
@@ -32,6 +33,7 @@ class entity
     geometry::component geometry() const;
     physics::component physics() const;
     drone::component drone() const;
+    material::component material() const;
 
   private:
     entity_id _id;
@@ -78,6 +80,14 @@ class entity_drone : public game_entity::entity
 {
     public:
         virtual ~entity_drone() = default;
+};
+}
+namespace material
+{
+class entity_material : public game_entity::entity
+{
+    public:
+    virtual ~entity_material() = default;
 };
 }
 
@@ -163,9 +173,9 @@ bool script_exists(size_t tag);
 #define REGISTER_SCRIPT(TYPE)                                                                      \
     namespace                                                                                      \
     {                                                                                              \
-    const u8 _reg##TYPE{lark::script::detail::register_script(                                     \
+    const u8 _reg## TYPE{lark::script::detail::register_script(                                     \
         lark::script::detail::string_hash()(#TYPE), &lark::script::detail::create_script<TYPE>)};  \
-    const u8 name##TYPE{lark::script::detail::add_script_name(#TYPE)};                             \
+    const u8 name## TYPE{lark::script::detail::add_script_name(#TYPE)};                             \
     }
 } // namespace detail
 } // namespace script

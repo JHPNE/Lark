@@ -26,7 +26,7 @@ bool CustomWidgets::BeginSection(const char* label, bool defaultOpen) {
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Framed |
                                ImGuiTreeNodeFlags_SpanAvailWidth |
                                ImGuiTreeNodeFlags_FramePadding |
-                               ImGuiTreeNodeFlags_AllowItemOverlap;
+                               ImGuiTreeNodeFlags_AllowOverlap;
     if (defaultOpen) flags |= ImGuiTreeNodeFlags_DefaultOpen;
 
     bool open = ImGui::CollapsingHeader(label, flags);
@@ -281,7 +281,7 @@ bool CustomWidgets::BeginPanel(const char* label, const ImVec2& size) {
     ImGui::PushStyleColor(ImGuiCol_Border, Colors::Border);
 
     // Use proper flags for child windows
-    ImGuiChildFlags child_flags = ImGuiChildFlags_Border;
+    ImGuiChildFlags child_flags = ImGuiChildFlags_Borders;
     return ImGui::BeginChild(label, size, child_flags, 0);
 }
 
@@ -297,7 +297,7 @@ bool CustomWidgets::BeginToolbar(const char* id) {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, Colors::BackgroundDark);
 
     // Use proper flags
-    ImGuiChildFlags child_flags = ImGuiChildFlags_Border;
+    ImGuiChildFlags child_flags = ImGuiChildFlags_Borders;
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar |
                                     ImGuiWindowFlags_NoScrollWithMouse;
 
