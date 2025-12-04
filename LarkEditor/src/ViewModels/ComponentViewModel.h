@@ -8,6 +8,7 @@
 #include "../Components/Transform.h"
 #include "../Components/Script.h"
 #include "../Components/Geometry.h"
+#include "../Components/Material.h"
 #include "../Utils/Etc/Logger.h"
 #include <memory>
 #include <vector>
@@ -39,6 +40,17 @@ public:
     ObservableProperty<std::string> GeometryName{""};
     ObservableProperty<bool> GeometryVisible{true};
     ObservableProperty<GeometryType> GeometryType{GeometryType::PrimitiveType};
+
+    // Material Component Properties
+    ObservableProperty<bool> HasMaterial{false};
+    ObservableProperty<glm::vec3> MaterialAlbedo{glm::vec3(1.0f)};
+    ObservableProperty<float> MaterialRoughness{0.5f};
+    ObservableProperty<float> MaterialMetallic{0.0f};
+    ObservableProperty<glm::vec3> MaterialNormal{glm::vec3(0.0f, 0.0f, 1.0f)};
+    ObservableProperty<float> MaterialAO{1.0f};
+    ObservableProperty<glm::vec3> MaterialEmissive{glm::vec3(0.0f)};
+    ObservableProperty<float> MaterialIOR{1.5f};
+    ObservableProperty<float> MaterialTransparency{0.0f};
 
     // Physics Component Properties
     ObservableProperty<bool> HasPhysics{false};
@@ -74,6 +86,8 @@ public:
     std::unique_ptr<RelayCommand<>> RemovePhysicsCommand;
     std::unique_ptr<RelayCommand<>> AddDroneCommand;
     std::unique_ptr<RelayCommand<>> RemoveDroneCommand;
+    std::unique_ptr<RelayCommand<>> AddMaterialCommand;
+    std::unique_ptr<RelayCommand<>> RemoveMaterialCommand;
     std::unique_ptr<RelayCommand<control_abstraction>> UpdateDroneControlCommand;
     std::unique_ptr<RelayCommand<trajectory_type>> UpdateDroneTrajectoryCommand;
     std::unique_ptr<RelayCommand<>> RefreshCommand;
@@ -182,6 +196,17 @@ private:
         RemovePhysicsCommand= std::make_unique<RelayCommand<>>(
             [this]() {},
             [this]() { return HasPhysics.Get(); }
+        );
+
+        // Material Commands
+        AddMaterialCommand = std::make_unique<RelayCommand<>>(
+            [this]() { ExecuteAddMaterial(); },
+            [this]() { return HasSingleSelection.Get() && HasGeometry.Get() && !HasMaterial.Get(); }
+        );
+
+        RemoveMaterialCommand = std::make_unique<RelayCommand<>>(
+            [this]() { ExecuteRemoveMaterial(); },
+            [this]() { return HasMaterial.Get(); }
         );
 
         // Drone Commands
@@ -315,6 +340,16 @@ private:
             HasPhysics = false;
         }
 
+        // Material
+        if (auto* material = entity->GetComponent<Material>())
+        {
+            RefreshMaterialComponent(entity);
+        }
+        else
+        {
+            HasMaterial = false;
+        }
+
         if (entity->GetComponent<Drone>())
         {
             RefreshDroneComponent(entity);
@@ -388,11 +423,36 @@ private:
         HasScript = false;
         HasGeometry = false;
         HasPhysics = false;
+        HasMaterial = false;
     }
 
     void RefreshSelection() {
         auto& selectionService = SelectionService::Get();
         HandleSelectionChanged(selectionService.GetSelectedEntities());
+    }
+
+    void RefreshMaterialComponent(std::shared_ptr<GameEntity> entity) {
+        if (auto* material = entity->GetComponent<Material>()) {
+            HasMaterial = true;
+            MaterialAlbedo = material->GetAlbedo();
+            MaterialRoughness = material->GetRoughness();
+            MaterialMetallic = material->GetMetallic();
+            MaterialNormal = material->GetNormal();
+            MaterialAO = material->GetAO();
+            MaterialEmissive = material->GetEmissive();
+            MaterialIOR = material->GetIOR();
+            MaterialTransparency = material->GetTransparency();
+        } else {
+            HasMaterial = false;
+            MaterialAlbedo = glm::vec3(1.0f);
+            MaterialRoughness = 0.5f;
+            MaterialMetallic = 0.0f;
+            MaterialNormal = glm::vec3(0.0f, 0.0f, 1.0f);
+            MaterialAO = 1.0f;
+            MaterialEmissive = glm::vec3(0.0f);
+            MaterialIOR = 1.5f;
+            MaterialTransparency = 0.0f;
+        }
     }
 
     void RefreshDroneComponent(std::shared_ptr<GameEntity> entity) {
@@ -421,6 +481,49 @@ private:
             DronePosition = glm::vec3(0.0f);
             DroneVelocity = glm::vec3(0.0f);
             DroneRotorSpeeds = glm::vec4(0.0f);
+        }
+    }
+
+    void ExecuteAddMaterial() {
+        if (!SelectedEntity.Get() || !HasGeometry.Get()) return;
+
+        MaterialInitializer materialInit;
+        materialInit.material = PBRMaterial{
+            glm::vec3(1.0f),  // albedo
+            0.5f,             // roughness
+            0.0f,             // metallic
+            glm::vec3(0.0f, 0.0f, 1.0f),  // normal
+            1.0f,             // ao
+            glm::vec3(0.0f),  // emissive
+            1.5f,             // ior
+            0.0f              // transparency
+        };
+
+        if (auto* material = SelectedEntity.Get()->AddComponent<Material>(&materialInit)) {
+            HasMaterial = true;
+            RefreshMaterialComponent(SelectedEntity.Get());
+
+            if (m_project && m_project->GetActiveScene()) {
+                m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
+            }
+
+            UpdateStatus("Material component added");
+            Logger::Get().Log(MessageType::Info, "Added material component");
+        }
+    }
+
+    void ExecuteRemoveMaterial() {
+        if (!SelectedEntity.Get()) return;
+
+        if (SelectedEntity.Get()->RemoveComponent<Material>()) {
+            HasMaterial = false;
+
+            if (m_project && m_project->GetActiveScene()) {
+                m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
+            }
+
+            UpdateStatus("Material component removed");
+            Logger::Get().Log(MessageType::Info, "Removed material component");
         }
     }
 

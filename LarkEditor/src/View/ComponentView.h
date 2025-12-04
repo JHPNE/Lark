@@ -26,6 +26,7 @@ private:
     void DrawScriptComponent();
     void DrawGeometryComponent();
     void DrawPhysicsComponent();
+    void DrawMaterialComponent();
     void DrawDroneComponent();
     void DrawAddComponentButton();
 

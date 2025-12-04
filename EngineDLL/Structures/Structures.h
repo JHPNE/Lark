@@ -47,10 +47,15 @@ struct drone_component {
     control_input input;
 };
 
+// Empty for now
+struct material_component {
+};
+
 struct game_entity_descriptor {
     transform_component transform;
     script_component script;
     geometry_component geometry;
     physics_component physics;
     drone_component drone;
+    material_component material;
 };

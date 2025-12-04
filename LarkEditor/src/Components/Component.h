@@ -4,6 +4,7 @@
 #include <string>
 
 #include "EngineAPI.h"
+#include "Rendering/Materials/PBRMaterial.h"
 #include "Utils/MathUtils.h"
 
 class GameEntity;
@@ -15,6 +16,7 @@ class Geometry;
 class Physics;
 class Drone;
 class Scene;
+class Material;
 
 using namespace MathUtils;
 
@@ -64,6 +66,11 @@ struct DroneInitializer : ComponentInitializer
     control_input input;
 };
 
+struct MaterialInitializer : ComponentInitializer
+{
+   PBRMaterial material;
+};
+
 enum class ComponentType
 {
     None = 0,
@@ -71,7 +78,8 @@ enum class ComponentType
     Script,
     Geometry,
     Physic,
-    Drone
+    Drone,
+    Material
     // Add other component types here
 };
 
@@ -101,6 +109,8 @@ class Component
             return "Physic";
         case ComponentType::Drone:
             return "Drone";
+        case ComponentType::Material:
+            return "Material";
         default:
             return "Unknown";
         }

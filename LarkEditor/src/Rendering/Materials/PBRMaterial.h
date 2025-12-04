@@ -4,13 +4,13 @@
 #include <memory>
 #include "glad/glad.h"
 
-struct Material
+struct PBRMaterial
 {
     glm::vec3 albedo;
     float roughness;
     float metallic;
 
-    glm::vec3 normalScale;
+    glm::vec3 normal;
     float ao;
 
     glm::vec3 emissive;
@@ -18,7 +18,7 @@ struct Material
     float transparency;
 };
 
-struct Glas : Material
+struct Glas : PBRMaterial
 {
 };
 

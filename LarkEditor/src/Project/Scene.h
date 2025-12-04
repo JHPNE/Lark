@@ -3,6 +3,7 @@
 #include "../Utils/MathUtils.h"
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "Components/Geometry.h"
+#include "Components/Material.h"
 #include "EngineAPI.h"
 #include "GameEntity.h"
 #include "Components/Drone.h"
@@ -199,6 +200,11 @@ class Scene : public std::enable_shared_from_this<Scene>
             {
                 desc.geometry.is_dynamic = false;
                 desc.geometry.scene = geometry->GetScene();
+
+                // Fill Material
+                if (auto *material = entity->GetComponent<Material>())
+                {
+                }
 
                 // Fill physic
                 if (auto *physic = entity->GetComponent<Physics>())

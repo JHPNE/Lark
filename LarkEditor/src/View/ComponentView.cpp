@@ -75,6 +75,11 @@ void ComponentView::DrawSingleSelection() {
         DrawPhysicsComponent();
     }
 
+    // Material Component
+    if (m_viewModel->HasMaterial.Get()){
+        DrawMaterialComponent();
+    }
+
     // Drone Component
     if (entity->GetComponent<Drone>()) {
         DrawDroneComponent();
@@ -324,6 +329,92 @@ void ComponentView::DrawPhysicsComponent()
     CustomWidgets::EndSection();
 }
 
+void ComponentView::DrawMaterialComponent() {
+    if (!CustomWidgets::BeginSection("Material", true))
+        return;
+
+    auto* material = m_viewModel->SelectedEntity.Get()->GetComponent<Material>();
+    if (!material) {
+        CustomWidgets::EndSection();
+        return;
+    }
+
+    CustomWidgets::BeginPropertyTable();
+
+    // Albedo (Color)
+    glm::vec3 albedo = material->GetAlbedo();
+    if (CustomWidgets::PropertyFloat3("Albedo", &albedo.x, "%.3f")) {
+        material->SetAlbedo(albedo);
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    // Roughness
+    float roughness = material->GetRoughness();
+    if (CustomWidgets::PropertyFloat("Roughness", &roughness, 0.0f, 1.0f, "%.3f")) {
+        material->SetRoughness(roughness);
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    // Metallic
+    float metallic = material->GetMetallic();
+    if (CustomWidgets::PropertyFloat("Metallic", &metallic, 0.0f, 1.0f, "%.3f")) {
+        material->SetMetallic(metallic);
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    // AO (Ambient Occlusion)
+    float ao = material->GetAO();
+    if (CustomWidgets::PropertyFloat("AO", &ao, 0.0f, 1.0f, "%.3f")) {
+        material->SetAO(ao);
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    // Emissive
+    glm::vec3 emissive = material->GetEmissive();
+    if (CustomWidgets::PropertyFloat3("Emissive", &emissive.x, "%.3f")) {
+        material->SetEmissive(emissive);
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    // IOR (Index of Refraction)
+    float ior = material->GetIOR();
+    if (CustomWidgets::PropertyFloat("IOR", &ior, 1.0f, 3.0f, "%.3f")) {
+        material->SetIOR(ior);
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    // Transparency
+    float transparency = material->GetTransparency();
+    if (CustomWidgets::PropertyFloat("Transparency", &transparency, 0.0f, 1.0f, "%.3f")) {
+        material->SetTransparency(transparency);
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
+    CustomWidgets::EndPropertyTable();
+
+    ImGui::Spacing();
+
+    if (CustomWidgets::ColoredButton("Remove Material", WidgetColorType::Danger, ImVec2(130, 0))) {
+        m_viewModel->RemoveMaterialCommand->Execute();
+    }
+
+    CustomWidgets::EndSection();
+}
+
 void ComponentView::DrawDroneComponent() {
     if (!CustomWidgets::BeginSection("Drone", true))
         return;
@@ -418,6 +509,12 @@ void ComponentView::DrawAddComponentButton()
         if (ImGui::MenuItem("Script Component"))
         {
             m_viewModel->AddScriptCommand->Execute();
+        }
+
+        if (ImGui::MenuItem("Material Component", nullptr, false,
+                       m_viewModel->HasGeometry.Get() && !m_viewModel->HasMaterial.Get()))
+        {
+            m_viewModel->AddMaterialCommand->Execute();
         }
 
         if (ImGui::MenuItem("Drone Component", nullptr, false,
