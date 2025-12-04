@@ -1,8 +1,24 @@
-//
-// Created by A M on 03.12.25.
-//
+#pragma once
+#include <glm/glm.hpp>
+#include <string>
+#include <memory>
+#include "glad/glad.h"
 
-#ifndef MATERIAL_H
-#define MATERIAL_H
+struct Material
+{
+    glm::vec3 albedo;
+    float roughness;
+    float metallic;
 
-#endif //MATERIAL_H
+    glm::vec3 normalScale;
+    float ao;
+
+    glm::vec3 emissive;
+    float ior;
+    float transparency;
+};
+
+struct Glas : Material
+{
+};
+
