@@ -1,12 +1,12 @@
 #pragma once
 #include <vector>
 #include "GeometryConverter.h"
+#include "RaytracingLight.h"
 #include "Rendering/Materials/PBRMaterial.h"
 
 struct RayTracingScene
 {
-    std::vector<GPUTriangle> triangles;
+    std::vector<Triangle> triangles;
     std::vector<PBRMaterial> materials;
-
-    // Light missing for now
+    std::vector<RaytracingLight> lights;
 };

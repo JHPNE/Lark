@@ -1,8 +1,22 @@
-//
-// Created by A M on 05.12.25.
-//
+#pragma once
 
-#ifndef RAYTRACINGLIGHT_H
-#define RAYTRACINGLIGHT_H
+#include "glad/glad.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <vector>
 
-#endif //RAYTRACINGLIGHT_H
+enum class LightType {
+    Point,
+    Directional,
+    Spot,
+    Area
+};
+
+struct RaytracingLight {
+    LightType type;
+    glm::vec3 position;
+    glm::vec3 direction;
+    glm::vec3 color;
+    float intensity;
+    float radius;  // für Soft Shadows
+};
