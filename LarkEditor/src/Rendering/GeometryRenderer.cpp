@@ -1,5 +1,7 @@
 #include "GeometryRenderer.h"
 
+#include "Utils/Etc/ShaderParser.h"
+
 GLuint GeometryRenderer::m_basicShader = 0;
 
 bool GeometryRenderer::Initialize()

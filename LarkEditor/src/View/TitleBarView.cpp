@@ -177,6 +177,18 @@ void TitleBarView::DrawMenuItems() {
         }
 
         ImGui::SameLine();
+        if (!m_viewModel->IsRaytracing.Get())
+        {
+            if (ImGui::Button("Start Raytracing")) {
+                m_viewModel->StartRaytraceRenderCommand->Execute();
+            }
+        } else {
+            if (ImGui::Button("Stop Raytracing")) {
+                m_viewModel->StopRaytraceRenderCommand->Execute();
+            }
+        }
+
+        ImGui::SameLine();
         if (ImGui::Button("Settings")) {
             m_viewModel->ShowProjectSettingsCommand->Execute();
         }

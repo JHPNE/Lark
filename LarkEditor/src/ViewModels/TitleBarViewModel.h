@@ -7,6 +7,7 @@
 #include "../Utils/System/GlobalUndoRedo.h"
 #include "../Utils/Etc/Logger.h"
 #include "../core/Loop.h"
+#include "Services/EventBus.h"
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
 #include <memory>
@@ -43,6 +44,7 @@ public:
     ObservableProperty<std::string> UndoText{"Undo"};
     ObservableProperty<std::string> RedoText{"Redo"};
     ObservableProperty<bool> IsRunning{false};
+    ObservableProperty<bool> IsRaytracing{false};
 
     // Commands
     std::unique_ptr<RelayCommand<>> MinimizeCommand;
@@ -58,6 +60,8 @@ public:
     std::unique_ptr<RelayCommand<>> CreateScriptCommand;
     std::unique_ptr<RelayCommand<>> ExitCommand;
     std::unique_ptr<RelayCommand<>> ShowProjectSettingsCommand;
+    std::unique_ptr<RelayCommand<>> StartRaytraceRenderCommand;
+    std::unique_ptr<RelayCommand<>> StopRaytraceRenderCommand;
 
     TitleBarViewModel(GLFWwindow* window) : m_window(window) {
         InitializeCommands();
@@ -115,6 +119,20 @@ public:
                 "Stop",
                 {
                     {"Stop", "Shift+F5", [this]() { StopCommand->Execute(); }, [this]() { return StopCommand->CanExecute(); }}
+                },
+                true
+            },
+            TitleBarMenu{
+                "Render Start",
+                {
+                    {"Render Start", "F6", [this]() { StartRaytraceRenderCommand->Execute(); }, [this]() { return StartRaytraceRenderCommand->CanExecute(); }}
+                },
+                true
+            },
+            TitleBarMenu{
+                "Render Stop",
+                {
+                    {"Render Stop", "Shift+F6", [this]() { StopRaytraceRenderCommand->Execute(); }, [this]() { return StopRaytraceRenderCommand->CanExecute(); }}
                 },
                 true
             }
@@ -252,6 +270,32 @@ private:
             },
             [this]() {
                 return IsRunning.Get();
+            }
+        );
+
+        StartRaytraceRenderCommand = std::make_unique<RelayCommand<>>(
+            [this]() {
+                IsRaytracing = true;
+                RendererChangedEvent event;
+                event.useRaytracing = true;
+                EventBus::Get().Publish(event);
+                Logger::Get().Log(MessageType::Info, "Raytracing started");
+            },
+            [this]() {
+                return !IsRaytracing.Get() && !m_currentProject.expired();
+            }
+        );
+
+        StopRaytraceRenderCommand = std::make_unique<RelayCommand<>>(
+            [this]() {
+                IsRaytracing = false;
+                RendererChangedEvent event;
+                event.useRaytracing = false;
+                EventBus::Get().Publish(event);
+                Logger::Get().Log(MessageType::Info, "Raytracing stopped");
+            },
+            [this]() {
+                return IsRaytracing.Get();
             }
         );
 

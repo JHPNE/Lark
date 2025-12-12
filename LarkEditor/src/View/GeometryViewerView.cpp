@@ -142,10 +142,6 @@ void GeometryViewerView::DrawViewport()
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            glEnable(GL_DEPTH_TEST);
-            glEnable(GL_CULL_FACE);
-            glCullFace(GL_BACK);
-
             // Calculate view and projection matrices
             glm::mat4 view = CalculateViewMatrix();
             glm::mat4 projection = glm::perspective(
@@ -153,35 +149,14 @@ void GeometryViewerView::DrawViewport()
                 viewportSize.x / viewportSize.y,
                 0.1f, 1000.0f);
 
-            // Render all geometries
-            auto& renderManager = m_viewModel->GetRenderManager();
-            const auto& model = m_viewModel->GetModel();
-
-            size_t visibleCount = 0;
-            for (const auto& [entityId, geomInstance] : model.GetAllGeometries())
+            bool useRaytracing = m_viewModel->IsRaytracingEnabled.Get();
+            if (useRaytracing)
             {
-                if (geomInstance->visible)
-                    visibleCount++;
+                DrawViewportRaytraced(viewportSize);
             }
-
-            static int frameCounter = 0;
-            if (frameCounter++ % 60 == 0) // Log every 60 frames
+            else
             {
-                printf("[DrawViewport] Rendering %zu/%zu visible geometries\n",
-                       visibleCount, model.GetAllGeometries().size());
-            }
-
-            for (const auto& [entityId, geomInstance] : model.GetAllGeometries())
-            {
-                if (!geomInstance->visible)
-                    continue;
-
-                glm::mat4 transform = m_viewModel->GetEntityTransform(entityId);
-                glm::mat4 finalView = view * transform;
-
-                renderManager.RenderGeometry(
-                    entityId, finalView, projection,
-                    m_viewModel->CameraDistance.Get());
+                DrawViewportRasterized(viewportSize);
             }
 
             // Restore OpenGL state
@@ -208,11 +183,10 @@ void GeometryViewerView::DrawViewport()
                     canvasPos,
                     ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y));
 
-                // Handle selection
-                if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGuizmo::IsOver())
+                // Handle selection (only in rasterized mode for now)
+                if (!useRaytracing && ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGuizmo::IsOver())
                 {
-                    // Simple selection - select first geometry
-                    // In a real implementation, you'd do ray-casting
+                    const auto& model = m_viewModel->GetModel();
                     const auto& geometries = model.GetAllGeometries();
                     if (!geometries.empty())
                     {
@@ -220,13 +194,80 @@ void GeometryViewerView::DrawViewport()
                     }
                 }
 
-                // Draw gizmo for selected entity
-                DrawGizmo(canvasPos, canvasSize, view, projection);
+                // Draw gizmo for selected entity (only in rasterized mode)
+                if (!useRaytracing)
+                {
+                    DrawGizmo(canvasPos, canvasSize, view, projection);
+                }
             }
         }
     }
     ImGui::End();
     ImGui::PopID();
+}
+
+void GeometryViewerView::DrawViewportRasterized(const ImVec2& viewportSize)
+{
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+
+    glm::mat4 view = CalculateViewMatrix();
+    glm::mat4 projection = glm::perspective(
+        glm::radians(45.0f),
+        viewportSize.x / viewportSize.y,
+        0.1f, 1000.0f);
+
+    // Render all geometries using rasterization
+    auto& renderManager = m_viewModel->GetRenderManager();
+    const auto& model = m_viewModel->GetModel();
+
+    size_t visibleCount = 0;
+    for (const auto& [entityId, geomInstance] : model.GetAllGeometries())
+    {
+        if (geomInstance->visible)
+            visibleCount++;
+    }
+
+    for (const auto& [entityId, geomInstance] : model.GetAllGeometries())
+    {
+        if (!geomInstance->visible)
+            continue;
+
+        glm::mat4 transform = m_viewModel->GetEntityTransform(entityId);
+        glm::mat4 finalView = view * transform;
+
+        renderManager.RenderGeometry(
+            entityId, finalView, projection,
+            m_viewModel->CameraDistance.Get());
+    }
+}
+
+void GeometryViewerView::DrawViewportRaytraced(const ImVec2& viewportSize)
+{
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+    glm::mat4 view = CalculateViewMatrix();
+    
+    // Extract camera parameters from view matrix
+    glm::mat4 invView = glm::inverse(view);
+    glm::vec3 cameraPos = glm::vec3(invView[3]);
+    glm::vec3 cameraFront = -glm::vec3(invView[2]);
+    glm::vec3 cameraUp = glm::vec3(invView[1]);
+    
+    float fov = 45.0f;
+    float aspectRatio = viewportSize.x / viewportSize.y;
+
+    // Render using raytracing through ViewModel
+    m_viewModel->RenderRaytraced(
+        cameraPos,
+        cameraFront,
+        cameraUp,
+        fov,
+        aspectRatio,
+        static_cast<int>(viewportSize.x),
+        static_cast<int>(viewportSize.y));
 }
 
 void GeometryViewerView::DrawGizmo(const ImVec2& canvasPos, const ImVec2& canvasSize,

@@ -23,6 +23,8 @@ private:
     GeometryViewerView();
 
     void DrawViewport();
+    void DrawViewportRasterized(const ImVec2& viewportSize);
+    void DrawViewportRaytraced(const ImVec2& viewportSize);
     void DrawControls();
     void DrawGizmo(const ImVec2& canvasPos, const ImVec2& canvasSize,
                   const glm::mat4& view, const glm::mat4& projection);

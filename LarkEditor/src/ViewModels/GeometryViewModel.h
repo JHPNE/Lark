@@ -4,6 +4,7 @@
 #include "../Models/GeometryModel.h"
 #include "../Services/GeometryService.h"
 #include "../Rendering/GeometryRenderManager.h"
+#include "../Rendering/Raytracing/RaytracingRenderer.h"
 #include "../Project/Project.h"
 #include "../Components/Geometry.h"
 #include <memory>
@@ -37,6 +38,9 @@ public:
     ObservableProperty<glm::ivec3> PrimitiveSegments{1, 1, 1};
     ObservableProperty<int> PrimitiveLOD{0};
 
+    // Raytracing properties
+    ObservableProperty<bool> IsRaytracingEnabled{false};
+
     // Commands
     std::unique_ptr<RelayCommand<>> CreatePrimitiveCommand;
     std::unique_ptr<RelayCommand<std::string>> LoadGeometryCommand;
@@ -57,7 +61,14 @@ public:
         SubscribeToEvents();
     }
 
-    ~GeometryViewModel() = default;
+    ~GeometryViewModel()
+    {
+        // Shutdown raytracing renderer if initialized
+        if (m_raytracingInitialized)
+        {
+            RaytracingRenderer::Shutdown();
+        }
+    }
 
     void SetProject(std::shared_ptr<Project> project)
     {
@@ -198,12 +209,24 @@ public:
 
     }
 
+    void RenderRaytraced(const glm::vec3& cameraPos, const glm::vec3& cameraFront,
+                         const glm::vec3& cameraUp, float fov, float aspectRatio,
+                         int viewportWidth, int viewportHeight)
+    {
+        if (!m_raytracingInitialized)
+            return;
+
+        RaytracingRenderer::Render(cameraPos, cameraFront, cameraUp, fov, aspectRatio,
+                                   viewportWidth, viewportHeight);
+    }
+
 private:
     std::unique_ptr<GeometryModel> m_model;
     std::unique_ptr<GeometryRenderManager> m_renderManager;
     GeometryService& m_service;
     std::shared_ptr<Project> m_project;
     TransformService& m_transformService;
+    bool m_raytracingInitialized = false;
 
     void InitializeCommands()
     {
@@ -269,6 +292,32 @@ private:
                  HandlePrimitiveMeshCreated(e);
             }
         );
+
+        EventBus::Get().Subscribe<RendererChangedEvent>(
+            [this](const RendererChangedEvent& e) {
+                SetRaytracingEnabled(e.useRaytracing);
+            }
+        );
+    }
+
+    void SetRaytracingEnabled(bool enabled)
+    {
+        if (IsRaytracingEnabled.Get() == enabled)
+            return;
+            
+        if (enabled && !m_raytracingInitialized)
+        {
+            m_raytracingInitialized = RaytracingRenderer::Initialize();
+            if (!m_raytracingInitialized)
+            {
+                UpdateStatus("Failed to initialize raytracing renderer");
+                return;
+            }
+            UpdateStatus("Raytracing renderer initialized");
+        }
+        
+        IsRaytracingEnabled = enabled;
+        UpdateStatus(enabled ? "Switched to Raytracing" : "Switched to Rasterization");
     }
 
     void HandlePrimitiveMeshCreated(const PrimitiveMeshCreatedEvent& e)
