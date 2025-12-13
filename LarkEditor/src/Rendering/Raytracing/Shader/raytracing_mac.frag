@@ -1,4 +1,4 @@
-#version 430 core
+#version 410 core
 
 out vec4 FragColor;
 in vec2 TexCoords;
@@ -12,31 +12,60 @@ uniform float u_Fov;
 uniform float u_AspectRatio;
 uniform vec2 u_Resolution;
 
-// Scene counts
+uniform samplerBuffer u_TriangleData;
 uniform int u_TriangleCount;
-uniform int u_MaterialCount;
-uniform int u_LightCount;
 
-// Triangle structure matching C++ struct
-// Using vec4 for vec3 data to ensure proper std430 alignment (vec3 aligns to 16 bytes)
 struct Triangle {
-    vec4 v0;// xyz = position, w = padding (16 bytes)
-    vec4 v1;// xyz = position, w = padding (16 bytes)
-    vec4 v2;// xyz = position, w = padding (16 bytes)
-    vec4 n0;// xyz = normal, w = padding (16 bytes)
-    vec4 n1;// xyz = normal, w = padding (16 bytes)
-    vec4 n2;// xyz = normal, w = padding (16 bytes)
-    vec2 uv0;// 8 bytes
-    vec2 uv1;// 8 bytes
-    vec2 uv2;// 8 bytes
-    uint materialId;// 4 bytes
-    float _padding1;// 4 bytes - align to 16 bytes
+    vec3 v0, v1, v2;
+    vec3 n0, n1, n2;
+    vec2 uv0, uv1, uv2;
+    uint materialId;
 };
 
-// SSBO for triangles - binding point 0 (matches C++ glBindBufferBase)
-layout(std430, binding = 0) buffer TriangleBuffer {
-    Triangle triangles[];
-};
+// HELPER
+vec3 readVec3(int baseIndex, int offset)
+{
+    // Each vec3 needs to be stored as vec4 in the TBO (RGBA format)
+    // So we read the RGB components
+    return texelFetch(u_TriangleData, baseIndex + offset).xyz;
+}
+
+vec2 readVec2(int baseIndex, int offset)
+{
+    return texelFetch(u_TriangleData, baseIndex + offset).xy;
+}
+
+uint readUint(int baseIndex, int offset)
+{
+    return floatBitsToUint(texelFetch(u_TriangleData, baseIndex + offset).x);
+}
+
+Triangle getTriangle(int index)
+{
+    Triangle tri;
+
+    // Calculate base index for this triangle
+    // Each triangle needs: 6 vec4s for positions/normals + 2 vec4s for UVs/material
+    // = 8 vec4s per triangle
+    int baseIndex = index * 8;
+
+    tri.v0 = readVec3(baseIndex, 0);
+    tri.v1 = readVec3(baseIndex, 1);
+    tri.v2 = readVec3(baseIndex, 2);
+    tri.n0 = readVec3(baseIndex, 3);
+    tri.n1 = readVec3(baseIndex, 4);
+    tri.n2 = readVec3(baseIndex, 5);
+
+    vec4 uvData0 = texelFetch(u_TriangleData, baseIndex + 6);
+    vec4 uvData1 = texelFetch(u_TriangleData, baseIndex + 7);
+
+    tri.uv0 = uvData0.xy;
+    tri.uv1 = uvData0.zw;
+    tri.uv2 = uvData1.xy;
+    tri.materialId = floatBitsToUint(uvData1.z);
+
+    return tri;
+}
 
 struct Ray {
     vec3 origin;
@@ -69,8 +98,10 @@ Ray generateRay(vec2 uv)
 }
 
 // Möller–Trumbore intersection algorithm
-HitRecord intersectTriangle(Ray ray, Triangle tri)
+HitRecord intersectTriangle(Ray ray, int triIndex)
 {
+    Triangle tri = getTriangle(triIndex);
+
     HitRecord rec;
     rec.hit = false;
     rec.t = 1e30;
@@ -126,7 +157,7 @@ HitRecord traceRay(Ray ray)
 
     for (int i = 0; i < u_TriangleCount; i++)
     {
-        HitRecord hit = intersectTriangle(ray, triangles[i]);
+        HitRecord hit = intersectTriangle(ray, i);
         if (hit.hit && hit.t < closestHit.t)
         {
             closestHit = hit;

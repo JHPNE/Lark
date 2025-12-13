@@ -35,14 +35,19 @@ std::vector<Triangle> GeometryConverter::ConvertFromGeometry(const content_tools
             glm::vec4 p1 = transform * glm::vec4(v1.position.x, v1.position.y, v1.position.z, 1.0f);
             glm::vec4 p2 = transform * glm::vec4(v2.position.x, v2.position.y, v2.position.z, 1.0f);
 
-            tri.v0 = glm::vec3(p0);
-            tri.v1 = glm::vec3(p1);
-            tri.v2 = glm::vec3(p2);
+            // Store positions as vec4 (w component is padding)
+            tri.v0 = glm::vec4(glm::vec3(p0), 0.0f);
+            tri.v1 = glm::vec4(glm::vec3(p1), 0.0f);
+            tri.v2 = glm::vec4(glm::vec3(p2), 0.0f);
 
-            // Transform normals
-            tri.n0 = glm::normalize(normalMatrix * glm::vec3(v0.normal.x, v0.normal.y, v0.normal.z));
-            tri.n1 = glm::normalize(normalMatrix * glm::vec3(v1.normal.x, v1.normal.y, v1.normal.z));
-            tri.n2 = glm::normalize(normalMatrix * glm::vec3(v2.normal.x, v2.normal.y, v2.normal.z));
+            // Transform normals and store as vec4
+            glm::vec3 n0 = glm::normalize(normalMatrix * glm::vec3(v0.normal.x, v0.normal.y, v0.normal.z));
+            glm::vec3 n1 = glm::normalize(normalMatrix * glm::vec3(v1.normal.x, v1.normal.y, v1.normal.z));
+            glm::vec3 n2 = glm::normalize(normalMatrix * glm::vec3(v2.normal.x, v2.normal.y, v2.normal.z));
+            
+            tri.n0 = glm::vec4(n0, 0.0f);
+            tri.n1 = glm::vec4(n1, 0.0f);
+            tri.n2 = glm::vec4(n2, 0.0f);
 
             // Copy UVs
             tri.uv0 = glm::vec2(v0.uv.x, v0.uv.y);
@@ -50,7 +55,7 @@ std::vector<Triangle> GeometryConverter::ConvertFromGeometry(const content_tools
             tri.uv2 = glm::vec2(v2.uv.x, v2.uv.y);
 
             tri.materialId = materialId;
-            tri._padding1 = tri._padding2 = tri._padding3 = 0.0f;
+            tri._padding1 = 0.0f;
 
             triangles.push_back(tri);
         }

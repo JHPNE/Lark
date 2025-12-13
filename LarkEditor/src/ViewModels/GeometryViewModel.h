@@ -134,6 +134,13 @@ public:
 
         m_model->AddGeometry(entity->GetID(), std::move(instance));
         UpdateStatus("Added geometry: " + entity->GetName());
+        
+        // Rebuild raytracing scene if active
+        if (IsRaytracingEnabled.Get())
+        {
+            RebuildRaytracingScene();
+        }
+        
         return true;
     }
 
@@ -203,6 +210,12 @@ public:
                     EntityMovedEvent event;
                     event.entityId = entityId;
                     EventBus::Get().Publish(event);
+                    
+                    // Rebuild raytracing scene if active (transforms affect triangle positions)
+                    if (IsRaytracingEnabled.Get())
+                    {
+                        RebuildRaytracingScene();
+                    }
                 }
             }
         }
@@ -314,10 +327,61 @@ private:
                 return;
             }
             UpdateStatus("Raytracing renderer initialized");
+            
+            // Build and upload the raytracing scene with all current geometries
+            RebuildRaytracingScene();
         }
         
         IsRaytracingEnabled = enabled;
         UpdateStatus(enabled ? "Switched to Raytracing" : "Switched to Rasterization");
+    }
+
+    // Rebuild the raytracing scene from all current geometries
+    void RebuildRaytracingScene()
+    {
+        if (!m_raytracingInitialized)
+            return;
+
+        RayTracingScene scene;
+        
+        // Add a default material
+        PBRMaterial defaultMaterial;
+        defaultMaterial.albedo = glm::vec3(0.8f, 0.8f, 0.8f);
+        defaultMaterial.metallic = 0.0f;
+        defaultMaterial.roughness = 0.5f;
+        uint32_t defaultMatId = RaytracingRenderer::AddMaterial(scene, defaultMaterial);
+        
+        for (const auto& [entityId, geomInstance] : m_model->GetAllGeometries())
+        {
+            if (!geomInstance->visible)
+                continue;
+
+            const content_tools::scene* sceneData = &geomInstance->sceneData;
+            if (!sceneData)
+                continue;
+
+            glm::mat4 transform = GetEntityTransform(entityId);
+            
+            RaytracingRenderer::AddGeometryToScene(scene, sceneData, transform, defaultMatId);
+        }
+        
+        /*
+        if (scene.lights.empty())
+        {
+            RaytracingLight light;
+            light.position = glm::vec3(5.0f, 10.0f, 5.0f);
+            light.color = glm::vec3(1.0f, 1.0f, 1.0f);
+            light.intensity = 1.0f;
+            light.type = 0; // Point light
+            RaytracingRenderer::AddLight(scene, light);
+        }
+        */
+        
+        // Upload scene to GPU
+        RaytracingRenderer::UploadScene(scene);
+        
+        UpdateStatus("Raytracing scene rebuilt: " + 
+                    std::to_string(scene.triangles.size()) + " triangles");
     }
 
     void HandlePrimitiveMeshCreated(const PrimitiveMeshCreatedEvent& e)
@@ -339,6 +403,12 @@ private:
         if (auto* geom = m_model->GetGeometry(entityId))
         {
             geom->visible = visible;
+        }
+
+        // Rebuild raytracing scene if active (visibility affects what's rendered)
+        if (IsRaytracingEnabled.Get())
+        {
+            RebuildRaytracingScene();
         }
 
         UpdateStatus("Updated visibility for entity " + std::to_string(entityId));
@@ -545,6 +615,12 @@ private:
         if (SelectedEntityId.Get() == entityId)
         {
             SelectedEntityId = static_cast<uint32_t>(-1);
+        }
+
+        // Rebuild raytracing scene if active
+        if (IsRaytracingEnabled.Get())
+        {
+            RebuildRaytracingScene();
         }
 
         UpdateStatus("Removed geometry for entity " + std::to_string(entityId));

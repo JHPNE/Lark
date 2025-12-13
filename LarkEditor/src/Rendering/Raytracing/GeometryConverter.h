@@ -6,13 +6,15 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 
+// Triangle structure for GPU raytracing
+// In std430, vec3 is aligned to 16 bytes, so we use vec4 for proper alignment
 struct Triangle
 {
-    glm::vec3 v0, v1, v2; // 36 by
-    glm::vec3 n0, n1, n2; // 36 by
-    glm::vec2 uv0, uv1, uv2; // 24 by
-    uint32_t materialId; // might need to add ids later 4 by
-    float _padding1, _padding2, _padding3; // 12 by
+    glm::vec4 v0, v1, v2;        // xyz = position, w = padding (16 bytes)
+    glm::vec4 n0, n1, n2;        // xyz = normal, w = padding (16 bytes)
+    glm::vec2 uv0, uv1, uv2;       // (8 bytes)
+    uint32_t materialId; // (4 bytes)
+    float _padding1;     // (4 bytes) - align to 16 bytes
 };
 
 class GeometryConverter
