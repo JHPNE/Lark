@@ -15,12 +15,41 @@ uniform vec2 u_Resolution;
 uniform samplerBuffer u_TriangleData;
 uniform int u_TriangleCount;
 
+uniform samplerBuffer u_LightData;
+uniform int u_LightCount;
+
+uniform samplerBuffer u_MaterialData;
+uniform int u_MaterialCount;
+
+// Hardcoded color as i need to adjust the code
+const vec3 red = vec3(0.8, 0.2, 0.2);// Red
+
 struct Triangle {
     vec3 v0, v1, v2;
     vec3 n0, n1, n2;
     vec2 uv0, uv1, uv2;
     uint materialId;
 };
+
+struct Light {
+    vec3 pos;
+    vec3 dir;
+    vec3 color;
+    float intsensity;
+    float radius;
+};
+
+struct Material {
+    vec3 albedo;
+    float roughness;
+    float metallic;
+    vec3 normal;
+    float ao;
+    vec3 emissive;
+    float ior;
+    float transparency;
+};
+
 
 // HELPER
 vec3 readVec3(int baseIndex, int offset)
@@ -40,9 +69,27 @@ uint readUint(int baseIndex, int offset)
     return floatBitsToUint(texelFetch(u_TriangleData, baseIndex + offset).x);
 }
 
+Light getLight(int index)
+{
+    Light light;
+
+    // each light needs position, direciton and color which will be vec4s
+    // = 3 vec4s per Light
+    int baseIndex = index * 4;
+
+    light.pos = readVec3(baseIndex, 0);
+    light.dir = readVec3(baseIndex, 1);
+    light.color = readVec3(baseIndex, 2);
+
+    // TODO: add intensity and radius
+
+    return light;
+}
+
 Triangle getTriangle(int index)
 {
     Triangle tri;
+
 
     // Calculate base index for this triangle
     // Each triangle needs: 6 vec4s for positions/normals + 2 vec4s for UVs/material
@@ -176,6 +223,34 @@ vec3 backgroundColor(Ray ray)
     return mix(horizon, skyBlue, t);
 }
 
+bool linesIntersect(vec3 dirA, vec3 dirB)
+{
+    return true;
+}
+
+vec3 shade(HitRecord rec)
+{
+    vec3 diffuse;
+    vec3 ambient;
+
+    for (int i = 0; i < u_LightCount; i++)
+    {
+        Light light = getLight(i);
+        // get vector between light point and rec
+        vec3 L = normalize(light.pos - rec.point);
+        // check if direction aligns
+        if (linesIntersect(L, light.dir))
+        {
+            float NdotL = max(dot(rec.normal, L), 0.0);
+            ambient += 0.1 * red;
+            diffuse += NdotL * red * light.color;
+        }
+
+    }
+
+    return ambient + diffuse;
+}
+
 void main()
 {
     Ray ray = generateRay(TexCoords);
@@ -186,7 +261,7 @@ void main()
     if (rec.hit)
     {
         // Visualize normal (can be changed to material-based shading later)
-        color = rec.normal * 0.5 + 0.5;
+        color = shade(rec);
     }
     else
     {

@@ -74,6 +74,7 @@ int RaytracingRenderer::GetMaterialCount()
 }
 
 // These helper functions remain the same (they're just data manipulation)
+// TODO: Maybe move those to Utils
 void RaytracingRenderer::AddGeometryToScene(
     RayTracingScene& scene,
     const content_tools::scene* geometry,
