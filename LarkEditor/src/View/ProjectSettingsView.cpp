@@ -331,7 +331,8 @@ void ProjectSettingsView::DrawGeometryTab()
             const char* path = fileDialog.GetSelectedPathAsChar();
             if (path && strlen(path) > 0)
             {
-                m_viewModel->LoadGeometryCommand->Execute(std::string(path));
+                m_viewModel->GeometryPath = std::string(path);
+                m_viewModel->LoadGeometryCommand->Execute();
             }
         }
         ImGui::PopID(); // FileDialogSection

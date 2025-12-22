@@ -38,12 +38,15 @@ public:
     ObservableProperty<glm::ivec3> PrimitiveSegments{1, 1, 1};
     ObservableProperty<int> PrimitiveLOD{0};
 
+    // Loaded Geometry properties
+    ObservableProperty<std::string> GeometryPath;
+
     // Raytracing properties
     ObservableProperty<bool> IsRaytracingEnabled{false};
 
     // Commands
     std::unique_ptr<RelayCommand<>> CreatePrimitiveCommand;
-    std::unique_ptr<RelayCommand<std::string>> LoadGeometryCommand;
+    std::unique_ptr<RelayCommand<>> LoadGeometryCommand;
     std::unique_ptr<RelayCommand<uint32_t>> RemoveGeometryCommand;
     std::unique_ptr<RelayCommand<>> ResetCameraCommand;
     std::unique_ptr<RelayCommand<>> RandomizeVerticesCommand;
@@ -250,9 +253,9 @@ private:
         );
 
         // Load geometry command
-        LoadGeometryCommand = std::make_unique<RelayCommand<std::string>>(
-            [this](const std::string& path) { ExecuteLoadGeometry(path); },
-            [this](const std::string&) { return m_project && m_project->GetActiveScene(); }
+        LoadGeometryCommand = std::make_unique<RelayCommand<>>(
+            [this]() { ExecuteLoadGeometry(); },
+            [this]() { return m_project && m_project->GetActiveScene(); }
         );
 
         // Remove geometry command
@@ -303,6 +306,12 @@ private:
         EventBus::Get().Subscribe<PrimitiveMeshCreatedEvent>(
              [this](const PrimitiveMeshCreatedEvent& e) {
                  HandlePrimitiveMeshCreated(e);
+            }
+        );
+
+        EventBus::Get().Subscribe<GeometryLoadedEvent>(
+            [this](const GeometryLoadedEvent& e) {
+                HandleLoadedGeometry(e);
             }
         );
 
@@ -395,6 +404,13 @@ private:
         PrimitiveLOD = e.lod;
 
         ExecuteCreatePrimitive();
+    }
+
+    void HandleLoadedGeometry(const GeometryLoadedEvent& e)
+    {
+        GeometryPath = e.path;
+
+        ExecuteLoadGeometry();
     }
 
     void HandleGeometryVisibilityChanged(uint32_t entityId, bool visible)
@@ -549,22 +565,23 @@ private:
         Logger::Get().Log(MessageType::Info, "Created primitive geometry: " + name);
     }
 
-    void ExecuteLoadGeometry(const std::string& filepath)
+    void ExecuteLoadGeometry()
     {
+
         if (!m_project || !m_project->GetActiveScene())
             return;
 
         // Load geometry
-        auto instance = m_service.LoadFromFile(filepath);
+        auto instance = m_service.LoadFromFile(GeometryPath.Get());
         if (!instance)
         {
-            UpdateStatus("Failed to load geometry from: " + filepath);
+            UpdateStatus("Failed to load geometry from: " + GeometryPath.Get());
             return;
         }
 
         // Create entity
         auto scene = m_project->GetActiveScene();
-        std::string name = fs::path(filepath).stem().string();
+        std::string name = fs::path(GeometryPath.Get()).stem().string();
         auto entity = scene->CreateEntityInternal(name);
 
         if (!entity)
@@ -578,7 +595,7 @@ private:
         geomInit.geometryName = name;
         geomInit.geometryType = GeometryType::ObjImport;
         geomInit.visible = true;
-        geomInit.geometrySource = filepath;
+        geomInit.geometrySource = GeometryPath.Get();
 
         auto* geomComponent = entity->AddComponent<Geometry>(&geomInit);
         if (geomComponent && instance->geometryData->GetScene())
@@ -603,7 +620,7 @@ private:
         }
 
         UpdateStatus("Loaded geometry: " + name);
-        Logger::Get().Log(MessageType::Info, "Loaded geometry from: " + filepath);
+        Logger::Get().Log(MessageType::Info, "Loaded geometry from: " + GeometryPath.Get());
     }
 
     void ExecuteRemoveGeometry(uint32_t entityId)

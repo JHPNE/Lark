@@ -40,6 +40,11 @@ struct PrimitiveMeshCreatedEvent : Event
     int lod;
 };
 
+struct GeometryLoadedEvent : Event
+{
+    std::string path;
+};
+
 struct GeometryVisibilityChangedEvent : Event
 {
     uint32_t entityId;

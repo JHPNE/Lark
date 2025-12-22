@@ -28,6 +28,9 @@ public:
     ObservableProperty<glm::ivec3> PrimitiveSegments{1, 1, 1};
     ObservableProperty<int> PrimitiveLOD{0};
 
+    // Geometry Load path
+    ObservableProperty<std::string> GeometryPath;
+
     // UI State
     ObservableProperty<int> ActiveTab{0};
     ObservableProperty<std::string> StatusMessage{""};
@@ -39,7 +42,7 @@ public:
     std::unique_ptr<RelayCommand<>> ResetCameraCommand;
     std::unique_ptr<RelayCommand<>> ApplyWorldSettingsCommand;
     std::unique_ptr<RelayCommand<>> CreatePrimitiveCommand;
-    std::unique_ptr<RelayCommand<std::string>> LoadGeometryCommand;
+    std::unique_ptr<RelayCommand<>> LoadGeometryCommand;
 
     ProjectSettingsViewModel()
         : m_service(PhysicService::Get())
@@ -128,9 +131,9 @@ private:
             [this]() { return HasProject.Get() && m_project->GetActiveScene(); }
         );
 
-        LoadGeometryCommand = std::make_unique<RelayCommand<std::string>>(
-            [this](const std::string& path) { ExecuteLoadGeometry(path); },
-            [this](const std::string&) { return HasProject.Get() && m_project->GetActiveScene(); }
+        LoadGeometryCommand = std::make_unique<RelayCommand<>>(
+            [this]() { ExecuteLoadGeometry(); },
+            [this]() { return HasProject.Get() && m_project->GetActiveScene(); }
         );
     }
 
@@ -272,11 +275,13 @@ private:
         UpdateStatus("Created primitive");
     }
 
-    void ExecuteLoadGeometry(const std::string& filepath)
+    void ExecuteLoadGeometry()
     {
-        // Load geometry file and add to active scene
-        // Implementation details...
-        UpdateStatus("Loaded geometry: " + fs::path(filepath).filename().string());
+        GeometryLoadedEvent event;
+        event.path = GeometryPath.Get();
+        EventBus::Get().Publish(event);
+
+        UpdateStatus("Loaded geometry: " + fs::path(GeometryPath.Get()).filename().string());
     }
 
     void UpdateStatus(const std::string& message)
