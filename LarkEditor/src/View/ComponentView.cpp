@@ -359,15 +359,6 @@ void ComponentView::DrawMaterialComponent() {
         }
     }
 
-    // Metallic
-    float metallic = material->GetMetallic();
-    if (CustomWidgets::PropertyFloat("Metallic", &metallic, 0.0f, 1.0f, "%.3f")) {
-        material->SetMetallic(metallic);
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
-    }
-
     // AO (Ambient Occlusion)
     float ao = material->GetAO();
     if (CustomWidgets::PropertyFloat("AO", &ao, 0.0f, 1.0f, "%.3f")) {

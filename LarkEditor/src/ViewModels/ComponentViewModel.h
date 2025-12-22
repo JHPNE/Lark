@@ -45,7 +45,6 @@ public:
     ObservableProperty<bool> HasMaterial{false};
     ObservableProperty<glm::vec3> MaterialAlbedo{glm::vec3(1.0f)};
     ObservableProperty<float> MaterialRoughness{0.5f};
-    ObservableProperty<float> MaterialMetallic{0.0f};
     ObservableProperty<glm::vec3> MaterialNormal{glm::vec3(0.0f, 0.0f, 1.0f)};
     ObservableProperty<float> MaterialAO{1.0f};
     ObservableProperty<glm::vec3> MaterialEmissive{glm::vec3(0.0f)};
@@ -436,7 +435,6 @@ private:
             HasMaterial = true;
             MaterialAlbedo = material->GetAlbedo();
             MaterialRoughness = material->GetRoughness();
-            MaterialMetallic = material->GetMetallic();
             MaterialNormal = material->GetNormal();
             MaterialAO = material->GetAO();
             MaterialEmissive = material->GetEmissive();
@@ -446,7 +444,6 @@ private:
             HasMaterial = false;
             MaterialAlbedo = glm::vec3(1.0f);
             MaterialRoughness = 0.5f;
-            MaterialMetallic = 0.0f;
             MaterialNormal = glm::vec3(0.0f, 0.0f, 1.0f);
             MaterialAO = 1.0f;
             MaterialEmissive = glm::vec3(0.0f);
@@ -491,7 +488,6 @@ private:
         materialInit.material = PBRMaterial{
             glm::vec3(1.0f),  // albedo
             0.5f,             // roughness
-            0.0f,             // metallic
             glm::vec3(0.0f, 0.0f, 1.0f),  // normal
             1.0f,             // ao
             glm::vec3(0.0f),  // emissive

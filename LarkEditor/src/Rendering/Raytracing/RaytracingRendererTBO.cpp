@@ -172,6 +172,7 @@ void RaytracingRendererTBO::CreateTBOs()
     printf("[RaytracingRendererTBO] TBOs created\n");
 }
 
+// TODO: Add a TriangleTBOGPU struct with a FromTriangle method
 std::vector<TriangleTBOData> RaytracingRendererTBO::PackTrianglesForTBO(const std::vector<Triangle>& triangles)
 {
     std::vector<TriangleTBOData> tboData;
@@ -225,10 +226,17 @@ void RaytracingRendererTBO::UploadScene(const RayTracingScene& scene)
     m_MaterialCount = static_cast<int>(scene.materials.size());
     if (m_MaterialCount > 0)
     {
+        std::vector<PBRMaterialGPU> gpuMaterials;
+        gpuMaterials.reserve(scene.materials.size());
+        for (const auto& mat : scene.materials)
+        {
+            gpuMaterials.push_back(PBRMaterialGPU::FromMaterial(mat));
+        }
+
         glBindBuffer(GL_TEXTURE_BUFFER, m_MaterialBuffer);
         glBufferData(GL_TEXTURE_BUFFER,
-                     scene.materials.size() * sizeof(PBRMaterial),
-                     scene.materials.data(),
+                     gpuMaterials.size() * sizeof(PBRMaterialGPU),
+                     gpuMaterials.data(),
                      GL_DYNAMIC_DRAW);
 
         glBindTexture(GL_TEXTURE_BUFFER, m_MaterialTBO);
@@ -242,10 +250,17 @@ void RaytracingRendererTBO::UploadScene(const RayTracingScene& scene)
     m_LightCount = static_cast<int>(scene.lights.size());
     if (m_LightCount > 0)
     {
+        std::vector<RaytracingLightGPU> gpuLights;
+        gpuLights.reserve(scene.lights.size());
+        for (const auto& light : scene.lights)
+        {
+            gpuLights.push_back(RaytracingLightGPU::FromLight(light));
+        }
+
         glBindBuffer(GL_TEXTURE_BUFFER, m_LightBuffer);
         glBufferData(GL_TEXTURE_BUFFER,
-                     scene.lights.size() * sizeof(RaytracingLight),
-                     scene.lights.data(),
+                     gpuLights.size() * sizeof(RaytracingLightGPU),
+                     gpuLights.data(),
                      GL_DYNAMIC_DRAW);
 
         glBindTexture(GL_TEXTURE_BUFFER, m_LightTBO);

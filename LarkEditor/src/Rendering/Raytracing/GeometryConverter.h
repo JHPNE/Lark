@@ -17,6 +17,10 @@ struct Triangle
     float _padding1;     // (4 bytes) - align to 16 bytes
 };
 
+struct alignas(16) TriangleTBOGPU
+{
+};
+
 class GeometryConverter
 {
     public:

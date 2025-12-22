@@ -24,14 +24,16 @@ uniform int u_MaterialCount;
 // Hardcoded color as i need to adjust the code
 const vec3 red = vec3(0.8, 0.2, 0.2);// Red
 
-struct Triangle {
+struct Triangle
+{
     vec3 v0, v1, v2;
     vec3 n0, n1, n2;
     vec2 uv0, uv1, uv2;
     uint materialId;
 };
 
-struct Light {
+struct Light
+{
     vec3 pos;
     vec3 dir;
     vec3 color;
@@ -39,7 +41,8 @@ struct Light {
     float radius;
 };
 
-struct Material {
+struct Material
+{
     vec3 albedo;
     float roughness;
     float metallic;
@@ -72,16 +75,15 @@ uint readUint(int baseIndex, int offset)
 Light getLight(int index)
 {
     Light light;
-
-    // each light needs position, direciton and color which will be vec4s
-    // = 3 vec4s per Light
     int baseIndex = index * 4;
 
-    light.pos = readVec3(baseIndex, 0);
-    light.dir = readVec3(baseIndex, 1);
-    light.color = readVec3(baseIndex, 2);
+    light.pos = texelFetch(u_LightData, baseIndex + 0).xyz;
+    light.dir = texelFetch(u_LightData, baseIndex + 1).xyz;
+    light.color = texelFetch(u_LightData, baseIndex + 2).xyz;
 
-    // TODO: add intensity and radius
+    vec4 params = texelFetch(u_LightData, baseIndex + 3);
+    light.intsensity = params.x;
+    light.radius = params.y;
 
     return light;
 }
@@ -89,11 +91,6 @@ Light getLight(int index)
 Triangle getTriangle(int index)
 {
     Triangle tri;
-
-
-    // Calculate base index for this triangle
-    // Each triangle needs: 6 vec4s for positions/normals + 2 vec4s for UVs/material
-    // = 8 vec4s per triangle
     int baseIndex = index * 8;
 
     tri.v0 = readVec3(baseIndex, 0);
@@ -114,12 +111,35 @@ Triangle getTriangle(int index)
     return tri;
 }
 
-struct Ray {
+Material getMaterial(uint index)
+{
+    Material mat;
+    int baseIndex = int(index) * 4;
+
+    vec4 data0 = texelFetch(u_MaterialData, baseIndex + 0);
+    vec4 data1 = texelFetch(u_MaterialData, baseIndex + 1);
+    vec4 data2 = texelFetch(u_MaterialData, baseIndex + 2);
+    vec4 data3 = texelFetch(u_MaterialData, baseIndex + 3);
+
+    mat.albedo = data0.xyz;
+    mat.roughness = data0.w;
+    mat.normal = data1.xyz;
+    mat.ao = data1.w;
+    mat.emissive = data2.xyz;
+    mat.ior = data2.w;
+    mat.transparency = data3.x;
+
+    return mat;
+}
+
+struct Ray
+{
     vec3 origin;
     vec3 direction;
 };
 
-struct HitRecord {
+struct HitRecord
+{
     float t;
     vec3 point;
     vec3 normal;

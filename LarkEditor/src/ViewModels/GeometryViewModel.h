@@ -344,11 +344,14 @@ private:
 
         RayTracingScene scene;
         
-        // Add a default material
         PBRMaterial defaultMaterial;
         defaultMaterial.albedo = glm::vec3(0.8f, 0.8f, 0.8f);
-        defaultMaterial.metallic = 0.0f;
         defaultMaterial.roughness = 0.5f;
+        defaultMaterial.normal = glm::vec3(0.0f, 0.0f, 1.0f);
+        defaultMaterial.ao = 1.0f;
+        defaultMaterial.emissive = glm::vec3(0.0f);
+        defaultMaterial.ior = 1.5f;
+        defaultMaterial.transparency = 0.0f;
         uint32_t defaultMatId = RaytracingRenderer::AddMaterial(scene, defaultMaterial);
         
         for (const auto& [entityId, geomInstance] : m_model->GetAllGeometries())
@@ -365,18 +368,18 @@ private:
             RaytracingRenderer::AddGeometryToScene(scene, sceneData, transform, defaultMatId);
         }
         
-        /*
         if (scene.lights.empty())
         {
             RaytracingLight light;
-            light.position = glm::vec3(5.0f, 10.0f, 5.0f);
+            light.type = LightType::Point;
+            light.position = glm::vec3(5.0f, 5.0f, 5.0f);
+            light.direction = glm::vec3(0.0f, -1.0f, 0.0f);
             light.color = glm::vec3(1.0f, 1.0f, 1.0f);
-            light.intensity = 1.0f;
-            light.type = 0; // Point light
+            light.intensity = 10.0f;
+            light.radius = 0.5f;
             RaytracingRenderer::AddLight(scene, light);
         }
-        */
-        
+
         // Upload scene to GPU
         RaytracingRenderer::UploadScene(scene);
         

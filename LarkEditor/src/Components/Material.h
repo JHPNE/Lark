@@ -32,9 +32,6 @@ class Material : public Component, public ISerializable
         void SetRoughness(float roughness) {m_material.roughness = roughness;}
         [[nodiscard]] float GetRoughness() const { return m_material.roughness;}
 
-        void SetMetallic(float metallic) {m_material.metallic = metallic;}
-        [[nodiscard]] float GetMetallic() const { return m_material.metallic;}
-
         void SetNormal(glm::vec3 normal) {m_material.normal = normal;}
         [[nodiscard]] glm::vec3 GetNormal() const { return m_material.normal;}
 
@@ -56,7 +53,6 @@ class Material : public Component, public ISerializable
 
             SERIALIZE_VEC3(context, element, "Albedo", m_material.albedo);
             SERIALIZE_PROPERTY(element, context, m_material.roughness);
-            SERIALIZE_PROPERTY(element, context, m_material.metallic);
             SERIALIZE_VEC3(context, element, "Normal", m_material.normal);
             SERIALIZE_VEC3(context, element, "Emissive", m_material.emissive);
             SERIALIZE_PROPERTY(element, context, m_material.ior);
@@ -75,7 +71,6 @@ class Material : public Component, public ISerializable
 
             DESERIALIZE_VEC3(element, "Albedo", m_material.albedo, glm::vec3(1.0f));
             DESERIALIZE_PROPERTY(element, context, m_material.roughness);
-            DESERIALIZE_PROPERTY(element, context, m_material.metallic);
             DESERIALIZE_VEC3(element, "Normal", m_material.albedo, glm::vec3(1.0f));
             DESERIALIZE_VEC3(element, "Emissive", m_material.albedo, glm::vec3(1.0f));
             DESERIALIZE_PROPERTY(element, context, m_material.ior);
