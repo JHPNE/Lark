@@ -50,6 +50,7 @@ public:
     ObservableProperty<glm::vec3> MaterialEmissive{glm::vec3(0.0f)};
     ObservableProperty<float> MaterialIOR{1.5f};
     ObservableProperty<float> MaterialTransparency{0.0f};
+    ObservableProperty<float> MaterialMetallic{0.0f};
 
     // Physics Component Properties
     ObservableProperty<bool> HasPhysics{false};
@@ -440,6 +441,7 @@ private:
             MaterialEmissive = material->GetEmissive();
             MaterialIOR = material->GetIOR();
             MaterialTransparency = material->GetTransparency();
+            MaterialMetallic = material->GetMetallic();
         } else {
             HasMaterial = false;
             MaterialAlbedo = glm::vec3(1.0f);
@@ -449,6 +451,7 @@ private:
             MaterialEmissive = glm::vec3(0.0f);
             MaterialIOR = 1.5f;
             MaterialTransparency = 0.0f;
+            MaterialMetallic = 0.0f;
         }
     }
 
@@ -492,7 +495,8 @@ private:
             1.0f,             // ao
             glm::vec3(0.0f),  // emissive
             1.5f,             // ior
-            0.0f              // transparency
+            0.0f,              // transparency
+            0.0f              // metallic
         };
 
         if (auto* material = SelectedEntity.Get()->AddComponent<Material>(&materialInit)) {

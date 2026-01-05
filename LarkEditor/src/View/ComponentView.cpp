@@ -1,4 +1,3 @@
-// LarkEditor/src/View/ComponentView.cpp
 #include "ComponentView.h"
 #include "../ViewModels/ComponentViewModel.h"
 #include "Style/CustomWidgets.h"
@@ -243,7 +242,6 @@ void ComponentView::DrawGeometryComponent() {
 
     CustomWidgets::BeginPropertyTable();
 
-    // Geometry info
     ImGui::Text("Type");
     ImGui::SameLine(Sizing::PropertyLabelWidth);
     ImGui::TextColored(Colors::AccentInfo,
@@ -254,7 +252,6 @@ void ComponentView::DrawGeometryComponent() {
     ImGui::SameLine(Sizing::PropertyLabelWidth);
     ImGui::TextColored(Colors::Text, "%s", m_viewModel->GeometryName.Get().c_str());
 
-    // Visibility with colored indicator
     bool visible = m_viewModel->GeometryVisible.Get();
     CustomWidgets::PropertyBool("Visible", &visible);
     if (visible != m_viewModel->GeometryVisible.Get()) {
@@ -303,7 +300,7 @@ void ComponentView::DrawPhysicsComponent()
     bool kinematic = physics->IsKinematic();
     if (CustomWidgets::PropertyBool("Kinematic", &kinematic)) {
         physics->SetKinematic(kinematic);
-        // Update entity
+
         if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
             scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
         }
@@ -312,7 +309,7 @@ void ComponentView::DrawPhysicsComponent()
     glm::vec3 inertia = physics->GetInertia();
     if (CustomWidgets::PropertyFloat3("Inertia", &inertia.x, "%.3f")) {
         physics->SetInertia(inertia);
-        // Update entity
+
         if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
             scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
         }
@@ -341,7 +338,6 @@ void ComponentView::DrawMaterialComponent() {
 
     CustomWidgets::BeginPropertyTable();
 
-    // Albedo (Color)
     glm::vec3 albedo = material->GetAlbedo();
     if (CustomWidgets::PropertyFloat3("Albedo", &albedo.x, "%.3f")) {
         material->SetAlbedo(albedo);
@@ -350,7 +346,6 @@ void ComponentView::DrawMaterialComponent() {
         }
     }
 
-    // Roughness
     float roughness = material->GetRoughness();
     if (CustomWidgets::PropertyFloat("Roughness", &roughness, 0.0f, 1.0f, "%.3f")) {
         material->SetRoughness(roughness);
@@ -359,7 +354,6 @@ void ComponentView::DrawMaterialComponent() {
         }
     }
 
-    // AO (Ambient Occlusion)
     float ao = material->GetAO();
     if (CustomWidgets::PropertyFloat("AO", &ao, 0.0f, 1.0f, "%.3f")) {
         material->SetAO(ao);
@@ -368,7 +362,14 @@ void ComponentView::DrawMaterialComponent() {
         }
     }
 
-    // Emissive
+    float metallic = material->GetMetallic();
+    if (CustomWidgets::PropertyFloat("Mettalic", &metallic, 0.0f, 1.0f, "%.3f")) {
+        material->SetMetallic(metallic);
+        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
+            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
+        }
+    }
+
     glm::vec3 emissive = material->GetEmissive();
     if (CustomWidgets::PropertyFloat3("Emissive", &emissive.x, "%.3f")) {
         material->SetEmissive(emissive);
@@ -377,7 +378,6 @@ void ComponentView::DrawMaterialComponent() {
         }
     }
 
-    // IOR (Index of Refraction)
     float ior = material->GetIOR();
     if (CustomWidgets::PropertyFloat("IOR", &ior, 1.0f, 3.0f, "%.3f")) {
         material->SetIOR(ior);
@@ -386,7 +386,6 @@ void ComponentView::DrawMaterialComponent() {
         }
     }
 
-    // Transparency
     float transparency = material->GetTransparency();
     if (CustomWidgets::PropertyFloat("Transparency", &transparency, 0.0f, 1.0f, "%.3f")) {
         material->SetTransparency(transparency);
@@ -479,18 +478,15 @@ void ComponentView::DrawAddComponentButton()
     ImGui::Spacing();
     ImGui::Spacing();
 
-    // Center the button
     float buttonWidth = 140.0f;
     float avail = ImGui::GetContentRegionAvail().x;
     float off = (avail - buttonWidth) * 0.5f;
     if (off > 0.0f) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
 
-    // Button click - just opens the popup
     if (CustomWidgets::Button("+ Add Component", ImVec2(buttonWidth, 36))) {
         ImGui::OpenPopup("AddComponentPopup");
     }
 
-    // Handle the popup OUTSIDE of the button condition
     if (ImGui::BeginPopup("AddComponentPopup")) {
         if (ImGui::MenuItem("Physics Component") && m_viewModel->HasGeometry.Get() && !m_viewModel->SelectedEntity.Get()->GetComponent<Physics>())
         {
@@ -514,7 +510,6 @@ void ComponentView::DrawAddComponentButton()
             m_viewModel->AddDroneCommand->Execute();
         }
 
-        // Add separator if needed
         ImGui::Separator();
 
         if (ImGui::MenuItem("Cancel")) {

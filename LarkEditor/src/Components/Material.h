@@ -32,6 +32,9 @@ class Material : public Component, public ISerializable
         void SetRoughness(float roughness) {m_material.roughness = roughness;}
         [[nodiscard]] float GetRoughness() const { return m_material.roughness;}
 
+        void SetMetallic(float metallic) {m_material.metallic = metallic;}
+        [[nodiscard]] float GetMetallic() const { return m_material.metallic;}
+
         void SetNormal(glm::vec3 normal) {m_material.normal = normal;}
         [[nodiscard]] glm::vec3 GetNormal() const { return m_material.normal;}
 
@@ -58,6 +61,7 @@ class Material : public Component, public ISerializable
             SERIALIZE_PROPERTY(element, context, m_material.ior);
             SERIALIZE_PROPERTY(element, context, m_material.transparency);
             SERIALIZE_PROPERTY(element, context, m_material.ao);
+            SERIALIZE_PROPERTY(element, context, m_material.metallic);
         }
 
         bool Deserialize(const tinyxml2::XMLElement *element, SerializationContext &context) override
@@ -76,6 +80,7 @@ class Material : public Component, public ISerializable
             DESERIALIZE_PROPERTY(element, context, m_material.ior);
             DESERIALIZE_PROPERTY(element, context, m_material.transparency);
             DESERIALIZE_PROPERTY(element, context, m_material.ao);
+            DESERIALIZE_PROPERTY(element, context, m_material.metallic);
 
             return !context.HasErrors();
         }

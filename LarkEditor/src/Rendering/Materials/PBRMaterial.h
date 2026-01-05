@@ -16,6 +16,7 @@ struct PBRMaterial
     float ior = 1.5f;
 
     float transparency = 0.0f;
+    float metallic = 0.0f;
 };
 
 struct Glas : PBRMaterial
@@ -27,7 +28,7 @@ struct alignas(16) PBRMaterialGPU
     glm::vec4 albedoRoughness;    // xyz = albedo, w = roughness
     glm::vec4 normalAO;           // xyz = normal, w = ao
     glm::vec4 emissiveIOR;        // xyz = emissive, w = ior
-    glm::vec4 transparencyPad;    // x = transparency, yzw = unused
+    glm::vec4 transparencyMetallicPad;    // x = transparency, y = metallic, zw = unused
     
     static PBRMaterialGPU FromMaterial(const PBRMaterial& mat)
     {
@@ -35,7 +36,7 @@ struct alignas(16) PBRMaterialGPU
         gpu.albedoRoughness = glm::vec4(mat.albedo, mat.roughness);
         gpu.normalAO = glm::vec4(mat.normal, mat.ao);
         gpu.emissiveIOR = glm::vec4(mat.emissive, mat.ior);
-        gpu.transparencyPad = glm::vec4(mat.transparency, 0.0f, 0.0f, 0.0f);
+        gpu.transparencyMetallicPad = glm::vec4(mat.transparency, mat.metallic, 0.0f, 0.0f);
         return gpu;
     }
 };

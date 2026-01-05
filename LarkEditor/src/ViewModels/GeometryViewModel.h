@@ -381,7 +381,7 @@ private:
         {
             RaytracingLight light;
             light.type = LightType::Point;
-            light.position = glm::vec3(5.0f, 5.0f, 5.0f);
+            light.position = glm::vec3(1.0f, 1.0f, 1.0f);
             light.direction = glm::vec3(0.0f, -1.0f, 0.0f);
             light.color = glm::vec3(1.0f, 1.0f, 1.0f);
             light.intensity = 10.0f;
