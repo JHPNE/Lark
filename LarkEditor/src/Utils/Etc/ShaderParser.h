@@ -12,7 +12,66 @@ class ShaderParser
 {
 
 public:
-    static std::string LoadShaderSource(const std::string& filepath)
+    // I want SOC too much in one file
+    static std::string ProcessIncludes(const std::string& source,
+                                      const std::string& directory,
+                                      std::unordered_set<std::string>& includedFiles)
+    {
+        std::stringstream result;
+        std::istringstream stream(source);
+        std::string line;
+        int lineNumber = 1;
+
+        while (std::getline(stream, line))
+        {
+            size_t includePos = line.find("#include");
+            if (includePos != std::string::npos)
+            {
+                size_t firstQuote = line.find('"', includePos);
+                size_t secondQuote = line.find('"', firstQuote + 1);
+
+                if (firstQuote != std::string::npos && secondQuote != std::string::npos)
+                {
+                    std::string filename = line.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+                    std::string includePath = directory + "/" + filename;
+
+                    if (includedFiles.find(includePath) != includedFiles.end())
+                    {
+                        std::cerr << "Warning: Circular include detected: " << includePath << std::endl;
+                        continue;
+                    }
+
+                    includedFiles.insert(includePath);
+
+                    std::string includeContent = LoadShaderSourceRaw(includePath);
+                    if (!includeContent.empty())
+                    {
+                        result << "// Begin include: " << filename << "\n";
+                        result << ProcessIncludes(includeContent, directory, includedFiles);
+                        result << "// End include: " << filename << "\n";
+                    }
+                    else
+                    {
+                        std::cerr << "Failed to include file: " << includePath << std::endl;
+                    }
+                }
+                else
+                {
+                    std::cerr << "Invalid #include syntax at line " << lineNumber << std::endl;
+                }
+            }
+            else
+            {
+                result << line << "\n";
+            }
+
+            lineNumber++;
+        }
+
+        return result.str();
+    }
+
+    static std::string LoadShaderSourceRaw(const std::string& filepath)
     {
         std::ifstream file(filepath);
         if (!file.is_open())
@@ -25,6 +84,25 @@ public:
         buffer << file.rdbuf();
         return buffer.str();
     }
+
+public:
+    static std::string LoadShaderSource(const std::string& filepath)
+    {
+        std::string source = LoadShaderSourceRaw(filepath);
+        if (source.empty())
+        {
+            return "";
+        }
+
+        std::filesystem::path path(filepath);
+        std::string directory = path.parent_path().string();
+
+        std::unordered_set<std::string> includedFiles;
+        includedFiles.insert(filepath);
+
+        return ProcessIncludes(source, directory, includedFiles);
+    }
+
 
     static GLuint CompileShader(GLenum type, const std::string& src)
     {
