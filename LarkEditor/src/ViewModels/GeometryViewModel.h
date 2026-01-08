@@ -354,14 +354,17 @@ private:
         RayTracingScene scene;
         
         PBRMaterial defaultMaterial;
-        defaultMaterial.albedo = glm::vec3(0.8f, 0.8f, 0.8f);
-        defaultMaterial.roughness = 0.5f;
+        defaultMaterial.albedo = glm::vec3(1.0f, 0.0f, 0.0f);
+        defaultMaterial.roughness = 0.2f;
         defaultMaterial.normal = glm::vec3(0.0f, 0.0f, 1.0f);
         defaultMaterial.ao = 1.0f;
         defaultMaterial.emissive = glm::vec3(0.0f);
         defaultMaterial.ior = 1.5f;
         defaultMaterial.transparency = 0.0f;
+        defaultMaterial.metallic = 0.2f;
         uint32_t defaultMatId = RaytracingRenderer::AddMaterial(scene, defaultMaterial);
+
+        // TODO: Get Material from Component
         
         for (const auto& [entityId, geomInstance] : m_model->GetAllGeometries())
         {
@@ -376,7 +379,8 @@ private:
             
             RaytracingRenderer::AddGeometryToScene(scene, sceneData, transform, defaultMatId);
         }
-        
+
+        // TODO: Create Light Component and Get it from there aswell as displaying it in the editor
         if (scene.lights.empty())
         {
             RaytracingLight light;
@@ -387,6 +391,15 @@ private:
             light.intensity = 10.0f;
             light.radius = 0.5f;
             RaytracingRenderer::AddLight(scene, light);
+
+            RaytracingLight light2;
+            light2.type = LightType::Point;
+            light2.position = glm::vec3(1.0f, 5.0f, 1.0f);
+            light2.direction = glm::vec3(0.0f, 1.0f, 0.0f);
+            light2.color = glm::vec3(1.0f, 1.0f, 1.0f);
+            light2.intensity = 10.0f;
+            light2.radius = 0.5f;
+            RaytracingRenderer::AddLight(scene, light2);
         }
 
         // Upload scene to GPU

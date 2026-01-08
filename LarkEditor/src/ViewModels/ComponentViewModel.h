@@ -489,8 +489,8 @@ private:
 
         MaterialInitializer materialInit;
         materialInit.material = PBRMaterial{
-            glm::vec3(1.0f),  // albedo
-            0.5f,             // roughness
+            glm::vec3(1.0f, 0.0f ,0.0f),  // albedo
+            0.2f,             // roughness
             glm::vec3(0.0f, 0.0f, 1.0f),  // normal
             1.0f,             // ao
             glm::vec3(0.0f),  // emissive
