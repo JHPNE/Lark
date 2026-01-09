@@ -489,14 +489,15 @@ private:
 
         MaterialInitializer materialInit;
         materialInit.material = PBRMaterial{
-            glm::vec3(1.0f, 0.0f ,0.0f),  // albedo
-            0.2f,             // roughness
-            glm::vec3(0.0f, 0.0f, 1.0f),  // normal
-            1.0f,             // ao
-            glm::vec3(0.0f),  // emissive
-            1.5f,             // ior
-            0.0f,              // transparency
-            0.0f              // metallic
+            MaterialType::Lambertian,
+            glm::vec3(1.0f, 0.0f ,0.0f),
+            0.2f,
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            1.0f,
+            glm::vec3(0.0f),
+            1.5f,
+            0.0f,
+            0.0f
         };
 
         if (auto* material = SelectedEntity.Get()->AddComponent<Material>(&materialInit)) {

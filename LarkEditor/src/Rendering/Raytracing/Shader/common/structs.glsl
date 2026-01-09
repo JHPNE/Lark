@@ -1,3 +1,7 @@
+#define MAT_LAMBERTIAN 0
+#define MAT_METAL 1
+#define MAT_DIELECTRIC 2
+
 struct Triangle
 {
     vec3 v0, v1, v2;
@@ -25,6 +29,7 @@ struct Material
     vec3 emissive;
     float ior;
     float transparency;
+    int type;
 };
 
 struct Ray
@@ -41,4 +46,5 @@ struct HitRecord
     vec2 uv;
     uint materialId;
     bool hit;
+    bool frontFace;
 };

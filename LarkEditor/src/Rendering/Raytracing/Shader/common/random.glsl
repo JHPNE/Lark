@@ -1,12 +1,10 @@
-uint randNumb;
-
-uint hash() {
-    randNumb += (randNumb << 10u);
-    randNumb ^= (randNumb >>  6u);
-    randNumb += (randNumb <<  3u);
-    randNumb ^= (randNumb >> 11u);
-    randNumb += (randNumb << 15u);
-    return randNumb;
+uint hash(uint x) {
+    x += (x << 10u);
+    x ^= (x >>  6u);
+    x += (x <<  3u);
+    x ^= (x >> 11u);
+    x += (x << 15u);
+    return x;
 }
 
 float random(float f) {

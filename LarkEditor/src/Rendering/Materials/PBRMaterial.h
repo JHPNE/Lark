@@ -4,8 +4,17 @@
 #include <memory>
 #include "glad/glad.h"
 
+enum class MaterialType : uint32_t
+{
+    Lambertian = 0,
+    Metal = 1,
+    Dielectric = 2
+};
+
 struct PBRMaterial
 {
+    MaterialType type = MaterialType::Lambertian;
+
     glm::vec3 albedo = glm::vec3(1.0f, 0.0f, 0.0f);
     float roughness = 0.2f;
 
@@ -17,10 +26,8 @@ struct PBRMaterial
 
     float transparency = 0.0f;
     float metallic = 0.2f;
-};
 
-struct Glas : PBRMaterial
-{
+    float _padding = 0.0f;
 };
 
 struct alignas(16) PBRMaterialGPU
@@ -28,7 +35,7 @@ struct alignas(16) PBRMaterialGPU
     glm::vec4 albedoRoughness;    // xyz = albedo, w = roughness
     glm::vec4 normalAO;           // xyz = normal, w = ao
     glm::vec4 emissiveIOR;        // xyz = emissive, w = ior
-    glm::vec4 transparencyMetallicPad;    // x = transparency, y = metallic, zw = unused
+    glm::vec4 transparencyMetallicType;    // x = transparency, y = metallic, z = type, w = unused
     
     static PBRMaterialGPU FromMaterial(const PBRMaterial& mat)
     {
@@ -36,7 +43,12 @@ struct alignas(16) PBRMaterialGPU
         gpu.albedoRoughness = glm::vec4(mat.albedo, mat.roughness);
         gpu.normalAO = glm::vec4(mat.normal, mat.ao);
         gpu.emissiveIOR = glm::vec4(mat.emissive, mat.ior);
-        gpu.transparencyMetallicPad = glm::vec4(mat.transparency, mat.metallic, 0.0f, 0.0f);
+        gpu.transparencyMetallicType= glm::vec4(
+            mat.transparency,
+            mat.metallic,
+            float(static_cast<uint32_t>(mat.type)),
+            0.0f
+        );
         return gpu;
     }
 };
