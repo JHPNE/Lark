@@ -26,18 +26,25 @@ float randomFloat(float seed, float min, float max)
 
 vec3 randomUnitVector()
 {
-    while (true)
-    {
+    float baseSeed = dot(gl_FragCoord.xy, vec2(1.0, 4096.0));
 
-        float seed = dot(gl_FragCoord.xy, vec2(1.0, 4096.0));
+    for (int i = 0; i < 8; ++i)
+    {
+        float seed = baseSeed + float(i) * 17.0;
         vec3 p = vec3(
         randomFloat(seed, -1.0, 1.0),
-        randomFloat(seed + 1, -1.0, 1.0),
-        randomFloat(seed + 2, -1.0, 1.0)
+        randomFloat(seed + 1.0, -1.0, 1.0),
+        randomFloat(seed + 2.0, -1.0, 1.0)
         );
-        if (1e-160< dot(p, p) && dot(p, p) < 1.0)
-        return normalize(p);
+
+        float len2 = dot(p, p);
+        if (len2 > 1e-6 && len2 < 1.0)
+        {
+            return normalize(p);
+        }
     }
+
+    return normalize(vec3(0.0, 1.0, 0.0));
 }
 
 vec3 randomInHemisphere(vec3 normal)
