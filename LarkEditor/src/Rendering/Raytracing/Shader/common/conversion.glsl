@@ -55,6 +55,7 @@ Material getMaterial(uint index)
     mat.ior = data2.w;
     mat.transparency = data3.x;
     mat.metallic = data3.y;
+    mat.type = int(data3.z);
 
     return mat;
 }

@@ -354,8 +354,9 @@ private:
         RayTracingScene scene;
         
         PBRMaterial defaultMaterial;
+        defaultMaterial.type = MaterialType::Metal;
         defaultMaterial.albedo = glm::vec3(1.0f, 0.0f, 0.0f);
-        defaultMaterial.roughness = 0.2f;
+        defaultMaterial.roughness = 0.f;
         defaultMaterial.normal = glm::vec3(0.0f, 0.0f, 1.0f);
         defaultMaterial.ao = 1.0f;
         defaultMaterial.emissive = glm::vec3(0.0f);

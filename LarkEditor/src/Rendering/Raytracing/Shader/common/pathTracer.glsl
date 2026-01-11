@@ -61,11 +61,17 @@ vec3 pathTrace(Ray ray, int maxBounces)
         Ray scattered;
         bool didScatter = false;
 
-        // Currently will default to lamb
-        // TODO: Add the dielectric and metal
+        // TODO: Add the dielectric
         int matType = int(mat.type);
 
-        didScatter = scatterLambertian(mat, rec, attenuation, scattered);
+        if (matType == MAT_METAL)
+        {
+            didScatter = scatterMetal(mat, currentRay, rec, attenuation, scattered);
+        }
+        else
+        {
+            didScatter = scatterLambertian(mat, rec, attenuation, scattered);
+        }
 
         if (!didScatter)
         {

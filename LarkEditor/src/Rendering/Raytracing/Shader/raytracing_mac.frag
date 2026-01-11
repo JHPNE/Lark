@@ -23,7 +23,7 @@ uniform int u_MaterialCount;
 
 #include "common/structs.glsl"
 #include "common/conversion.glsl"
-#include "common/random.glsl"
+#include "common/reflection.glsl"
 #include "common/scatter.glsl"
 #include "common/intersection.glsl"
 #include "common/pathTracer.glsl"

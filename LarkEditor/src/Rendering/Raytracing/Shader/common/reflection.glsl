@@ -1,3 +1,4 @@
+// Diffuse random reflection
 uint hash(uint x) {
     x += (x << 10u);
     x ^= (x >>  6u);
@@ -54,4 +55,11 @@ vec3 randomInHemisphere(vec3 normal)
     return inUnitSphere;
     else
     return -inUnitSphere;
+}
+
+// Metal reflection
+
+vec3 reflectMetal(vec3 v, vec3 n)
+{
+    return v - 2*dot(v, n)*n;
 }

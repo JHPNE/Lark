@@ -489,9 +489,9 @@ private:
 
         MaterialInitializer materialInit;
         materialInit.material = PBRMaterial{
-            MaterialType::Lambertian,
+            MaterialType::Metal,
             glm::vec3(1.0f, 0.0f ,0.0f),
-            0.2f,
+            0.0f,
             glm::vec3(0.0f, 0.0f, 1.0f),
             1.0f,
             glm::vec3(0.0f),
