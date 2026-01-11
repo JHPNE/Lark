@@ -26,6 +26,9 @@ class Material : public Component, public ISerializable
             return true;
         };
 
+        void SetMaterialType(MaterialType type) {m_material.type = type;}
+        [[nodiscard]] MaterialType GetMaterialType() const {return m_material.type;}
+
         void SetAlbedo(glm::vec3 albedo) {m_material.albedo = albedo;}
         [[nodiscard]] glm::vec3 GetAlbedo() const { return m_material.albedo;}
 
@@ -50,10 +53,14 @@ class Material : public Component, public ISerializable
         void SetAO(float ao) {m_material.ao = ao;}
         [[nodiscard]] float GetAO() const { return m_material.ao;}
 
+        [[nodiscard]] const PBRMaterial& GetMaterialData() const { return m_material; }
+
         void Serialize(tinyxml2::XMLElement * element, SerializationContext &context) const override
         {
             WriteVersion(element);
 
+            uint32_t materialType = static_cast<uint32_t>(m_material.type);
+            SERIALIZE_PROPERTY(element, context, materialType);
             SERIALIZE_VEC3(context, element, "Albedo", m_material.albedo);
             SERIALIZE_PROPERTY(element, context, m_material.roughness);
             SERIALIZE_VEC3(context, element, "Normal", m_material.normal);
@@ -72,6 +79,10 @@ class Material : public Component, public ISerializable
                 context.AddError("Unsupported Material version: " + context.version.toString());
                 return false;
             }
+
+            uint32_t materialType;
+            DESERIALIZE_PROPERTY(element, context, materialType);
+            m_material.type = static_cast<MaterialType>(materialType);
 
             DESERIALIZE_VEC3(element, "Albedo", m_material.albedo, glm::vec3(1.0f));
             DESERIALIZE_PROPERTY(element, context, m_material.roughness);

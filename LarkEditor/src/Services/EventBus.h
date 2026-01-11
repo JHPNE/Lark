@@ -61,6 +61,11 @@ struct RendererChangedEvent : Event
     bool useRaytracing;
 };
 
+struct MaterialUpdatedEvent : Event
+{
+    uint32_t entityId;
+};
+
 class EventBus
 {
 public:

@@ -7,8 +7,10 @@
 #include "../Rendering/Raytracing/RaytracingRenderer.h"
 #include "../Project/Project.h"
 #include "../Components/Geometry.h"
+#include "../Components/Material.h"
 #include <memory>
 #include <vector>
+#include <unordered_map>
 #include <glm/gtx/matrix_decompose.hpp>
 #include "../Services/SelectionService.h"
 #include "Services/TransformService.h"
@@ -315,6 +317,14 @@ private:
             }
         );
 
+        EventBus::Get().Subscribe<MaterialUpdatedEvent>(
+            [this](const MaterialUpdatedEvent& e) {
+                if (IsRaytracingEnabled.Get()) {
+                    RebuildRaytracingScene();
+                }
+            }
+        );
+
         EventBus::Get().Subscribe<RendererChangedEvent>(
             [this](const RendererChangedEvent& e) {
                 SetRaytracingEnabled(e.useRaytracing);
@@ -352,6 +362,8 @@ private:
             return;
 
         RayTracingScene scene;
+
+        auto activeScene = m_project ? m_project->GetActiveScene() : nullptr;
         
         PBRMaterial defaultMaterial;
         defaultMaterial.type = MaterialType::Metal;
@@ -365,7 +377,7 @@ private:
         defaultMaterial.metallic = 0.2f;
         uint32_t defaultMatId = RaytracingRenderer::AddMaterial(scene, defaultMaterial);
 
-        // TODO: Get Material from Component
+        std::unordered_map<uint32_t, uint32_t> materialCache;
         
         for (const auto& [entityId, geomInstance] : m_model->GetAllGeometries())
         {
@@ -377,8 +389,30 @@ private:
                 continue;
 
             glm::mat4 transform = GetEntityTransform(entityId);
+
+            uint32_t materialId = defaultMatId;
+
+            if (activeScene)
+            {
+                if (auto entity = activeScene->GetEntity(entityId))
+                {
+                    if (auto* material = entity->GetComponent<Material>())
+                    {
+                        auto cached = materialCache.find(entityId);
+                        if (cached != materialCache.end())
+                        {
+                            materialId = cached->second;
+                        }
+                        else
+                        {
+                            materialId = RaytracingRenderer::AddMaterial(scene, material->GetMaterialData());
+                            materialCache.emplace(entityId, materialId);
+                        }
+                    }
+                }
+            }
             
-            RaytracingRenderer::AddGeometryToScene(scene, sceneData, transform, defaultMatId);
+            RaytracingRenderer::AddGeometryToScene(scene, sceneData, transform, materialId);
         }
 
         // TODO: Create Light Component and Get it from there aswell as displaying it in the editor

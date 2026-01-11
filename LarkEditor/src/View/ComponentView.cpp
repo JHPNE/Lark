@@ -336,65 +336,74 @@ void ComponentView::DrawMaterialComponent() {
         return;
     }
 
+    bool materialChanged = false;
+
     CustomWidgets::BeginPropertyTable();
 
-    glm::vec3 albedo = material->GetAlbedo();
+    const char* materialTypes[] = {
+        "Lambertian", "Metal", "Dielectric"
+    };
+    int currentType = static_cast<int>(m_viewModel->MaterialTypeUsed.Get());
+
+    ImGui::Text("Material Type");
+    ImGui::SameLine(Sizing::PropertyLabelWidth);
+    ImGui::PushItemWidth(Sizing::PropertyControlWidth);
+
+    if (ImGui::Combo("##MaterialType", &currentType, materialTypes, IM_ARRAYSIZE(materialTypes))) {
+        m_viewModel->MaterialTypeUsed.Set(static_cast<MaterialType>(currentType));
+        materialChanged = true;
+    }
+
+    ImGui::PopItemWidth();
+
+    glm::vec3 albedo = m_viewModel->MaterialAlbedo.Get();
     if (CustomWidgets::PropertyFloat3("Albedo", &albedo.x, "%.3f")) {
-        material->SetAlbedo(albedo);
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->MaterialAlbedo.Set(albedo);
+        materialChanged = true;
     }
 
-    float roughness = material->GetRoughness();
+    float roughness = m_viewModel->MaterialRoughness.Get();
     if (CustomWidgets::PropertyFloat("Roughness", &roughness, 0.0f, 1.0f, "%.3f")) {
-        material->SetRoughness(roughness);
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->MaterialRoughness.Set(roughness);
+        materialChanged = true;
     }
 
-    float ao = material->GetAO();
+    float ao = m_viewModel->MaterialAO.Get();
     if (CustomWidgets::PropertyFloat("AO", &ao, 0.0f, 1.0f, "%.3f")) {
-        material->SetAO(ao);
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->MaterialAO.Set(ao);
+        materialChanged = true;
     }
 
-    float metallic = material->GetMetallic();
+    float metallic = m_viewModel->MaterialMetallic.Get();
     if (CustomWidgets::PropertyFloat("Mettalic", &metallic, 0.0f, 1.0f, "%.3f")) {
-        material->SetMetallic(metallic);
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->MaterialMetallic.Set(metallic);
+        materialChanged = true;
     }
 
-    glm::vec3 emissive = material->GetEmissive();
+    glm::vec3 emissive = m_viewModel->MaterialEmissive.Get();
     if (CustomWidgets::PropertyFloat3("Emissive", &emissive.x, "%.3f")) {
-        material->SetEmissive(emissive);
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->MaterialEmissive.Set(emissive);
+        materialChanged = true;
     }
 
-    float ior = material->GetIOR();
+    float ior = m_viewModel->MaterialIOR.Get();
     if (CustomWidgets::PropertyFloat("IOR", &ior, 1.0f, 3.0f, "%.3f")) {
-        material->SetIOR(ior);
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->MaterialIOR.Set(ior);
+        materialChanged = true;
     }
 
-    float transparency = material->GetTransparency();
+    float transparency = m_viewModel->MaterialTransparency.Get();
     if (CustomWidgets::PropertyFloat("Transparency", &transparency, 0.0f, 1.0f, "%.3f")) {
-        material->SetTransparency(transparency);
-        if (auto scene = m_viewModel->SelectedEntity.Get()->GetScene().lock()) {
-            scene->UpdateEntity(m_viewModel->SelectedEntity.Get()->GetID());
-        }
+        m_viewModel->MaterialTransparency.Set(transparency);
+        materialChanged = true;
     }
 
     CustomWidgets::EndPropertyTable();
+
+    if (materialChanged)
+    {
+        m_viewModel->UpdateMaterialCommand->Execute();
+    }
 
     ImGui::Spacing();
 

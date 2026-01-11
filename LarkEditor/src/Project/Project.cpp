@@ -345,6 +345,7 @@ bool Project::Deserialize(const tinyxml2::XMLElement *element, SerializationCont
                         transform->Deserialize(compElement, context);
                     }
                 }
+                // TODO: simplify but not for ATCG
                 else if (compName == "Script")
                 {
                     HandleScriptDeserialization(compElement, entity, context);
@@ -356,6 +357,10 @@ bool Project::Deserialize(const tinyxml2::XMLElement *element, SerializationCont
                 else if (compName == "Physic")
                 {
                     HandlePhysicDeserialization(compElement, entity, context);
+                }
+                else if (compName == "Material")
+                {
+                    HandleMaterialDeserialization(compElement, entity, context);
                 }
             }
 

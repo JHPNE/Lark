@@ -43,6 +43,7 @@ public:
 
     // Material Component Properties
     ObservableProperty<bool> HasMaterial{false};
+    ObservableProperty<MaterialType> MaterialTypeUsed{MaterialType::Lambertian};
     ObservableProperty<glm::vec3> MaterialAlbedo{glm::vec3(1.0f)};
     ObservableProperty<float> MaterialRoughness{0.5f};
     ObservableProperty<glm::vec3> MaterialNormal{glm::vec3(0.0f, 0.0f, 1.0f)};
@@ -87,6 +88,7 @@ public:
     std::unique_ptr<RelayCommand<>> AddDroneCommand;
     std::unique_ptr<RelayCommand<>> RemoveDroneCommand;
     std::unique_ptr<RelayCommand<>> AddMaterialCommand;
+    std::unique_ptr<RelayCommand<>> UpdateMaterialCommand;
     std::unique_ptr<RelayCommand<>> RemoveMaterialCommand;
     std::unique_ptr<RelayCommand<control_abstraction>> UpdateDroneControlCommand;
     std::unique_ptr<RelayCommand<trajectory_type>> UpdateDroneTrajectoryCommand;
@@ -228,6 +230,11 @@ private:
         UpdateDroneTrajectoryCommand = std::make_unique<RelayCommand<trajectory_type>>(
             [this](trajectory_type type) { ExecuteUpdateDroneTrajectory(type); },
             [this](trajectory_type) { return HasDrone.Get(); }
+        );
+
+        UpdateMaterialCommand = std::make_unique<RelayCommand<>>(
+            [this]() { ExecuteUpdateMaterial(); },
+            [this]() { return HasMaterial.Get(); }
         );
 
         // Refresh command
@@ -434,6 +441,7 @@ private:
     void RefreshMaterialComponent(std::shared_ptr<GameEntity> entity) {
         if (auto* material = entity->GetComponent<Material>()) {
             HasMaterial = true;
+            MaterialTypeUsed = material->GetMaterialType();
             MaterialAlbedo = material->GetAlbedo();
             MaterialRoughness = material->GetRoughness();
             MaterialNormal = material->GetNormal();
@@ -444,6 +452,7 @@ private:
             MaterialMetallic = material->GetMetallic();
         } else {
             HasMaterial = false;
+            MaterialTypeUsed = MaterialType::Lambertian;
             MaterialAlbedo = glm::vec3(1.0f);
             MaterialRoughness = 0.5f;
             MaterialNormal = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -489,7 +498,7 @@ private:
 
         MaterialInitializer materialInit;
         materialInit.material = PBRMaterial{
-            MaterialType::Metal,
+            MaterialType::Lambertian,
             glm::vec3(1.0f, 0.0f ,0.0f),
             0.0f,
             glm::vec3(0.0f, 0.0f, 1.0f),
@@ -510,6 +519,37 @@ private:
 
             UpdateStatus("Material component added");
             Logger::Get().Log(MessageType::Info, "Added material component");
+        }
+    }
+
+    void ExecuteUpdateMaterial()
+    {
+        if (!SelectedEntity.Get() || !HasMaterial.Get()) return;
+
+        if (auto* material = SelectedEntity.Get()->GetComponent<Material>())
+        {
+            material->SetMaterialType(MaterialTypeUsed.Get());
+            material->SetAlbedo(MaterialAlbedo.Get());
+            material->SetRoughness(MaterialRoughness.Get());
+            material->SetNormal(MaterialNormal.Get());
+            material->SetAO(MaterialAO.Get());
+            material->SetEmissive(MaterialEmissive.Get());
+            material->SetIOR(MaterialIOR.Get());
+            material->SetTransparency(MaterialTransparency.Get());
+            material->SetMetallic(MaterialMetallic.Get());
+
+
+            if (m_project && m_project->GetActiveScene()) {
+                m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
+            }
+
+            RefreshMaterialComponent(SelectedEntity.Get());
+
+            MaterialUpdatedEvent event;
+            event.entityId = SelectedEntity.Get()->GetID();
+            EventBus::Get().Publish(event);
+
+            UpdateStatus("Material updated");
         }
     }
 

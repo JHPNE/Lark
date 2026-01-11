@@ -11,6 +11,7 @@ enum class MaterialType : uint32_t
     Dielectric = 2
 };
 
+// TODO: Remove attributes we are not using
 struct PBRMaterial
 {
     MaterialType type = MaterialType::Lambertian;
