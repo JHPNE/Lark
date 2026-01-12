@@ -543,8 +543,6 @@ private:
                 m_project->GetActiveScene()->UpdateEntity(SelectedEntity.Get()->GetID());
             }
 
-            RefreshMaterialComponent(SelectedEntity.Get());
-
             MaterialUpdatedEvent event;
             event.entityId = SelectedEntity.Get()->GetID();
             EventBus::Get().Publish(event);

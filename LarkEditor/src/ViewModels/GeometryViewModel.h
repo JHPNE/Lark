@@ -319,9 +319,7 @@ private:
 
         EventBus::Get().Subscribe<MaterialUpdatedEvent>(
             [this](const MaterialUpdatedEvent& e) {
-                if (IsRaytracingEnabled.Get()) {
-                    RebuildRaytracingScene();
-                }
+                RebuildRaytracingScene();
             }
         );
 
@@ -415,29 +413,6 @@ private:
             RaytracingRenderer::AddGeometryToScene(scene, sceneData, transform, materialId);
         }
 
-        // TODO: Create Light Component and Get it from there aswell as displaying it in the editor
-        if (scene.lights.empty())
-        {
-            RaytracingLight light;
-            light.type = LightType::Point;
-            light.position = glm::vec3(1.0f, 1.0f, 1.0f);
-            light.direction = glm::vec3(0.0f, -1.0f, 0.0f);
-            light.color = glm::vec3(1.0f, 1.0f, 1.0f);
-            light.intensity = 10.0f;
-            light.radius = 0.5f;
-            RaytracingRenderer::AddLight(scene, light);
-
-            RaytracingLight light2;
-            light2.type = LightType::Point;
-            light2.position = glm::vec3(1.0f, 5.0f, 1.0f);
-            light2.direction = glm::vec3(0.0f, 1.0f, 0.0f);
-            light2.color = glm::vec3(1.0f, 1.0f, 1.0f);
-            light2.intensity = 10.0f;
-            light2.radius = 0.5f;
-            RaytracingRenderer::AddLight(scene, light2);
-        }
-
-        // Upload scene to GPU
         RaytracingRenderer::UploadScene(scene);
         
         UpdateStatus("Raytracing scene rebuilt: " + 
