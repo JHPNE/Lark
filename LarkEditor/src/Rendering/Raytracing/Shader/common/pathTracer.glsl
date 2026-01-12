@@ -61,12 +61,15 @@ vec3 pathTrace(Ray ray, int maxBounces)
         Ray scattered;
         bool didScatter = false;
 
-        // TODO: Add the dielectric
         int matType = int(mat.type);
 
         if (matType == MAT_METAL)
         {
             didScatter = scatterMetal(mat, currentRay, rec, attenuation, scattered);
+        }
+        else if (matType == MAT_DIELECTRIC)
+        {
+            didScatter = scatterDielectric(mat, currentRay, rec, attenuation, scattered);
         }
         else
         {

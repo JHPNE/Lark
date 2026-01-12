@@ -57,9 +57,25 @@ vec3 randomInHemisphere(vec3 normal)
     return -inUnitSphere;
 }
 
-// Metal reflection
 
-vec3 reflectMetal(vec3 v, vec3 n)
+vec3 reflect(vec3 v, vec3 n)
 {
     return v - 2*dot(v, n)*n;
+}
+
+// Dielectrics refraction
+vec3 refract(vec3 uv, vec3 n, float etai_over_etat)
+{
+    float cosTheta = min(dot(-uv, n), 1.0);
+    vec3 rOutPerp = etai_over_etat * (uv + cosTheta * n);
+    vec3 rOutParallel = -sqrt(abs(1.0 - dot(rOutPerp, rOutPerp))) * n;
+    return rOutPerp + rOutParallel;
+}
+
+// Schlick Approximation
+float reflectance(float cosine, float ri)
+{
+    float r0 = (1.0 - ri) / (1.0 + ri);
+    r0 = r0 * r0;
+    return r0 + (1.0 - r0) * pow((1.0 - cosine), 5.0);
 }
