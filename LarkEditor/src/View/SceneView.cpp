@@ -3,6 +3,7 @@
 #include "Style/CustomWidgets.h"
 #include "Style/CustomWindow.h"
 #include <imgui.h>
+#include <imgui_internal.h>
 
 using namespace LarkStyle;
 
@@ -13,7 +14,8 @@ SceneView::SceneView()
 
 SceneView::~SceneView() = default;
 
-void SceneView::SetActiveProject(std::shared_ptr<Project> activeProject){
+void SceneView::SetActiveProject(std::shared_ptr<Project> activeProject)
+{
     if (m_viewModel) {
         m_viewModel->SetProject(activeProject);
     }
@@ -26,7 +28,7 @@ void SceneView::Draw()
 
     CustomWindow::WindowConfig config;
     config.title = "Scene Manager";
-    config.icon = "◈";  // Optional icon, can be empty
+    config.icon = "◈";
     config.p_open = &m_show;
     config.allowDocking = true;
     config.defaultSize = ImVec2(350, 600);
@@ -37,7 +39,6 @@ void SceneView::Draw()
         {
             m_viewModel->AddSceneCommand->Execute();
         }
-
         CustomWidgets::Separator();
 
         const auto& hierarchy = m_viewModel->SceneHierarchy.Get();
@@ -52,123 +53,108 @@ void SceneView::Draw()
 
 void SceneView::DrawSceneNode(const SceneNodeData& node)
 {
+    ImGui::PushID(static_cast<int>(node.id));
+
     if (node.isScene)
     {
         // Scene node
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen |
                                   ImGuiTreeNodeFlags_OpenOnArrow |
-                                  ImGuiTreeNodeFlags_SpanAvailWidth;
+                                  ImGuiTreeNodeFlags_SpanAvailWidth |
+                                  ImGuiTreeNodeFlags_FramePadding;
 
-        if (node.isActive) {
+        if (node.isActive)
+        {
             ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentWarning);
         }
 
-        bool nodeOpen = ImGui::TreeNodeEx(
-            (node.name + "##" + std::to_string(node.id)).c_str(),
-            flags);
+        bool nodeOpen = ImGui::TreeNodeEx("##scene", flags, "%s", node.name.c_str());
 
         if (node.isActive)
         {
             ImGui::PopStyleColor();
         }
 
-        // Context menu
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        if (ImGui::BeginPopupContextItem("SceneContextMenu"))
         {
-            ImGui::OpenPopup(("SceneContext##" + std::to_string(node.id)).c_str());
+            if (ImGui::MenuItem("Set Active")) {
+                m_viewModel->SetActiveSceneCommand->Execute(node.id);
+            }
+            if (ImGui::MenuItem("Delete")) {
+                m_viewModel->RemoveSceneCommand->Execute(node.id);
+            }
+            ImGui::EndPopup();
         }
-        DrawSceneContextMenu(node.id);
 
         // Single click to set active
-        if (ImGui::IsItemClicked() && !node.isActive)
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !node.isActive)
         {
             m_viewModel->SetActiveSceneCommand->Execute(node.id);
         }
 
         if (nodeOpen)
         {
-            // Add Entity button
-            ImGui::Indent();
             if (node.isActive)
             {
-                if (CustomWidgets::Button(("+ Add Entity##" + std::to_string(node.id)).c_str(),
-                                         ImVec2(120, 24)))
+                if (CustomWidgets::Button("+ Add Entity", ImVec2(120, 24)))
                 {
                     m_viewModel->AddEntityCommand->Execute();
                 }
             }
 
-            // Draw entities
+            // Draw child entities
             for (const auto& entityNode : node.children)
             {
                 DrawSceneNode(entityNode);
             }
-            ImGui::Unindent();
+
             ImGui::TreePop();
         }
     }
     else
     {
-        int pushedColors = 0;
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf |
+                                   ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                                   ImGuiTreeNodeFlags_SpanAvailWidth;
 
-        // Entity node with custom styling
+        if (node.isSelected) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+
+        int styleColorCount = 0;
+
         if (!node.isEnabled) {
             ImGui::PushStyleColor(ImGuiCol_Text, Colors::TextDisabled);
-            pushedColors++;
+            styleColorCount++;
         }
 
         if (node.isSelected) {
             ImGui::PushStyleColor(ImGuiCol_Header, Colors::AccentActive);
             ImGui::PushStyleColor(ImGuiCol_HeaderHovered, Colors::AccentHover);
             ImGui::PushStyleColor(ImGuiCol_HeaderActive, Colors::Accent);
-            pushedColors += 3;
+            styleColorCount += 3;
         }
 
-        std::string label = node.name + "##" + std::to_string(node.id);
-        if (ImGui::Selectable(label.c_str(), node.isSelected)) {
+        ImGui::TreeNodeEx("##entity", flags, "%s", node.name.c_str());
+
+        if (styleColorCount > 0) {
+            ImGui::PopStyleColor(styleColorCount);
+        }
+
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
             m_viewModel->SelectEntityCommand->Execute(node.id);
         }
-
-        if (pushedColors > 0) {
-            ImGui::PopStyleColor(pushedColors);
+        if (ImGui::BeginPopupContextItem("EntityContextMenu"))
+        {
+            if (ImGui::MenuItem("Toggle Enabled")) {
+                m_viewModel->ToggleEntityEnabledCommand->Execute(node.id);
+            }
+            if (ImGui::MenuItem("Delete")) {
+                m_viewModel->RemoveEntityCommand->Execute(node.id);
+            }
+            ImGui::EndPopup();
         }
-
-        // Context menu
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-            ImGui::OpenPopup(("EntityContext##" + std::to_string(node.id)).c_str());
-        }
-        DrawEntityContextMenu(node.id);
     }
-}
 
-void SceneView::DrawEntityContextMenu(uint32_t entityId)
-{
-    if (ImGui::BeginPopup(("EntityContext##" + std::to_string(entityId)).c_str()))
-    {
-        if (ImGui::MenuItem("Toggle Enabled"))
-        {
-            m_viewModel->ToggleEntityEnabledCommand->Execute(entityId);
-        }
-        if (ImGui::MenuItem("Delete"))
-        {
-            m_viewModel->RemoveEntityCommand->Execute(entityId);
-        }
-        ImGui::EndPopup();
-    }
-}
-
-void SceneView::DrawSceneContextMenu(uint32_t sceneId)
-{
-    if (ImGui::BeginPopup(("SceneContext##" + std::to_string(sceneId)).c_str()))
-    {
-        if (ImGui::MenuItem("Set Active"))
-        {
-            m_viewModel->SetActiveSceneCommand->Execute(sceneId);
-        }
-        if (ImGui::MenuItem("Delete"))
-        {
-            m_viewModel->RemoveSceneCommand->Execute(sceneId);
-        }
-        ImGui::EndPopup();
-    }
+    ImGui::PopID();
 }
