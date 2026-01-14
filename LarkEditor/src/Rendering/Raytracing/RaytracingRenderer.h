@@ -20,7 +20,6 @@ public:
         uint32_t materialId = 0);
 
     static uint32_t AddMaterial(RayTracingScene& scene, const PBRMaterial& material);
-    static void AddLight(RayTracingScene& scene, const RaytracingLight& light);
 
     static void Render(
         const glm::vec3& cameraPos,

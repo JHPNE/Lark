@@ -1,19 +1,3 @@
-Light getLight(int index)
-{
-    Light light;
-    int baseIndex = index * 4;
-
-    light.pos = texelFetch(u_LightData, baseIndex + 0).xyz;
-    light.dir = texelFetch(u_LightData, baseIndex + 1).xyz;
-    light.color = texelFetch(u_LightData, baseIndex + 2).xyz;
-
-    vec4 params = texelFetch(u_LightData, baseIndex + 3);
-    light.intsensity = params.x;
-    light.radius = params.y;
-
-    return light;
-}
-
 Triangle getTriangle(int index)
 {
     Triangle tri;

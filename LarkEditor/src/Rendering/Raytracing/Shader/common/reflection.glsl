@@ -27,7 +27,7 @@ float randomFloat(float seed, float min, float max)
 
 vec3 randomUnitVector()
 {
-    float baseSeed = dot(gl_FragCoord.xy, vec2(1.0, 4096.0));
+    float baseSeed = dot(gl_FragCoord.xy, vec2(1.0, 4096.0)) + g_SampleSeed;
 
     for (int i = 0; i < 8; ++i)
     {

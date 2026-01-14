@@ -23,7 +23,6 @@ public:
 
     int GetTriangleCount() const override { return m_TriangleCount; }
     int GetMaterialCount() const override { return m_MaterialCount; }
-    int GetLightCount() const override { return m_LightCount; }
 
 private:
     bool CreateShaders();
@@ -35,11 +34,9 @@ private:
     GLuint m_QuadVBO = 0;
     GLuint m_TriangleSSBO = 0;
     GLuint m_MaterialSSBO = 0;
-    GLuint m_LightSSBO = 0;
 
     int m_TriangleCount = 0;
     int m_MaterialCount = 0;
-    int m_LightCount = 0;
     bool m_Initialized = false;
 
     static const std::string s_VertexShaderPath;

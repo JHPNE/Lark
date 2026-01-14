@@ -3,14 +3,12 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include "GeometryConverter.h"
-#include "RaytracingLight.h"
 #include "../Materials/PBRMaterial.h"
 
 struct RayTracingScene
 {
     std::vector<Triangle> triangles;
     std::vector<PBRMaterial> materials;
-    std::vector<RaytracingLight> lights;
 
     glm::vec3 backgroundColor = glm::vec3(0.1f, 0.1f, 0.2f);
     glm::vec3 ambientColor = glm::vec3(0.1f, 0.1f, 0.15f);
@@ -41,5 +39,4 @@ public:
 
     virtual int GetTriangleCount() const = 0;
     virtual int GetMaterialCount() const = 0;
-    virtual int GetLightCount() const = 0;
 };

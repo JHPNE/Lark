@@ -9,6 +9,14 @@ entities and behaviors. Lark is a learning project and still on going.
 
 ![Editor](Assets/dem2.png)
 
+## Pathtracing
+
+Added a simple Pathtracer using a Material Component. Supported Materials Lambertian, Metal and Dielectric.
+
+![Wireframe](Assets/wireframe.png)
+
+![Raytraced](Assets/raytraced.png)
+
 ## Important!!
 
 Old Implementation guide below not up to date.

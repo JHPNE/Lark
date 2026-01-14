@@ -111,8 +111,3 @@ uint32_t RaytracingRenderer::AddMaterial(RayTracingScene& scene, const PBRMateri
     scene.materials.push_back(material);
     return index;
 }
-
-void RaytracingRenderer::AddLight(RayTracingScene& scene, const RaytracingLight& light)
-{
-    scene.lights.push_back(light);
-}

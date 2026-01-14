@@ -10,15 +10,6 @@ struct Triangle
     uint materialId;
 };
 
-struct Light
-{
-    vec3 pos;
-    vec3 dir;
-    vec3 color;
-    float intsensity;
-    float radius;
-};
-
 struct Material
 {
     vec3 albedo;

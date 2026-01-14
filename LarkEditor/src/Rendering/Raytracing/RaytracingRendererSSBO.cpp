@@ -79,16 +79,9 @@ void RaytracingRendererSSBO::Shutdown()
         glDeleteBuffers(1, &m_MaterialSSBO);
         m_MaterialSSBO = 0;
     }
-    
-    if (m_LightSSBO)
-    {
-        glDeleteBuffers(1, &m_LightSSBO);
-        m_LightSSBO = 0;
-    }
-    
+
     m_TriangleCount = 0;
     m_MaterialCount = 0;
-    m_LightCount = 0;
     m_Initialized = false;
     
     printf("[RaytracingRendererSSBO] Shutdown complete\n");
@@ -139,8 +132,7 @@ void RaytracingRendererSSBO::CreateSSBOs()
 {
     glGenBuffers(1, &m_TriangleSSBO);
     glGenBuffers(1, &m_MaterialSSBO);
-    glGenBuffers(1, &m_LightSSBO);
-    
+
     printf("[RaytracingRendererSSBO] SSBOs created\n");
 }
 
@@ -176,22 +168,11 @@ void RaytracingRendererSSBO::UploadScene(const RayTracingScene& scene)
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_MaterialSSBO);
     }
     
-    // Upload lights
-    m_LightCount = static_cast<int>(scene.lights.size());
-    if (m_LightCount > 0)
-    {
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_LightSSBO);
-        glBufferData(GL_SHADER_STORAGE_BUFFER,
-                     scene.lights.size() * sizeof(RaytracingLight),
-                     scene.lights.data(),
-                     GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_LightSSBO);
-    }
-    
+
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     
     printf("[RaytracingRendererSSBO] Scene uploaded: %d triangles, %d materials, %d lights\n",
-           m_TriangleCount, m_MaterialCount, m_LightCount);
+           m_TriangleCount, m_MaterialCount);
 }
 
 void RaytracingRendererSSBO::Render(
@@ -230,8 +211,7 @@ void RaytracingRendererSSBO::Render(
     // Set scene counts
     glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_TriangleCount"), m_TriangleCount);
     glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_MaterialCount"), m_MaterialCount);
-    glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_LightCount"), m_LightCount);
-    
+
     // Draw fullscreen quad
     glBindVertexArray(m_QuadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);

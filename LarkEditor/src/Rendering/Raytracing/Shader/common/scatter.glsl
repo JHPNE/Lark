@@ -38,7 +38,7 @@ bool scatterDielectric(Material mat, Ray rayIn, HitRecord rec, out vec3 attenuat
     bool cannotRefract = ri * sinTheta > 1.0;
 
     vec3 direction;
-    if (cannotRefract || reflectance(cosTheta, ri) > randomFloat(dot(gl_FragCoord.xy, vec2(1.0, 4096.0)), -1.0, 1.0))
+    if (cannotRefract || reflectance(cosTheta, ri) > randomFloat(dot(gl_FragCoord.xy, vec2(1.0, 4096.0)) + g_SampleSeed, -1.0, 1.0))
     {
         direction = reflect(unitDirection, rec.normal);
     }
@@ -50,7 +50,7 @@ bool scatterDielectric(Material mat, Ray rayIn, HitRecord rec, out vec3 attenuat
 
     float bias = 0.001;
     if (cannotRefract || reflectance(cosTheta, ri) >
-    randomFloat(dot(gl_FragCoord.xy, vec2(1.0, 4096.0)) + 69, -1.0, 1.0))
+    randomFloat(dot(gl_FragCoord.xy, vec2(1.0, 4096.0)) + 69.0 + g_SampleSeed, -1.0, 1.0))
     {
         scattered.origin = rec.point + rec.normal * bias;
     }

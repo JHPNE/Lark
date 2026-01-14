@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <chrono>
 
 // Shader paths - adjust these paths as needed
 const std::string RaytracingRendererTBO::s_VertexShaderPath =
@@ -19,6 +20,9 @@ bool RaytracingRendererTBO::Initialize()
     }
 
     printf("[RaytracingRendererTBO] Initializing with Texture Buffer Objects...\n");
+
+    m_Rng.seed(static_cast<uint32_t>(
+        std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 
     // Query TBO limits
     GLint maxTBOSize;
@@ -94,21 +98,8 @@ void RaytracingRendererTBO::Shutdown()
         m_MaterialBuffer = 0;
     }
 
-    // Delete light TBO resources
-    if (m_LightTBO)
-    {
-        glDeleteTextures(1, &m_LightTBO);
-        m_LightTBO = 0;
-    }
-    if (m_LightBuffer)
-    {
-        glDeleteBuffers(1, &m_LightBuffer);
-        m_LightBuffer = 0;
-    }
-
     m_TriangleCount = 0;
     m_MaterialCount = 0;
-    m_LightCount = 0;
     m_Initialized = false;
 
     printf("[RaytracingRendererTBO] Shutdown complete\n");
@@ -165,34 +156,7 @@ void RaytracingRendererTBO::CreateTBOs()
     glGenBuffers(1, &m_MaterialBuffer);
     glGenTextures(1, &m_MaterialTBO);
 
-    // Create light TBO
-    glGenBuffers(1, &m_LightBuffer);
-    glGenTextures(1, &m_LightTBO);
-
     printf("[RaytracingRendererTBO] TBOs created\n");
-}
-
-// TODO: Add a TriangleTBOGPU struct with a FromTriangle method
-std::vector<TriangleTBOData> RaytracingRendererTBO::PackTrianglesForTBO(const std::vector<Triangle>& triangles)
-{
-    std::vector<TriangleTBOData> tboData;
-    tboData.reserve(triangles.size());
-
-    for (const auto& tri : triangles)
-    {
-        TriangleTBOData data;
-        data.v0 = tri.v0;
-        data.v1 = tri.v1;
-        data.v2 = tri.v2;
-        data.n0 = tri.n0;
-        data.n1 = tri.n1;
-        data.n2 = tri.n2;
-        data.uvData0 = glm::vec4(tri.uv0, tri.uv1);
-        data.uvData1 = glm::vec4(tri.uv2, glm::uintBitsToFloat(tri.materialId), 0.0f);
-        tboData.push_back(data);
-    }
-
-    return tboData;
 }
 
 void RaytracingRendererTBO::UploadScene(const RayTracingScene& scene)
@@ -207,11 +171,11 @@ void RaytracingRendererTBO::UploadScene(const RayTracingScene& scene)
     m_TriangleCount = static_cast<int>(scene.triangles.size());
     if (m_TriangleCount > 0)
     {
-        auto tboData = PackTrianglesForTBO(scene.triangles);
+        auto tboData = TriangleTBOGPU::FromTBO(scene.triangles);
 
         glBindBuffer(GL_TEXTURE_BUFFER, m_TriangleBuffer);
         glBufferData(GL_TEXTURE_BUFFER,
-                     tboData.size() * sizeof(TriangleTBOData),
+                     tboData.size() * sizeof(TriangleTBOGPU),
                      tboData.data(),
                      GL_DYNAMIC_DRAW);
 
@@ -246,32 +210,7 @@ void RaytracingRendererTBO::UploadScene(const RayTracingScene& scene)
         glBindBuffer(GL_TEXTURE_BUFFER, 0);
     }
 
-    // Upload lights
-    m_LightCount = static_cast<int>(scene.lights.size());
-    if (m_LightCount > 0)
-    {
-        std::vector<RaytracingLightGPU> gpuLights;
-        gpuLights.reserve(scene.lights.size());
-        for (const auto& light : scene.lights)
-        {
-            gpuLights.push_back(RaytracingLightGPU::FromLight(light));
-        }
-
-        glBindBuffer(GL_TEXTURE_BUFFER, m_LightBuffer);
-        glBufferData(GL_TEXTURE_BUFFER,
-                     gpuLights.size() * sizeof(RaytracingLightGPU),
-                     gpuLights.data(),
-                     GL_DYNAMIC_DRAW);
-
-        glBindTexture(GL_TEXTURE_BUFFER, m_LightTBO);
-        glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, m_LightBuffer);
-
-        glBindTexture(GL_TEXTURE_BUFFER, 0);
-        glBindBuffer(GL_TEXTURE_BUFFER, 0);
-    }
-
-    printf("[RaytracingRendererTBO] Scene uploaded: %d triangles, %d materials, %d lights\n",
-           m_TriangleCount, m_MaterialCount, m_LightCount);
+    printf("[RaytracingRendererTBO] Scene uploaded: %d triangles, %d materials", m_TriangleCount, m_MaterialCount);
 }
 
 void RaytracingRendererTBO::Render(
@@ -307,10 +246,13 @@ void RaytracingRendererTBO::Render(
                 static_cast<float>(viewportWidth),
                 static_cast<float>(viewportHeight));
 
+    // Progressive sampling controls
+    glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_SamplesPerPixel"), m_SamplesPerPixel);
+    glUniform1f(glGetUniformLocation(m_ShaderProgram, "u_FrameSeed"), m_SeedDist(m_Rng));
+
     // Set scene counts
     glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_TriangleCount"), m_TriangleCount);
     glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_MaterialCount"), m_MaterialCount);
-    glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_LightCount"), m_LightCount);
 
     // Bind TBOs to texture units
     glActiveTexture(GL_TEXTURE0);
@@ -320,10 +262,6 @@ void RaytracingRendererTBO::Render(
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_BUFFER, m_MaterialTBO);
     glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_MaterialData"), 1);
-
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_BUFFER, m_LightTBO);
-    glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_LightData"), 2);
 
     // Draw fullscreen quad
     glBindVertexArray(m_QuadVAO);
