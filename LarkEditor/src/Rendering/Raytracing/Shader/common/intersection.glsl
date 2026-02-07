@@ -39,9 +39,10 @@ HitRecord intersectTriangle(Ray ray, int triIndex)
 
     // Interpolate normal using barycentric coordinates (extract xyz from vec4)
     float w = 1.0 - u - v;
-    rec.normal = normalize(w * tri.n0.xyz + u * tri.n1.xyz + v * tri.n2.xyz);
+    vec3 outwardNormal = normalize(w * tri.n0.xyz + u * tri.n1.xyz + v * tri.n2.xyz);
 
-    // TODO: front face for glass
+    rec.frontFace = dot(ray.direction, outwardNormal) < 0.0;
+    rec.normal = rec.frontFace ? outwardNormal : -outwardNormal;
 
     // Interpolate UVs
     rec.uv = w * tri.uv0 + u * tri.uv1 + v * tri.uv2;

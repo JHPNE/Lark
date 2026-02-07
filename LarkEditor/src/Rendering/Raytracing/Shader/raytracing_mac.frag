@@ -49,7 +49,7 @@ void main()
 
         Ray ray = generateRay(uv);
 
-        int maxBounces = 5;
+        int maxBounces = 8;
         vec3 color = pathTrace(ray, maxBounces);
 
         color = color / (color + vec3(1.0));

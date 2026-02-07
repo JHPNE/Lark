@@ -19,12 +19,8 @@ struct Triangle
 
 struct alignas(16) TriangleTBOGPU
 {
-    glm::vec4 v0;  // xyz = position, w unused
-    glm::vec4 v1;
-    glm::vec4 v2;
-    glm::vec4 n0;  // xyz = normal, w unused
-    glm::vec4 n1;
-    glm::vec4 n2;
+    glm::vec4 v0, v1, v2;
+    glm::vec4 n0, n1, n2;  // xyz = normal, w unused
     glm::vec4 uvData0;  // xy = uv0, zw = uv1
     glm::vec4 uvData1;  // xy = uv2, z = materialId (as float), w unused
 
